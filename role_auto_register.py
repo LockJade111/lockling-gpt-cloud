@@ -2,17 +2,18 @@
 
 from persona_registry import PERSONA_REGISTRY
 
-def register_from_intent(intent_name: str):
-    fallback_name = intent_name.strip().replace(" ", "")[:6]
-
-    if fallback_name not in PERSONA_REGISTRY:
-        PERSONA_REGISTRY[fallback_name] = {
-            "name": fallback_name,
-            "role": "未知角色",
-            "tone": "普通",
-            "permissions": ["read"],
-            "prompt": f"你是 {fallback_name}，一个自动生成的助手角色，请保持简洁回应并记录。"
+def register_from_intent(name: str) -> str:
+    try:
+        # 基础注册逻辑：写入一个默认角色设定
+        PERSONA_REGISTRY[name] = {
+            "name": name,
+            "role": "新注册角色",
+            "tone": "温和、默认",
+            "permissions": ["read"],  # 默认只读权限
+            "prompt": f"你是 {name}，一个刚刚诞生的 AI 助手，请根据用户指令开始服务。"
         }
-        print(f"[AUTO-REGISTER] 已自动注册新角色：{fallback_name}")
-
-    return fallback_name
+        print(f"[注册成功] 新角色 {name} 已写入 PERSONA_REGISTRY")
+        return name
+    except Exception as e:
+        print(f"[注册失败] {e}")
+        return "junshicat"  # 若失败，返回军师作为兜底角色
