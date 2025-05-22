@@ -28,22 +28,25 @@ class ChatRequest(BaseModel):
     persona: str = ""
 
 # ---------- GPT 通用调用函数 ----------
+# ✅ GPT 通用调用函数（适配 openai 1.x）
+from openai import OpenAI
+client = OpenAI()  # 新 SDK 初始化方式
+
 async def ask_gpt(prompt: str) -> dict:
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "你是结构化语义识别助手，只返回 JSON。"},
+                {"role": "system", "content": "你是结构化语义识别助手，只返回严格 JSON 格式"},
                 {"role": "user", "content": prompt}
             ]
         )
-        content = response["choices"][0]["message"]["content"]
+        content = response.choices[0].message.content
         print("🧠 GPT 返回：", content)
         return json.loads(content)
     except Exception as e:
-        print("❌ GPT调用异常：", e)
+        print("❌ GPT调用失败：", e)
         return {"error": str(e)}
-
 # ---------- GPT 抽取角色信息 ----------
 async def gpt_extract_role(message: str) -> dict:
     prompt = f"""用户说：{message}
