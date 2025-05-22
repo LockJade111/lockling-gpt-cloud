@@ -9,7 +9,7 @@ def register_from_intent(name: str) -> str:
             "name": name,
             "role": "新注册角色",
             "tone": "温和、默认",
-            "permissions": ["read", "schedule"],  # 默认包含调度权限
+            "permissions": ["read", "query", "schedule", "other", "write", "admin"],  # 默认包含调度权限
             "prompt": f"你是 {name}，一个刚刚诞生的 AI 助手，请根据用户指令开始服务。"
         }
         print(f"[注册成功] 新角色 {name} 已写入 PERSONA_REGISTRY")
