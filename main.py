@@ -1,3 +1,4 @@
+from persona_registry import PERSONA_REGISTRY, get_persona_response
 from fastapi import FastAPI, Request
 from openai_helper import ask_gpt
 from persona_registry import get_persona
@@ -11,13 +12,12 @@ async def chat(request: Request):
     message = data.get("message")
     persona_id = data.get("persona", "junshi")  # 默认是军师
 
-    persona = get_persona(persona_id)
+    persona = PERSONA_REGISTRY.get(persona_id, PERSONA_REGISTRY["lockling"])
     reply = await ask_gpt(message, persona)
-
-    # ✅ 正确插入在这里：
     await save_to_notion(persona["name"], message, reply)
+    styled_reply = get_persona_response(persona_id, reply)
 
     return {
-        "reply": reply,
+        "reply": styled_reply,
         "persona": persona["name"]
     }
