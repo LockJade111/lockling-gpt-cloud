@@ -9,7 +9,7 @@ PERSONA_REGISTRY = {
         "permissions": ["write", "read"],
         "prompt": lockling_prompt
     },
-    "junshi": {
+    "junshicat": {
         "name": "军师猫",
         "role": "智谋执行官",
         "tone": "冷静、理性、直击要害",
