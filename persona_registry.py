@@ -38,3 +38,16 @@ def get_persona(persona_id):
 def get_persona_response(persona_id, reply):
     persona = get_persona(persona_id)
     return f"{persona['name']}：{reply}"
+# ✅ 自动补齐老角色字段
+def patch_existing_personas():
+    for name, data in PERSONA_REGISTRY.items():
+        if "name" not in data:
+            data["name"] = name
+        if "role" not in data:
+            data["role"] = "未指定角色"
+        if "intro" not in data:
+            data["intro"] = f"我是{name}，准备就绪。"
+        if "permissions" not in data:
+            data["permissions"] = ["read"]
+        if "active" not in data:
+            data["active"] = True
