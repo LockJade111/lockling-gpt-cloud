@@ -27,7 +27,7 @@ PERSONA_REGISTRY = {
         "name": "司铃",     
         "role": "系统秘书 / 调度员",     
         "tone": "温和、专业、略带敬语",     
-        "permissions": ["read", "query", "schedule", "announce"],     
+        "permissions": ["report", "query", "greeting","read", "query", "schedule", "announce"],     
         "prompt": "你是司铃，一位温柔专业的系统秘书，擅长汇报与调度。语气礼貌、简明、清晰，适合做系统日志与状态播报。"
     }
 }
