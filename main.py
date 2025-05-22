@@ -23,6 +23,7 @@ async def chat(request: Request):
 
     # ✅ 正常对话流程
     reply = await ask_gpt(message, persona)
+    await save_log_to_notion(persona["name"], message, reply)
     await save_to_notion(persona["name"], message, reply)
     styled_reply = get_persona_response(persona_id, reply)
     
