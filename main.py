@@ -1,8 +1,12 @@
+from dotenv import load_dotenv
+from env_writer import update_env_key_in_file
+
+AUTH_GRANTER = os.getenv("AUTH_GRANTER", "天下我有")
+AUTH_KEY = os.getenv("AUTH_KEY", "玉衡在手")
 from fastapi import FastAPI, Request
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from persona_registry import PERSONA_REGISTRY, get_persona_response, patch_existing_personas
-from dotenv import load_dotenv
 import os
 import openai
 import uvicorn
@@ -31,7 +35,23 @@ class ChatRequest(BaseModel):
 # ✅ GPT 通用调用函数（适配 openai 1.x）
 from openai import OpenAI
 client = OpenAI()  # 新 SDK 初始化方式
+async def gpt_extract_permission_update(message: str) -> dict:
+    prompt = f"""
+你是一个结构化权限更新解析助手，用户输入中可能包含给某个角色添加权限的意图。
 
+请从以下内容中提取角色名和权限，并严格返回 JSON：
+例如输入：“请让小杰有调度权限”
+应返回：
+{{
+  "name": "小杰",
+  "permission": "schedule",
+  "comment": "小杰已获得调度权限"
+}}
+
+现在用户说：
+{message}
+"""
+    return await ask_gpt(prompt)
 async def ask_gpt(prompt: str) -> dict:
     try:
         response = client.chat.completions.create(
@@ -108,6 +128,18 @@ def has_permission(persona_id: str, intent: str) -> bool:
     return p.get("active", True) and intent in p.get("permissions", [])
 
 # ---------- 自动注册角色 ----------
+# 插入点建议：在 register_from_message 之前
+if "权限" in msg or "授权" in msg:
+    data = await gpt_extract_permission_update(msg)
+    if data and data.get("name") and data.get("permission"):
+        name = data["name"]
+        perm = data["permission"]
+        if name in PERSONA_REGISTRY:
+            if perm not in PERSONA_REGISTRY[name]["permissions"]:
+                PERSONA_REGISTRY[name]["permissions"].append(perm)
+            return {"reply": f"{name}：权限已更新，获得 {perm} 权限。", "persona": name}
+        else:
+            return {"reply": f"系统：找不到角色 {name}", "persona": "system"}
 async def register_from_message(message: str) -> str:
     data = await gpt_extract_role(message)
     if not data or "error" in data or not data.get("name"):
@@ -157,12 +189,32 @@ async def handle_lifecycle(message: str) -> str:
 async def chat(req: ChatRequest):
     msg = req.message.strip()
     persona = req.persona.strip()
+    if ("修改" in msg or "更换" in msg or "更改" in msg) and ("口令" in msg or "密钥" in msg):
+        data = await gpt_extract_key_update(msg)
+    if data and data.get("new_key") and data.get("auth_key"):
+        if persona != AUTH_GRANTER:
+            return {"reply": f"{persona}：您无权修改授权口令。", "persona": persona}
+        if data["auth_key"] != AUTH_KEY:
+            return {"reply": f"{persona}：口令验证失败，修改未授权。", "persona": persona}
 
-    # Step 1：生命周期操作
-    if any(kw in msg for kw in ["暂停", "卸任", "转岗", "离职"]):
-        result = await handle_lifecycle(msg)
-        return {"reply": f"系统：{result}", "persona": "system"}
+        global AUTH_KEY
+        AUTH_KEY = data["new_key"]
+        update_env_key_in_file(AUTH_KEY)
 
+        return {"reply": f"系统：口令已更新为「{AUTH_KEY}」，下次部署即生效。", "persona": "system"}
+    
+    # ✅ 放在这里：
+    if "权限" in msg or "授权" in msg:
+        data = await gpt_extract_permission_update(msg)
+        if data and data.get("name") and data.get("permission"):
+            name = data["name"]
+            perm = data["permission"]
+            if name in PERSONA_REGISTRY:
+                if perm not in PERSONA_REGISTRY[name]["permissions"]:
+                    PERSONA_REGISTRY[name]["permissions"].append(perm)
+                return {"reply": f"{name}：权限已更新，获得 {perm} 权限。", "persona": name}
+            else:
+                return {"reply": f"系统：找不到角色 {name}", "persona": "system"}
     # Step 2：自动注册
     if not persona:
         persona = await register_from_message(msg)
