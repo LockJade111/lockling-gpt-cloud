@@ -46,38 +46,29 @@ async def identify_intent(message: str) -> str:
 async def chat(request: Request):
     data = await request.json()
     message = data.get("message", "")
-    persona_id = data.get("persona", "").strip()
+    persona_id = data.get("persona", "").strip() or "junshi"
 
-    if not persona_id:
-        persona_id = await identify_persona_from_message(message)
-        print(f"[系统识别] 识别为 {persona_id}")
-
-    # ⛑ 自动注册（如果角色不存在）
+    # 若未识别到 persona_id，调用自动注册模块
     if persona_id not in PERSONA_REGISTRY:
-        print(f"[自动注册] 未知角色 {persona_id}，尝试注册中")
         persona_id = register_from_intent(persona_id)
 
-    # ✅ 再兜底检查
-    if persona_id not in PERSONA_REGISTRY:
-        print(f"[异常兜底] 角色 {persona_id} 注册失败，使用默认军师")
-        persona_id = "junshicat"
+    persona = PERSONA_REGISTRY.get(persona_id)
+    if not persona:
+        return {
+            "reply": "⚠️ 系统错误：无法识别角色信息，请稍后再试。",
+            "persona": "junshi"
+        }
 
-    persona = PERSONA_REGISTRY[persona_id]
-    intent = extract_intent(message)
+    intent = await identify_intent(message)
 
-    # 🔐 权限判断
     if not has_permission(persona_id, intent):
-        reply = f"{persona['name']}：对不起，您无权执行 {intent} 操作。"
-        await save_log_to_notion(persona["name"], message, reply)
-        return {"reply": reply, "persona": persona["name"]}
+        return {
+            "reply": f"{persona['name']}：对不起，您无权执行 {intent} 操作。",
+            "persona": persona["name"]
+        }
 
-    # 💬 GPT 回复生成
     reply = await ask_gpt(message, persona)
-
-    # 🧠 写入日志
     await save_log_to_notion(persona["name"], message, reply)
-
-    # ✨ 角色风格润色输出
     styled_reply = get_persona_response(persona_id, reply)
 
     return {
