@@ -16,10 +16,8 @@ async def chat(request: Request):
 
     # ✅ 权限判断逻辑（以关键词“调度”为例）
     if "调度" in message and not has_permission(persona_id, "schedule"):
-        return {
-            "reply": f"{persona['name']}：对不起，您无权执行调度模块。",
-            "persona": persona["name"]
-        }
+       
+        
 
     # ✅ 正常对话流程
     reply = await ask_gpt(message, persona)
