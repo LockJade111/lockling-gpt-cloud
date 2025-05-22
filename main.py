@@ -3,40 +3,53 @@ from permission_checker import has_permission
 from persona_registry import PERSONA_REGISTRY, get_persona_response
 from openai_helper import ask_gpt
 from notion_helper import save_to_notion
+from notion_persona_writer import save_log_to_notion
+import json
 
 app = FastAPI()
 
 @app.post("/chat")
 async def chat(request: Request):
+    # 获取原始输入
     data = await request.json()
     message = data.get("message")
-    persona_id = data.get("persona", "junshi")
+    user_input_persona = data.get("persona", "junshi")
+    
+    # GPT 联合识别角色与行为意图
+    recognition_prompt = f"""
+用户说：“{message}”
 
+请判断以下两点：
+1. 这句话的行为意图（只选一项）：schedule, query, control, greeting, report, other
+2. 用户想唤起哪个角色？从 ["junshi", "lockling", "silin", "xiaotudi"] 中选最接近的
+
+只返回标准JSON格式：{{"intent": "...", "persona": "..."}}，不能解释说明。
+"""
+
+    intent_data_raw = await ask_gpt(recognition_prompt, PERSONA_REGISTRY["junshi"])
+    intent_data = json.loads(intent_data_raw)
+
+    intent = intent_data.get("intent", "other").lower().strip()
+    persona_id = intent_data.get("persona", "lockling").lower().strip()
+
+    # 获取角色信息
     persona = PERSONA_REGISTRY.get(persona_id, PERSONA_REGISTRY["lockling"])
 
-    # 🧠 意图识别：让GPT判断行为类型
-    intent_prompt = (
-        f"请判断这句话属于哪种行为类型：调度、查询、控制、问候、播报、其他。\n"
-        f"只返回一个英文关键词（schedule, query, control, greeting, report, other），不要解释。\n"
-        f"\n输入：{message}\n输出："
-    )
-    intent = await ask_gpt(intent_prompt, persona)
-    intent = intent.lower().strip()
-
-    # ✅ 权限判断
+    # 权限判断
     if not has_permission(persona_id, intent):
         return {
             "reply": f"{persona['name']}：对不起，您无权执行 {intent} 操作。",
             "persona": persona["name"]
         }
 
-    # ✅ 正常对话流程
+    # GPT 回答
     reply = await ask_gpt(message, persona)
 
-    # ✅ 日志记录（含意图）
+    # 写入 Notion 日志系统
     await save_log_to_notion(persona["name"], message, reply, intent)
     await save_to_notion(persona["name"], message, reply)
 
+    # 风格语气化回复
     styled_reply = get_persona_response(persona_id, reply)
 
     return {
