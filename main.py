@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from openai_helper import ask_gpt
 from supabase_logger import write_log_to_supabase
 from intent_parser import parse_intent
-from intent_dispatcher import dispatch_intents  # 确保此模块存在
+from intent_dispatcher import dispatch_intents
 
 load_dotenv()
 
@@ -40,14 +40,9 @@ async def chat(request: Request):
             "persona": persona
         }
 
-    # 2. 调度处理
+    # 2. 意图调度处理
     try:
         dispatch_result = dispatch_intents(intent_result, persona)
-        return {
-            "reply": dispatch_result.get("reply", "✅ 操作完成"),
-            "intent": intent_result,
-            "persona": persona
-        }
     except Exception as e:
         return {
             "reply": f"❌ 调度失败: {str(e)}",
@@ -55,5 +50,23 @@ async def chat(request: Request):
             "persona": persona
         }
 
+    # 3. GPT 生成回复
+    try:
+        reply_text = ask_gpt(message, persona)
+    except Exception as e:
+        reply_text = f"[GPT ERROR] {str(e)}"
+
+    # 4. 写入 Supabase 日志
+    try:
+        await write_log_to_supabase(message, reply_text, persona)
+    except Exception as e:
+        print("⚠️ 日志写入失败:", e)
+
+    return {
+        "reply": reply_text,
+        "intent": intent_result,
+        "persona": persona
+    }
+
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=10000)
+    uvicorn.run("main:app", host="0.0.0.0", port=10000, reload=True)
