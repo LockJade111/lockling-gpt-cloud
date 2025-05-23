@@ -13,40 +13,17 @@ class ChatRequest(BaseModel):
     persona: str
 
 @app.post("/chat")
-async def chat(req: ChatRequest):
-    msg = req.message.strip()
-    persona = req.persona.strip()
+async def chat(payload: dict):
+    message = payload.get("message", "")
+    persona = payload.get("persona", "")
 
-    # ✅ 处理“修改密钥”请求
-    if "密钥" in msg and any(kw in msg for kw in ["修改", "设置", "更换", "改为", "更新", "换成"]):
-        print("[权限] 正在执行密钥更新判断")
-
-        if not is_authorized_speaker(persona, msg):
-            return {"reply": f"{persona}：您无权更改密钥。", "persona": "system"}
-
-        if not contains_valid_passphrase(msg):
-            return {"reply": "系统：未检测到有效口令，请说出授权密语。", "persona": "system"}
-
-        new_key = extract_passphrase(msg)
-        update_env_key_in_file(new_key)
-
-        return {
-            "reply": f"系统：口令已更新为「{new_key}」，下次部署即生效。",
-            "persona": "system"
-        }
-
-    # ✅ 处理“赋予权限”请求
-    if "赋予" in msg and "权限" in msg:
-        print("[权限] 正在执行权限分配逻辑")
-
-        data = await gpt_extract_permission_update(msg)
-        target = data.get("name")
-        requested_perm = data.get("permission")
-
+    # 权限分配指令识别
+    if "授权" in message and ("为" in message or "赋予" in message):
+        target, requested_perm = gpt_extract_permission_update(message)
         if not target or not requested_perm:
             return {"reply": "系统：解析失败，请明确角色与权限。", "persona": "system"}
 
-        if not is_authorized_speaker(persona, msg):
+        if not is_authorized_speaker(persona, message):
             return {"reply": f"{persona}：您无权为 {target} 分配权限。", "persona": "system"}
 
         if target not in PERSONA_REGISTRY:
@@ -59,13 +36,13 @@ async def chat(req: ChatRequest):
         return {"reply": f"{target}：权限已更新，获得 {requested_perm} 权限。", "persona": target}
 
     # ✅ 默认走 GPT 语义对话
-reply_text = await ask_gpt(msg, PERSONA_REGISTRY.get(persona, {}))
-response = {"reply": reply_text, "persona": persona}
+    reply_text = await ask_gpt(message, PERSONA_REGISTRY.get(persona, {}))
+    response = {"reply": reply_text, "persona": persona}
 
-# 写入 Notion 日志
-try:
-    write_log_to_notion(message, reply_text, persona)
-except Exception as e:
-    print("⚠️️ Notion 日志写入失败:", e)
+    # 写入 Notion 日志
+    try:
+        write_log_to_notion(message, reply_text, persona)
+    except Exception as e:
+        print("⚠️️ Notion 日志写入失败:", e)
 
-return response
+    return response
