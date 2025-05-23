@@ -4,14 +4,15 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
+from openai_helper import ask_gpt
+from supabase_logger import write_log_to_supabase
 from intent_parser import parse_intent
-from intent_dispatcher import dispatch_intents
+from intent_dispatcher import dispatch_intents  # 确保此模块存在
 
 load_dotenv()
 
 app = FastAPI()
 
-# 启用 CORS 跨域支持
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -27,24 +28,30 @@ async def chat(request: Request):
     persona = data.get("persona", "Lockling 锁灵")
 
     if not message:
-        return {"reply": "⚠️ message 不能为空", "persona": persona}
+        return {"reply": "[系统错误] message 不能为空", "persona": persona}
 
+    # 1. 意图识别
     try:
-        # ✅ 调用 parse_intent 获取意图
         intent_result = parse_intent(message, persona)
-
-        # ✅ 分发意图执行操作（如写入日志/排程等）
-        reply = await dispatch_intents(intent_result, persona) 
+    except Exception as e:
         return {
-            "reply": reply,
-            "intent": intent_result,
+            "reply": f"❌ 意图识别失败: {str(e)}",
+            "intent": {"intent": "unknown"},
             "persona": persona
         }
 
+    # 2. 调度处理
+    try:
+        dispatch_result = dispatch_intents(intent_result, persona)
+        return {
+            "reply": dispatch_result.get("reply", "✅ 操作完成"),
+            "intent": intent_result,
+            "persona": persona
+        }
     except Exception as e:
         return {
-            "reply": f"❌ 意图识别失败：{str(e)}",
-            "intent": {"intent": "unknown"},
+            "reply": f"❌ 调度失败: {str(e)}",
+            "intent": intent_result,
             "persona": persona
         }
 
