@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from finance_helper import log_finance
 
-from intent_parser import parse_intent
+intent_result = parse_intent(req.message, req.persona)
 from intent_dispatcher import dispatch_intents
 
 load_dotenv()
