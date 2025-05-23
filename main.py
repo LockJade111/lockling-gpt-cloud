@@ -129,17 +129,6 @@ def has_permission(persona_id: str, intent: str) -> bool:
 
 # ---------- 自动注册角色 ----------
 # 插入点建议：在 register_from_message 之前
-if "权限" in msg or "授权" in msg:
-    data = await gpt_extract_permission_update(msg)
-    if data and data.get("name") and data.get("permission"):
-        name = data["name"]
-        perm = data["permission"]
-        if name in PERSONA_REGISTRY:
-            if perm not in PERSONA_REGISTRY[name]["permissions"]:
-                PERSONA_REGISTRY[name]["permissions"].append(perm)
-            return {"reply": f"{name}：权限已更新，获得 {perm} 权限。", "persona": name}
-        else:
-            return {"reply": f"系统：找不到角色 {name}", "persona": "system"}
 async def register_from_message(message: str) -> str:
     data = await gpt_extract_role(message)
     if not data or "error" in data or not data.get("name"):
@@ -190,6 +179,19 @@ async def chat(req: ChatRequest):
     msg = req.message.strip()
     persona = req.persona.strip()
 
+    # ✅ 插入权限更新逻辑
+    if "权限" in msg or "授权" in msg:
+        data = await gpt_extract_permission_update(msg)
+        if data and data.get("name") and data.get("permission"):
+            name = data["name"]
+            perm = data["permission"]
+
+            if name in PERSONA_REGISTRY:
+                if perm not in PERSONA_REGISTRY[name]["permissions"]:
+                    PERSONA_REGISTRY[name]["permissions"].append(perm)
+                return {"reply": f"{name}：权限已更新，获得 {perm} 权限。", "persona": name}
+            else:
+                return {"reply": f"系统：找不到角色 {name}", "persona": "system"}
     if ("修改" in msg or "更换" in msg or "更改" in msg) and ("口令" in msg or "密钥" in msg):
         data = await gpt_extract_key_update(msg)
         if data and data.get("new_key") and data.get("auth_key"):
