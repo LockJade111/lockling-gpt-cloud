@@ -1,23 +1,27 @@
+# customer_helper.py
 from supabase import create_client
 import os
+from dotenv import load_dotenv
 from datetime import datetime
 
+load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-def log_customer(data: dict) -> str:
+# ✅ 确保有这个函数
+def log_customer_info(name, phone, address, service_desc, amount, handled_by):
     try:
-        payload = {
-            "name": data.get("name", "未知客户"),
-            "phone": data.get("phone", ""),
-            "address": data.get("address", ""),
-            "service_desc": data.get("service_desc", ""),
-            "amount": float(data.get("amount", 0)),
-            "created_at": datetime.now().isoformat(),
-            "handled_by": data.get("handled_by", "Lockling 锁灵")
+        data = {
+            "name": name,
+            "phone": phone,
+            "address": address,
+            "service_desc": service_desc,
+            "amount": amount,
+            "handled_by": handled_by,
+            "created_at": datetime.utcnow().isoformat()
         }
-        supabase.table("customers").insert(payload).execute()
-        return "✅ 客户服务记录已保存"
+        response = supabase.table("customers").insert(data).execute()
+        print("✅ 客户信息已记录:", response)
     except Exception as e:
-        return f"❌ 客户信息保存失败: {e}"
+        print("❌ 客户信息记录失败:", e)
