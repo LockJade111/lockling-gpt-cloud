@@ -189,20 +189,22 @@ async def handle_lifecycle(message: str) -> str:
 async def chat(req: ChatRequest):
     msg = req.message.strip()
     persona = req.persona.strip()
+
     if ("修改" in msg or "更换" in msg or "更改" in msg) and ("口令" in msg or "密钥" in msg):
         data = await gpt_extract_key_update(msg)
-    if data and data.get("new_key") and data.get("auth_key"):
-        if persona != AUTH_GRANTER:
-            return {"reply": f"{persona}：您无权修改授权口令。", "persona": persona}
-        if data["auth_key"] != AUTH_KEY:
-            return {"reply": f"{persona}：口令验证失败，修改未授权。", "persona": persona}
+        if data and data.get("new_key") and data.get("auth_key"):
+            global AUTH_KEY  # ✅ 声明修改的是全局变量
 
-        global AUTH_KEY
-        AUTH_KEY = data["new_key"]
-        update_env_key_in_file(AUTH_KEY)
+            if persona != AUTH_GRANTER:
+                return {"reply": f"{persona}：您无权修改授权口令。", "persona": persona}
 
-        return {"reply": f"系统：口令已更新为「{AUTH_KEY}」，下次部署即生效。", "persona": "system"}
-    
+            if data["auth_key"] != AUTH_KEY:
+                return {"reply": f"{persona}：口令验证失败，修改未授权。", "persona": persona}
+
+            AUTH_KEY = data["new_key"]
+            update_env_key_in_file(AUTH_KEY)
+
+            return {"reply": f"系统：口令已更新为「{AUTH_KEY}」，下次部署即生效。", "persona": "system"}
     # ✅ 放在这里：
     if "权限" in msg or "授权" in msg:
         data = await gpt_extract_permission_update(msg)
