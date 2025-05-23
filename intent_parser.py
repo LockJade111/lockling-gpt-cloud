@@ -10,10 +10,19 @@ def parse_intent(user_input: str, persona: str) -> dict:
 
 ```json
 {{
-  "intent": "...",                // 如：log_entry、query_logs、log_finance、schedule_service
-  "module": "...",                // 如：logs、finance、schedule、roles
-  "action": "...",                // 如：read、write、query、schedule
-  "persona": "{persona}",         // 系统会自动注入
-  "requires_permission": "..."    // 与 action 对应，如 write/query/finance
+  "intent": "...",
+  "module": "...",
+  "action": "...",
+  "persona": "{persona}",
+  "requires_permission": "..."
 }}
+
+常见意图示例：
+- “张先生电话1234567890，换了锁150元” → log_customer
+- “查王小姐服务记录” → query_customer
+- “今天收了240元” → log_finance
+- “安排李先生售后” → schedule_service
+- “查询日志” → query_logs
+
+返回标准 JSON，不解释。
 """
