@@ -1,48 +1,43 @@
-from notion_logger import write_log_to_notion
-from fastapi import FastAPI
-from pydantic import BaseModel
-from auth_core import is_authorized_speaker, contains_valid_passphrase, extract_passphrase
-from openai_helper import ask_gpt, gpt_extract_key_update
-from env_writer import update_env_key_in_file
-from persona_registry import PERSONA_REGISTRY
+import os
+import uvicorn
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from openai_helper import ask_gpt
+from supabase_logger import write_log_to_supabase
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = FastAPI()
 
-class ChatRequest(BaseModel):
-    message: str
-    persona: str
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.post("/chat")
-async def chat(payload: dict):
-    message = payload.get("message", "")
-    persona = payload.get("persona", "")
+async def chat(request: Request):
+    data = await request.json()
+    msg = data.get("message")
+    persona = data.get("persona", "Lockling 锁灵")
 
-    # 权限分配指令识别
-    if "授权" in message and ("为" in message or "赋予" in message):
-        target, requested_perm = gpt_extract_permission_update(message)
-        if not target or not requested_perm:
-            return {"reply": "系统：解析失败，请明确角色与权限。", "persona": "system"}
+    if not msg:
+        return {"reply": "[系统错误] message 为空", "persona": persona}
 
-        if not is_authorized_speaker(persona, message):
-            return {"reply": f"{persona}：您无权为 {target} 分配权限。", "persona": "system"}
-
-        if target not in PERSONA_REGISTRY:
-            return {"reply": f"系统：未找到角色 {target}。", "persona": "system"}
-
-        if requested_perm in PERSONA_REGISTRY[target]["permissions"]:
-            return {"reply": f"{target} 已拥有权限 {requested_perm}。", "persona": target}
-
-        PERSONA_REGISTRY[target]["permissions"].append(requested_perm)
-        return {"reply": f"{target}：权限已更新，获得 {requested_perm} 权限。", "persona": target}
-
-    # ✅ 默认走 GPT 语义对话
-    reply_text = await ask_gpt(message, PERSONA_REGISTRY.get(persona, {}))
-    response = {"reply": reply_text, "persona": persona}
-
-    # 写入 Notion 日志
     try:
-        write_log_to_notion(message, reply_text, persona)
+        reply_text = ask_gpt(msg, persona)
     except Exception as e:
-        print("⚠️️ Notion 日志写入失败:", e)
+        return {"reply": f"[GPT ERROR] {str(e)}", "persona": persona}
 
-    return response
+    try:
+        write_log_to_supabase(msg, reply_text, persona)
+    except Exception as e:
+        print("⚠️ Supabase 日志写入失败:", e)
+
+    return {"reply": reply_text, "persona": persona}
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
