@@ -25,7 +25,7 @@ app.add_middleware(
 @app.post("/chat")
 async def chat(request: Request):
     data = await request.json()
-    msg = data.get("message")
+    message = data.get("message")
     persona = data.get("persona", "Lockling 锁灵")
 
     if not msg:
@@ -33,7 +33,7 @@ async def chat(request: Request):
 
     # 意图解析
     try:
-        intent_result = parse_intents(msg, persona)
+        intent_result = parse_intents(message, persona)
     except Exception as e:
         return {
             "reply": f"❌ 意图识别失败：{str(e)}",
