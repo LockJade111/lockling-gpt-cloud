@@ -1,14 +1,14 @@
 from check_permission import check_permission
 from supabase_logger import write_log_to_supabase
 from finance_helper import log_finance
-from schedule_helper import schedule_event
-from customer_helper import log_customer_info  # 新增
+from schedule_helper import schedule_event, log_schedule
+from customer_helper import log_customer_info
 
 async def dispatch_intents(intent_result, message, persona):
     intent = intent_result["intent"]
     permission = intent_result.get("requires_permission", "")
 
-    # 权限判断
+    # 权限检查
     if not check_permission(persona, permission):
         return {
             "reply": f"⚠️ {persona} 没有权限执行该操作。",
@@ -20,28 +20,21 @@ async def dispatch_intents(intent_result, message, persona):
         if intent == "log_finance":
             await log_finance(
                 description=message,
-                amount=0,  # 后续支持 GPT 金额提取
+                amount=0,  # TODO: 从 message 中提取金额
                 category="收入",
                 created_by=persona
             )
             return {"reply": "✅ 财务信息已记录", "intent": intent_result}
 
         elif intent == "schedule_service":
-            await schedule_event(
-                what="售后服务",  # 可扩展解析具体服务
-                when="稍后",       # 可扩展识别时间
-                by=persona
+            await log_schedule(
+                customer_name="王先生",              # TODO: 可后续 GPT 提取
+                service_item="锁具售后",
+                scheduled_time="2025-05-26T10:00:00",  # 可改为动态时间提取
+                assigned_to="司铃",
+                created_by=persona
             )
-            return {"reply": "✅ 售后已安排，司铃将跟进", "intent": intent_result}
-
-        elif intent == "query_logs":
-            return {"reply": "📜（伪）日志查询功能待接入 Supabase 查询接口", "intent": intent_result}
-
-        elif intent == "grant_permission":
-            return {"reply": "🔐（伪）权限已赋予，功能待接入角色表更新", "intent": intent_result}
-
-        elif intent == "revoke_permission":
-            return {"reply": "🛑（伪）权限已撤销，功能待接入角色表更新", "intent": intent_result}
+            return {"reply": "✅ 售后服务已安排，已指派给司铃", "intent": intent_result}
 
         elif intent == "log_customer":
             await log_customer_info(
@@ -56,6 +49,15 @@ async def dispatch_intents(intent_result, message, persona):
 
         elif intent == "query_customer":
             return {"reply": "📋（伪）客户查询功能待上线", "intent": intent_result}
+
+        elif intent == "query_logs":
+            return {"reply": "📜（伪）日志查询功能待接入 Supabase 查询接口", "intent": intent_result}
+
+        elif intent == "grant_permission":
+            return {"reply": "🔐（伪）权限已赋予，功能待接入角色表更新", "intent": intent_result}
+
+        elif intent == "revoke_permission":
+            return {"reply": "🛑（伪）权限已撤销，功能待接入角色表更新", "intent": intent_result}
 
         else:
             return {"reply": "🤔 未识别的操作，或暂未支持该指令", "intent": intent_result}
