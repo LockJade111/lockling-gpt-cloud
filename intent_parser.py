@@ -1,5 +1,8 @@
+# intent_parser.py
+
 import openai
 import os
+import json
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
@@ -15,7 +18,7 @@ def parse_intent(user_input: str, persona: str) -> dict:
   "requires_permission": "read / write / query / schedule / finance / unknown"
 }}
 
-严格返回 JSON 格式，不要添加解释或多余语言。
+⚠️ 严格返回合法 JSON，不加任何注释或多余文字。
 """
 
     try:
@@ -28,11 +31,14 @@ def parse_intent(user_input: str, persona: str) -> dict:
             temperature=0.1,
         )
         result = response.choices[0].message["content"]
-        # 安全转换返回值
-        if result.strip().startswith("{") and result.strip().endswith("}"):
-            return eval(result)
-        else:
-            return {"intent": "unknown"}
+
+        # 尝试用 json.loads 解析，避免使用 eval 的安全风险
+        return json.loads(result.strip())
+    
+    except json.JSONDecodeError:
+        print("❌ GPT意图解析失败：返回结果不是合法JSON：", result)
+        return {"intent": "unknown"}
+
     except Exception as e:
-        print("❌ GPT意图解析失败:", e)
+        print("❌ GPT调用失败:", e)
         return {"intent": "unknown"}
