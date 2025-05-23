@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-from gpt_intent_parser import gpt_parse_intents
+from intent_parser import parse_intents
 from intent_dispatcher import dispatch_intents
 
 load_dotenv()
