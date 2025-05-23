@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from auth_core import is_authorized_speaker, contains_valid_passphrase, extract_passphrase
-from openai_helper import ask_gpt, gpt_extract_permission_update
+from openai_helper import ask_gpt, gpt_extract_key_update
 from env_writer import update_env_key_in_file
 from persona_registry import PERSONA_REGISTRY
 
