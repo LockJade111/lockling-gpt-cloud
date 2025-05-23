@@ -16,3 +16,4 @@ def parse_intent(user_input: str, persona: str) -> dict:
   "persona": "{persona}",         // 系统会自动注入
   "requires_permission": "..."    // 与 action 对应，如 write/query/finance
 }}
+"""
