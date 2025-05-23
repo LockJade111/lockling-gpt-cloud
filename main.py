@@ -1,3 +1,4 @@
+from notion_logger import write_log_to_notion
 from fastapi import FastAPI
 from pydantic import BaseModel
 from auth_core import is_authorized_speaker, contains_valid_passphrase, extract_passphrase
@@ -58,5 +59,13 @@ async def chat(req: ChatRequest):
         return {"reply": f"{target}：权限已更新，获得 {requested_perm} 权限。", "persona": target}
 
     # ✅ 默认走 GPT 语义对话
-    reply = await ask_gpt(msg, PERSONA_REGISTRY.get(persona, {}))
-    return {"reply": reply, "persona": persona}
+reply_text = await ask_gpt(msg, PERSONA_REGISTRY.get(persona, {}))
+response = {"reply": reply_text, "persona": persona}
+
+# 写入 Notion 日志
+try:
+    write_log_to_notion(message, reply_text, persona)
+except Exception as e:
+    print("⚠️️ Notion 日志写入失败:", e)
+
+return response
