@@ -34,8 +34,7 @@ async def chat(request: Request):
         intent_result = parse_intent(message, persona)
 
         # ✅ 分发意图执行操作（如写入日志/排程等）
-        reply = await dispatch_intents(intent_result, message)
-
+        reply = await dispatch_intents(intent_result, persona) 
         return {
             "reply": reply,
             "intent": intent_result,
