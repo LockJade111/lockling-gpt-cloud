@@ -39,10 +39,10 @@ async def chat(request: Request):
     intent_result = parse_intent(message, persona)
 
     # 防止返回 None
-    if not intent_result or not isinstance(intent_result, dict):
+    if not isinstance(intent_result, dict) or intent_result.get("intent") == "unknown":
         return {
             "reply": "❌ 意图识别失败：dispatch_intents() 无法识别结构",
-            "intent": {"intent": "unknown"},
+            "intent": intent_result,
             "persona": persona
         }
 
