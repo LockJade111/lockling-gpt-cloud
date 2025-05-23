@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from openai_helper import ask_gpt
 from supabase_logger import write_log_to_supabase
 from intent_parser import parse_intent
+from check_permission import check_permission
 from intent_dispatcher import dispatch_intents
 
 load_dotenv()
@@ -28,7 +29,11 @@ async def chat(request: Request):
     persona = data.get("persona", "Lockling 锁灵")
 
     if not message:
-        return {"reply": "[系统错误] message 不能为空", "persona": persona}
+        return {
+            "reply": "[系统错误] message 为空",
+            "intent": {"intent": "unknown"},
+            "persona": persona
+        }
 
     # 1. 意图识别
     try:
@@ -40,7 +45,16 @@ async def chat(request: Request):
             "persona": persona
         }
 
-    # 2. 意图调度处理
+    # 2. 权限检查
+    permission_required = intent_result.get("requires_permission", "")
+    if not check_permission(persona, permission_required):
+        return {
+            "reply": f"⚠️ {persona} 没有权限执行该操作。",
+            "intent": intent_result,
+            "persona": persona
+        }
+
+    # 3. 意图分发调度
     try:
         dispatch_result = dispatch_intents(intent_result, persona)
     except Exception as e:
@@ -50,13 +64,13 @@ async def chat(request: Request):
             "persona": persona
         }
 
-    # 3. GPT 生成回复
+    # 4. GPT 回复生成
     try:
         reply_text = ask_gpt(message, persona)
     except Exception as e:
         reply_text = f"[GPT ERROR] {str(e)}"
 
-    # 4. 写入 Supabase 日志
+    # 5. 日志写入 Supabase
     try:
         await write_log_to_supabase(message, reply_text, persona)
     except Exception as e:
