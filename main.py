@@ -11,7 +11,7 @@ load_dotenv()
 
 app = FastAPI()
 
-# 允许跨域（前端调试等）
+# 启用 CORS，方便前端或外部调用
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -24,19 +24,28 @@ app.add_middleware(
 async def chat(request: Request):
     data = await request.json()
     msg = data.get("message")
-    persona = data.get("persona", "Lockling 锁灵")
+    persona = data.get("persona", "Lockling 锁灵")  # 默认角色
 
     if not msg:
         return {"reply": "⚠️ message 不能为空", "persona": persona}
 
-    # 1. GPT结构化意图解析
+    # 1. 使用意图解析模块分析消息
     try:
-        intent_list = gpt_parse_intents(msg, persona)
+        intent_list = parse_intents(msg, persona)
     except Exception as e:
-        return {"reply": f"❌ GPT 意图识别失败：{str(e)}", "persona": persona}
+        return {
+            "reply": f"❌ 意图识别失败：{str(e)}",
+            "persona": persona
+        }
 
-    # 2. 意图派发（权限校验 + 行为执行）
-    dispatch_result = dispatch_intents(intent_list)
+    # 2. 根据意图执行任务（权限检查 + 模块调度）
+    try:
+        dispatch_result = dispatch_intents(intent_list)
+    except Exception as e:
+        return {
+            "reply": f"❌ 指令执行失败：{str(e)}",
+            "persona": persona
+        }
 
     return {
         "reply": "✅ 指令已识别并派发完毕",
