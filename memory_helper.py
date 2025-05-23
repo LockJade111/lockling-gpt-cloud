@@ -8,7 +8,10 @@ MEMORY_TABLE = os.getenv("SUPABASE_MEMORY_TABLE", "memory")
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-async def write_memory(persona, message, reply):
+async def save_memory(persona: str, message: str, reply: str):
+    """
+    保存用户对话到 Supabase memory 表
+    """
     try:
         supabase.table(MEMORY_TABLE).insert({
             "persona": persona,
