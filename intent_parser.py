@@ -30,19 +30,23 @@ def parse_intent(user_input: str, persona: str) -> dict:
         )
         content = response.choices[0].message["content"].strip()
 
-        # 尝试清理 JSON 格式（防止 GPT 返回多余符号）
+        # 清理 GPT 多余标记
         if content.startswith("```json"):
             content = content.replace("```json", "").strip()
         if content.endswith("```"):
             content = content.replace("```", "").strip()
 
-        # 解析为字典
-        result = json.loads(content)
-        # 如果不是字典或缺字段，标记 unknown
-        if not isinstance(result, dict) or "intent" not in result:
-            raise ValueError("格式不对")
-        return result
+        # 安全解析 JSON
+        try:
+            result = json.loads(content)
+            if isinstance(result, dict) and "intent" in result:
+                return result
+            else:
+                return {"intent": "unknown"}
+        except Exception as e:
+            print("⚠️ JSON解析失败：", e)
+            return {"intent": "unknown"}
 
     except Exception as e:
-        print("❌ GPT意图解析失败:", e)
+        print("❌ GPT调用失败：", e)
         return {"intent": "unknown"}
