@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from finance_helper import log_finance
 
 from intent_parser import parse_intent
-intent_result = parse_intent(req.message, req.persona)
+intent_result = parse_intent(message, persona)
 from intent_dispatcher import dispatch_intents
 
 load_dotenv()
