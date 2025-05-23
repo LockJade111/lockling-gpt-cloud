@@ -3,15 +3,15 @@ import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-from openai_helper import ask_gpt
-from supabase_logger import write_log_to_supabase
-from intent_parser import parse_intent
-from check_permission import check_permission
+
+from gpt_intent_parser import gpt_parse_intents
+from intent_dispatcher import dispatch_intents
 
 load_dotenv()
 
 app = FastAPI()
 
+# 允许跨域（前端调试等）
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -27,37 +27,21 @@ async def chat(request: Request):
     persona = data.get("persona", "Lockling 锁灵")
 
     if not msg:
-        return {"reply": "[系统错误] message 为空", "persona": persona}
+        return {"reply": "⚠️ message 不能为空", "persona": persona}
 
-    # 1. 意图解析
-    intent_result = parse_intent(msg, persona)
-
-    # 2. 权限判断
-    required_perm = intent_result.get("requires_permission", "")
-    if not check_permission(persona, required_perm):
-        return {
-            "reply": f"⚠️ {persona} 没有权限执行该操作。",
-            "intent": intent_result,
-            "persona": persona
-        }
-
-    # 3. GPT 生成回复
+    # 1. GPT结构化意图解析
     try:
-        reply_text = ask_gpt(msg, persona)
+        intent_list = gpt_parse_intents(msg, persona)
     except Exception as e:
-        return {"reply": f"[GPT 错误] {str(e)}", "persona": persona}
+        return {"reply": f"❌ GPT 意图识别失败：{str(e)}", "persona": persona}
 
-    # 4. 日志写入（仅在 intent 为 log_entry 或有 write 权限时）
-    if intent_result["intent"] == "log_entry" or "write" in required_perm:
-        try:
-            await write_log_to_supabase(msg, reply_text, persona)
-        except Exception as e:
-            print("⚠️ Supabase 日志写入失败:", e)
+    # 2. 意图派发（权限校验 + 行为执行）
+    dispatch_result = dispatch_intents(intent_list)
 
     return {
-        "reply": reply_text,
-        "intent": intent_result,
-        "persona": persona
+        "reply": "✅ 指令已识别并派发完毕",
+        "persona": persona,
+        "dispatch_result": dispatch_result
     }
 
 if __name__ == "__main__":
