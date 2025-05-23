@@ -4,14 +4,14 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-from intent_parser import parse_intent
+from intent_parser import parse_intents
 from intent_dispatcher import dispatch_intents
 
 load_dotenv()
 
 app = FastAPI()
 
-# 启用 CORS，方便前端或外部调用
+# 启用 CORS，支持跨域调用
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -24,34 +24,31 @@ app.add_middleware(
 async def chat(request: Request):
     data = await request.json()
     msg = data.get("message")
-    persona = data.get("persona", "Lockling 锁灵")  # 默认角色
+    persona = data.get("persona", "Lockling 锁灵")
 
     if not msg:
         return {"reply": "⚠️ message 不能为空", "persona": persona}
 
-    # 1. 使用意图解析模块分析消息
+    # 意图解析
     try:
-        intent_list = parse_intents(msg, persona)
+        intent_result = parse_intents(msg, persona)
     except Exception as e:
         return {
             "reply": f"❌ 意图识别失败：{str(e)}",
+            "intent": {"intent": "unknown"},
             "persona": persona
         }
 
-    # 2. 根据意图执行任务（权限检查 + 模块调度）
+    # 根据意图派发模块处理
     try:
-        dispatch_result = dispatch_intents(intent_list)
+        result = await dispatch_intents(intent_result, msg, persona)
+        return result
     except Exception as e:
         return {
-            "reply": f"❌ 指令执行失败：{str(e)}",
+            "reply": f"❌ 模块处理失败：{str(e)}",
+            "intent": intent_result,
             "persona": persona
         }
 
-    return {
-        "reply": "✅ 指令已识别并派发完毕",
-        "persona": persona,
-        "dispatch_result": dispatch_result
-    }
-
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
