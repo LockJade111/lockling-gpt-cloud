@@ -6,8 +6,8 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 
 def parse_intent(user_input: str, persona: str) -> dict:
     system_prompt = f"""
-你是 LockJade 云脑的“意图判断器”，请从用户自然语言中提取以下结构（用JSON返回）：
-
+你是 LockJade 云脑的“意图判断器”，请从用户自然语言中提取以下五个字段，并用 JSON 返回：
+```json
 {{
   "intent": "log_entry / query_logs / log_finance / schedule_service / unknown",
   "module": "logs / finance / schedule / roles / unknown",
@@ -15,8 +15,6 @@ def parse_intent(user_input: str, persona: str) -> dict:
   "persona": "{persona}",
   "requires_permission": "read / write / query / schedule / finance / unknown"
 }}
-
-只返回 JSON，不要加代码块符号、解释或注释。
 """
 
     try:
@@ -30,13 +28,12 @@ def parse_intent(user_input: str, persona: str) -> dict:
         )
         content = response.choices[0].message["content"].strip()
 
-        # 清理 GPT 多余标记
         if content.startswith("```json"):
             content = content.replace("```json", "").strip()
         if content.endswith("```"):
             content = content.replace("```", "").strip()
 
-        # 安全解析 JSON
+      
         try:
             result = json.loads(content)
             if isinstance(result, dict) and "intent" in result:
