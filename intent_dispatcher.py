@@ -1,61 +1,49 @@
 from check_permission import check_permission
 from supabase_logger import write_log_to_supabase
-from schedule_helper import schedule_event  # 如果你已实现安排模块
-from finance_helper import log_finance      # 如果你已实现财务模块
+from finance_helper import log_finance
+from schedule_helper import schedule_event
 
-def dispatch_intents(intent_list: list):
-    results = []
+async def dispatch_intents(intent_result, message, persona):
+    intent = intent_result["intent"]
+    permission = intent_result.get("requires_permission", "")
 
-    for intent_obj in intent_list:
-        role = intent_obj.get("role")
-        intent = intent_obj.get("intent")
-        fields = intent_obj.get("fields", {})
-        required_perm = intent_obj.get("requires_permission", "write")
+    # 权限判断
+    if not check_permission(persona, permission):
+        return {
+            "reply": f"⚠️ {persona} 没有权限执行该操作。",
+            "intent": intent_result
+        }
 
-        # 1. 权限判断
-        if not check_permission(role, required_perm):
-            results.append({
-                "role": role,
-                "intent": intent,
-                "status": "❌ 拒绝执行",
-                "reason": "权限不足"
-            })
-            continue
+    # 分发逻辑
+    try:
+        if intent == "log_finance":
+            await log_finance(
+                description=message,
+                amount=0,  # 可接入 GPT 提取金额的下一阶段功能
+                category="收入",
+                created_by=persona
+            )
+            return {"reply": "✅ 财务信息已记录", "intent": intent_result}
 
-        # 2. 调度任务
-        try:
-            if intent == "log_entry":
-                write_log_to_supabase(fields["message"], fields.get("response", ""), role)
+        elif intent == "schedule_service":
+            await schedule_event(
+                what="售后服务",  # 可改为GPT提取
+                when="稍后",      # 可接入具体时间
+                by=persona
+            )
+            return {"reply": "✅ 售后已安排，司铃将跟进", "intent": intent_result}
 
-            elif intent == "log_finance":
-                log_finance(role, fields)
+        elif intent == "query_logs":
+            return {"reply": "📜 （伪）日志查询功能待接入 Supabase 查询接口", "intent": intent_result}
 
-            elif intent == "create_schedule":
-                schedule_event(role, fields)
+        elif intent == "grant_permission":
+            return {"reply": "✅ （伪）权限已变更，功能待接入数据库写入", "intent": intent_result}
 
-            elif intent == "log_client":
-                write_log_to_supabase(fields["message"], "客户信息记录", role)
+        elif intent == "revoke_permission":
+            return {"reply": "✅ （伪）权限已移除，功能待接入数据库写入", "intent": intent_result}
 
-            else:
-                results.append({
-                    "role": role,
-                    "intent": intent,
-                    "status": "⚠️ 未知意图"
-                })
-                continue
+        else:
+            return {"reply": "🤔 未识别的操作，或暂未支持", "intent": intent_result}
 
-            results.append({
-                "role": role,
-                "intent": intent,
-                "status": "✅ 已执行"
-            })
-
-        except Exception as e:
-            results.append({
-                "role": role,
-                "intent": intent,
-                "status": "❌ 执行失败",
-                "error": str(e)
-            })
-
-    return results
+    except Exception as e:
+        return {"reply": f"❌ 分发模块错误：{str(e)}", "intent": intent_result}
