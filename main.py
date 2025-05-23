@@ -1,4 +1,5 @@
 import os
+from openai_helper import gpt_extract_key_update
 from dotenv import load_dotenv
 from env_writer import update_env_key_in_file
 
