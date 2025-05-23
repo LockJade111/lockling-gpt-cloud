@@ -179,6 +179,41 @@ async def chat(req: ChatRequest):
     msg = req.message.strip()
     persona = req.persona.strip()
 
+    # ✅ 密钥更新逻辑
+    if ("密钥" in msg or "口令" in msg) and ("修改" in msg or "更换" in msg or "设置" in msg or "授权" in msg):
+        data = await gpt_extract_key_update(msg)
+        if data and data.get("name"):
+            new_key = data["name"].strip()
+            update_env_key_in_file(new_key)
+            return {
+                "reply": f"系统：口令已更新为「{new_key}」，下次部署即生效。",
+                "persona": "system"
+            }
+
+    # ✅ 权限更新逻辑
+    if "权限" in msg or "授权" in msg:
+        data = await gpt_extract_permission_update(msg)
+        if data and data.get("name") and data.get("permission"):
+            name = data["name"]
+            perm = data["permission"]
+            if name in PERSONA_REGISTRY:
+                if perm not in PERSONA_REGISTRY[name]["permissions"]:
+                    PERSONA_REGISTRY[name]["permissions"].append(perm)
+                    return {
+                        "reply": f"{name}：权限已更新，获得 {perm} 权限。",
+                        "persona": name
+                    }
+            return {
+                "reply": f"系统：找不到角色 {name}",
+                "persona": "system"
+            }
+
+    # ✅ 其他逻辑（如对话转发、默认处理等）
+    ...
+async def chat(req: ChatRequest):
+    msg = req.message.strip()
+    persona = req.persona.strip()
+
     # ✅ 插入权限更新逻辑
     if "权限" in msg or "授权" in msg:
         data = await gpt_extract_permission_update(msg)
