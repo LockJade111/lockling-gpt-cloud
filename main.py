@@ -36,11 +36,12 @@ async def chat(request: Request):
         }
 
     # 1. 意图识别
-    try:
-        intent_result = parse_intent(message, persona)
-    except Exception as e:
+    intent_result = parse_intent(message, persona)
+
+    # 防止返回 None
+    if not intent_result or not isinstance(intent_result, dict):
         return {
-            "reply": f"❌ 意图识别失败: {str(e)}",
+            "reply": "❌ 意图识别失败：dispatch_intents() 无法识别结构",
             "intent": {"intent": "unknown"},
             "persona": persona
         }
@@ -54,9 +55,9 @@ async def chat(request: Request):
             "persona": persona
         }
 
-    # 3. 意图分发调度
+    # 3. 调用模块执行
     try:
-        dispatch_result = dispatch_intents(intent_result, persona)
+        reply_text = dispatch_intents(intent_result, persona)
     except Exception as e:
         return {
             "reply": f"❌ 调度失败: {str(e)}",
@@ -64,17 +65,11 @@ async def chat(request: Request):
             "persona": persona
         }
 
-    # 4. GPT 回复生成
-    try:
-        reply_text = ask_gpt(message, persona)
-    except Exception as e:
-        reply_text = f"[GPT ERROR] {str(e)}"
-
-    # 5. 日志写入 Supabase
+    # 4. 写入日志
     try:
         await write_log_to_supabase(message, reply_text, persona)
     except Exception as e:
-        print("⚠️ 日志写入失败:", e)
+        print("⚠️ Supabase 日志写入失败:", e)
 
     return {
         "reply": reply_text,
@@ -83,4 +78,4 @@ async def chat(request: Request):
     }
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=10000, reload=True)
+    uvicorn.run(app, host="0.0.0.0", port=10000)
