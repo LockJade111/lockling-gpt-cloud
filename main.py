@@ -1,3 +1,4 @@
+import os
 from dotenv import load_dotenv
 from env_writer import update_env_key_in_file
 
@@ -7,7 +8,6 @@ from fastapi import FastAPI, Request
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from persona_registry import PERSONA_REGISTRY, get_persona_response, patch_existing_personas
-import os
 import openai
 import uvicorn
 import json
