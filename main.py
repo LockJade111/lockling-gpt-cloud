@@ -1,7 +1,9 @@
 import os
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 
 import intent_dispatcher
@@ -10,18 +12,18 @@ from check_permission import check_secret_permission
 from supabase_logger import write_log_to_supabase, query_logs
 from supabase import create_client, Client
 
-# ✅ 加载 .env 环境变量
+# ✅ 环境加载与 Supabase 初始化
 load_dotenv()
-
-# ✅ 初始化 Supabase 客户端
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# ✅ FastAPI 初始化
+# ✅ FastAPI & 模板初始化
 app = FastAPI()
+templates = Jinja2Templates(directory="templates")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# ✅ 启用跨域中间件
+# ✅ 跨域设置
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -30,7 +32,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ 主指令接口：语义解析 → 权限校验 → 派发执行 → 日志写入
+# ✅ 指令入口 /chat
 @app.post("/chat")
 async def chat(request: Request):
     try:
@@ -39,7 +41,6 @@ async def chat(request: Request):
         persona = data.get("persona", "Lockling 锁灵").strip()
         skip_parsing = data.get("skip_parsing", False)
 
-        # ✅ 意图解析
         if skip_parsing and "intent" in data:
             intent = data["intent"]
         else:
@@ -48,7 +49,6 @@ async def chat(request: Request):
         intent["persona"] = persona
         intent["source"] = message
 
-        # ✅ 权限验证（密钥匹配）
         if not check_secret_permission(persona, intent.get("secret", "")):
             intent["allow"] = False
             intent["reason"] = "密钥错误或未授权"
@@ -61,7 +61,6 @@ async def chat(request: Request):
             write_log_to_supabase(message, persona, intent, reply["reply"])
             return JSONResponse(reply)
 
-        # ✅ 分发执行
         intent["allow"] = True
         intent["reason"] = "身份验证成功"
         result = intent_dispatcher.dispatch_intents(intent)
@@ -82,7 +81,7 @@ async def chat(request: Request):
             "message": f"💥 服务异常：{str(e)}"
         })
 
-# ✅ 日志查询接口：需密钥验证 + 支持多条件筛选
+# ✅ 日志查询接口
 @app.post("/log/query")
 async def query_log(request: Request):
     data = await request.json()
@@ -93,7 +92,6 @@ async def query_log(request: Request):
     filter_type = data.get("intent_type", "").strip()
     filter_allow = data.get("allow", None)
 
-    # ✅ 权限验证（密钥匹配 + 角色为将军）
     if not check_secret_permission(persona, secret):
         return JSONResponse({
             "status": "fail",
@@ -101,7 +99,6 @@ async def query_log(request: Request):
             "logs": []
         })
 
-    # ✅ 查询日志
     logs = query_logs(
         persona=filter_persona if filter_persona else None,
         intent_type=filter_type if filter_type else None,
@@ -109,7 +106,6 @@ async def query_log(request: Request):
         limit=limit
     )
 
-    # ✅ 精简字段结构输出
     simplified_logs = [
         {
             "timestamp": log["timestamp"],
@@ -125,4 +121,31 @@ async def query_log(request: Request):
         "status": "success",
         "reply": f"✅ 共返回 {len(simplified_logs)} 条日志记录：",
         "logs": simplified_logs
+    })
+
+# ✅ 将军专属控制台视图：登录页
+@app.get("/dashboard")
+async def dashboard_login(request: Request):
+    return templates.TemplateResponse("dashboard_login.html", {"request": request})
+
+# ✅ 控制台处理逻辑：身份验证 + 数据读取
+@app.post("/dashboard")
+async def dashboard_panel(request: Request):
+    form = await request.form()
+    persona = form.get("persona", "").strip()
+    secret = form.get("secret", "").strip()
+
+    if not check_secret_permission(persona, secret) or persona != "将军":
+        return templates.TemplateResponse("dashboard_login.html", {
+            "request": request,
+            "error": "身份验证失败"
+        })
+
+    result = supabase.table("persona_keys").select("*").order("created_at", desc=True).execute()
+    personas = result.data if result and result.data else []
+
+    return templates.TemplateResponse("dashboard.html", {
+        "request": request,
+        "personas": personas,
+        "persona": persona
     })
