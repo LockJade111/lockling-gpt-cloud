@@ -2,28 +2,28 @@
 
 import os
 
-# ✅ 权限映射表（本地测试阶段使用，后续将改为 Supabase 查询）
+# ✅ 本地测试权限映射表（若启用数据库版本，请改为 Supabase 查询）
 permission_map = {
     "玉衡": ["query", "write", "schedule", "finance"],
     "司铃": ["schedule", "query", "email_notify"],
     "军师猫": ["query", "fallback", "logs"],
-    "Lockling": ["query"],
+    "Lockling 锁灵": ["query", "write"],
     "小徒弟": ["schedule"]
 }
 
-# ✅ 写入授权关系到 .env
+# ✅ 写入注册授权关系到 .env（如：将军:军师猫）
 def add_register_authorization(authorizer, grantee):
     env_path = ".env"
     key = f"{authorizer}:{grantee}"
 
-    # 读取现有 .env 内容
+    # 读取 .env 内容
     if os.path.exists(env_path):
         with open(env_path, "r") as f:
             lines = f.readlines()
     else:
         lines = []
 
-    # 读取现有已授权数据
+    # 查找是否已存在
     existing = ""
     for line in lines:
         if line.startswith("AUTHORIZED_REGISTER="):
@@ -41,56 +41,36 @@ def add_register_authorization(authorizer, grantee):
 
     return True
 
-# ✅ 主函数处理所有意图
-def dispatch_intents(intent: dict) -> dict:
+# ✅ 主调度函数：根据意图类型分发处理
+def dispatch_intents(intent: dict, persona: str = None) -> dict:
     intent_type = intent.get("intent")
 
-    # ✅ 注册角色
-    if intent_type == "register_persona":
-        new_name = intent.get("new_name", "未知")
-        permissions = intent.get("permissions", [])
-        tone = intent.get("tone", "默认")
+    if intent_type == "log_finance":
+        from finance_helper import log_finance
+        return log_finance(intent, persona)
 
-        if new_name not in permission_map:
-            permission_map[new_name] = permissions
-        else:
-            for p in permissions:
-                if p not in permission_map[new_name]:
-                    permission_map[new_name].append(p)
+    elif intent_type == "log_customer":
+        from customer_helper import log_customer
+        return log_customer(intent, persona)
 
-        return {
-            "reply": f"✅ 已注册角色 {new_name}，语气为 {tone}，权限为 {permissions}",
-            "registered_persona": new_name,
-            "permissions": permissions,
-            "tone": tone
-        }
+    elif intent_type == "schedule_event":
+        from schedule_helper import schedule_event
+        return schedule_event(intent, persona)
 
-    # ✅ 授权注册权限：如“授权军师猫可以注册新角色”
+    elif intent_type == "save_memory":
+        from memory_helper import save_memory
+        return save_memory(intent, persona)
+
     elif intent_type == "grant_permission":
-        authorizer = intent.get("persona")
-        grantee = intent.get("grantee")
-        permission = intent.get("permission")
+        from permission_helper import grant_permission
+        return grant_permission(intent, persona)
 
-        if permission == "register_persona":
-            added = add_register_authorization(authorizer, grantee)
-            if added:
-                return {
-                    "reply": f"✅ {grantee} 已被 {authorizer} 授权注册新角色（写入 .env）"
-                }
-            else:
-                return {
-                    "reply": f"⚠️ {grantee} 授权已存在，无需重复写入"
-                }
+    elif intent_type == "register_persona":
+        from persona_helper import register_persona
+        return register_persona(intent, persona)
 
-    # ✅ 示例意图：记录财务
-    elif intent_type == "log_finance":
+    else:
         return {
-            "reply": f"🧾 [示例] 财务记录已保存。",
+            "reply": f"❌ dispatch_intents 无法识别 intent 类型：{intent_type}",
             "intent": intent
         }
-
-    # ❌ 未知意图 fallback
-    return {
-        "reply": f"⚠️ 未知意图：{intent_type}",
-        "intent": intent
-    }
