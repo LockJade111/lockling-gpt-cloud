@@ -10,14 +10,14 @@ from check_permission import (
 )
 from env_utils import add_authorization_env, activate_persona
 
-# ✅ intent: 密钥验证阶段
+# ✅ 密钥验证
 def handle_confirm_secret(intent):
     return {
         "reply": "✅ 密钥验证通过，权限已激活。",
         "intent": intent
     }
 
-# ✅ intent: 授权流程起始
+# ✅ 授权流程开始
 def handle_begin_auth(intent):
     target = intent.get("target", "")
     return {
@@ -25,7 +25,7 @@ def handle_begin_auth(intent):
         "intent": intent
     }
 
-# ✅ intent: 授权执行确认
+# ✅ 确认身份并执行授权
 def handle_confirm_identity(intent):
     authorizer = intent.get("identity", "").strip()
     grantee = intent.get("target", "").strip()
@@ -49,7 +49,7 @@ def handle_confirm_identity(intent):
             "intent": intent
         }
 
-# ✅ intent: 注册新角色
+# ✅ 注册新角色
 def handle_register_persona(intent):
     name = intent.get("new_name", "").strip()
     if not name:
@@ -71,7 +71,7 @@ def handle_register_persona(intent):
             "intent": intent
         }
 
-# ✅ intent: 查询当前权限
+# ✅ 查询当前 persona 权限
 def handle_query_permission(intent, persona):
     perms = get_persona_permissions(persona)
     return {
@@ -79,7 +79,7 @@ def handle_query_permission(intent, persona):
         "intent": intent
     }
 
-# ✅ intent: 撤销授权
+# ✅ 撤销授权
 def handle_revoke_authorization(intent, persona):
     target = intent.get("target", "").strip()
     if not target:
@@ -94,7 +94,7 @@ def handle_revoke_authorization(intent, persona):
         "intent": intent
     }
 
-# ✅ intent: 权限同步（从 .env 重建内存）
+# ✅ 从 .env 同步权限
 def handle_sync_permission(intent, persona):
     updated = sync_permission()
     return {
@@ -102,7 +102,7 @@ def handle_sync_permission(intent, persona):
         "intent": intent
     }
 
-# ✅ 主调度分发器
+# ✅ 主分发调度器
 def dispatch_intents(intent: dict, persona: str = None) -> dict:
     intent_type = intent.get("intent_type")
     print(f"🧭 dispatch_intents: intent_type={intent_type} | persona={persona}")
