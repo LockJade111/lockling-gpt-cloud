@@ -41,34 +41,46 @@ def add_register_authorization(authorizer, grantee):
 
     return True
 
+# ✅ intent 处理：密钥确认
+def handle_confirm_secret(intent):
+    return {
+        "reply": "✅ 密钥验证通过，权限已激活。",
+        "intent": intent
+    }
+
+# ✅ intent 处理：开始身份验证
+def handle_begin_auth(intent):
+    return {
+        "reply": f"✅ 身份确认阶段开始，目标授权对象为 {intent.get('target')}，请告知身份。",
+        "intent": intent
+    }
+
+# ✅ intent 处理：确认身份并执行注册授权
+def handle_confirm_identity(intent):
+    authorizer = intent.get("identity", "")
+    grantee = intent.get("target", "")
+    if authorizer and grantee:
+        success = add_register_authorization(authorizer, grantee)
+        if success:
+            return {
+                "reply": f"✅ 授权成功：{authorizer} 授权 {grantee} 拥有注册角色权限。",
+                "intent": intent
+            }
+    return {
+        "reply": f"⚠️ 授权失败，请检查身份与目标。",
+        "intent": intent
+    }
+
 # ✅ 主调度函数：根据意图类型分发处理
 def dispatch_intents(intent: dict, persona: str = None) -> dict:
-    intent_type = intent.get("intent")
+    intent_type = intent.get("intent_type")
 
-    if intent_type == "log_finance":
-        from finance_helper import log_finance
-        return log_finance(intent, persona)
-
-    elif intent_type == "log_customer":
-        from customer_helper import log_customer
-        return log_customer(intent, persona)
-
-    elif intent_type == "schedule_event":
-        from schedule_helper import schedule_event
-        return schedule_event(intent, persona)
-
-    elif intent_type == "save_memory":
-        from memory_helper import save_memory
-        return save_memory(intent, persona)
-
-    elif intent_type == "grant_permission":
-        from permission_helper import grant_permission
-        return grant_permission(intent, persona)
-
-    elif intent_type == "register_persona":
-        from persona_helper import register_persona
-        return register_persona(intent, persona)
-
+    if intent_type == "confirm_secret":
+        return handle_confirm_secret(intent)
+    elif intent_type == "begin_auth":
+        return handle_begin_auth(intent)
+    elif intent_type == "confirm_identity":
+        return handle_confirm_identity(intent)
     else:
         return {
             "reply": f"❌ dispatch_intents 无法识别 intent 类型：{intent_type}",
