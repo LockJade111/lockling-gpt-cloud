@@ -4,20 +4,18 @@ from check_permission import (
     get_persona_authorizers,
     get_persona_grantees,
     revoke_authorization,
-    sync_permission,
     add_register_authorization,
-    register_new_persona
 )
 from env_utils import add_authorization_env, activate_persona
 
-# ✅ 密钥验证
+# ✅ 密钥验证（模拟将军密钥确认授权过程）
 def handle_confirm_secret(intent):
     return {
         "reply": "✅ 密钥验证通过，权限已激活。",
         "intent": intent
     }
 
-# ✅ 授权流程开始
+# ✅ 授权流程第一步：提示输入身份
 def handle_begin_auth(intent):
     target = intent.get("target", "")
     return {
@@ -25,57 +23,50 @@ def handle_begin_auth(intent):
         "intent": intent
     }
 
-# ✅ 确认身份并执行授权
+# ✅ 授权流程第二步：身份 + 授权写入
 def handle_confirm_identity(intent):
     authorizer = intent.get("identity", "").strip()
     grantee = intent.get("target", "").strip()
 
     if not authorizer or not grantee:
         return {
-            "reply": "⚠️ 授权失败，缺少授权者或目标。",
+            "reply": "⚠️ 授权失败，缺少身份或目标。",
             "intent": intent
         }
 
-    success = add_register_authorization(authorizer, grantee, permission="register_persona")
+    success = add_register_authorization(authorizer, grantee)
     if success:
         add_authorization_env(authorizer, grantee)
         return {
-            "reply": f"✅ 授权成功：{authorizer} 授权 {grantee} 拥有注册新角色权限。",
+            "reply": f"✅ 授权成功：{authorizer} 授权 {grantee} 拥有注册 persona 权限。",
             "intent": intent
         }
     else:
         return {
-            "reply": f"⚠️ 授权失败，可能已存在或写入错误。",
+            "reply": f"⚠️ 授权失败，可能已存在或写入失败。",
             "intent": intent
         }
 
-# ✅ 注册新角色
+# ✅ 注册新 persona
 def handle_register_persona(intent):
     name = intent.get("new_name", "").strip()
     if not name:
         return {
-            "reply": "⚠️ 注册失败，缺少新角色名称。",
+            "reply": "⚠️ 注册失败，缺少角色名称。",
             "intent": intent
         }
 
-    success = register_new_persona(name)
-    if success:
-        activate_persona(name)
-        return {
-            "reply": f"✅ 新 persona 已注册成功：{name}",
-            "intent": intent
-        }
-    else:
-        return {
-            "reply": f"⚠️ persona {name} 已存在，注册跳过。",
-            "intent": intent
-        }
+    activate_persona(name)
+    return {
+        "reply": f"✅ persona 注册成功：{name}",
+        "intent": intent
+    }
 
-# ✅ 查询当前 persona 权限
+# ✅ 查询权限
 def handle_query_permission(intent, persona):
     perms = get_persona_permissions(persona)
     return {
-        "reply": f"🔍 当前权限列表：{perms}",
+        "reply": f"🔐 当前权限：{perms}",
         "intent": intent
     }
 
@@ -84,28 +75,32 @@ def handle_revoke_authorization(intent, persona):
     target = intent.get("target", "").strip()
     if not target:
         return {
-            "reply": "⚠️ 撤销失败，缺少目标对象。",
+            "reply": "⚠️ 撤销失败，缺少目标。",
             "intent": intent
         }
 
-    revoke_authorization(persona, target, permission="register_persona")
-    return {
-        "reply": f"🔻 授权已撤销：{persona} → {target}",
-        "intent": intent
-    }
+    success = revoke_authorization(persona, target)
+    if success:
+        return {
+            "reply": f"🔻 授权已撤销：{persona} → {target}",
+            "intent": intent
+        }
+    else:
+        return {
+            "reply": f"⚠️ 撤销失败，记录不存在。",
+            "intent": intent
+        }
 
-# ✅ 从 .env 同步权限
+# ✅ 权限同步占位（如需用 Supabase 自动同步）
 def handle_sync_permission(intent, persona):
-    updated = sync_permission()
     return {
-        "reply": f"🔁 权限同步完成，共计更新：{updated} 项",
+        "reply": f"🌀 权限同步逻辑尚未启用（开发中）",
         "intent": intent
     }
 
-# ✅ 主分发调度器
+# ✅ 主调度器：根据 intent_type 调用分支
 def dispatch_intents(intent: dict, persona: str = None) -> dict:
-    intent_type = intent.get("intent_type")
-    print(f"🧭 dispatch_intents: intent_type={intent_type} | persona={persona}")
+    intent_type = intent.get("intent_type", "").strip()
 
     try:
         if intent_type == "confirm_secret":
@@ -124,11 +119,11 @@ def dispatch_intents(intent: dict, persona: str = None) -> dict:
             return handle_sync_permission(intent, persona)
         else:
             return {
-                "reply": f"❌ dispatch_intents 无法识别 intent 类型：{intent_type}",
+                "reply": f"❌ 未知意图类型：{intent_type}",
                 "intent": intent
             }
     except Exception as e:
         return {
-            "reply": f"❌ dispatch_intents() 执行失败：{str(e)}",
-            "intent": {"intent": "unknown", "intent_type": "unknown"}
+            "reply": f"🚨 执行 intent 时发生错误：{str(e)}",
+            "intent": intent
         }
