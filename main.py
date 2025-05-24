@@ -3,15 +3,16 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-from intent_dispatcher import dispatch_intents
-from check_permission import get_persona_permissions
+# ✅ 模块加载
+import intent_dispatcher
+import check_permission
 
 # ✅ 加载环境变量
 load_dotenv()
 
 app = FastAPI()
 
-# ✅ 跨域支持
+# ✅ 跨域配置
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -20,12 +21,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ 权限判断（保留兼容性）
+# ✅ 权限判断
 def has_permission(persona, required):
     if not required:
         return True
-    permissions = get_persona_permissions(persona)
-    return required in permissions
+    try:
+        permissions = check_permission.get_persona_permissions(persona)
+        return required in permissions
+    except Exception as e:
+        print(f"❌ 权限加载失败：{e}")
+        return False
 
 @app.post("/chat")
 async def chat(request: Request):
@@ -42,35 +47,52 @@ async def chat(request: Request):
             "reply": "❌ message 为空，无法处理。"
         }
 
-    # ✅ fallback: 自动构建密钥意图
-    if not intent or intent.get("intent_type") in ["", "unknown"]:
-        if "玉衡在手" in message:
-            intent = {
-                "intent": "confirm_secret",
-                "intent_type": "confirm_secret",
-                "secret": "玉衡在手",
-                "source": message
+    # ✅ 解析意图
+    if not skip_parsing:
+        try:
+            from semantic_parser import parse_intent  # 若存在语义解析模块
+            intent_result = parse_intent(message, persona)
+        except Exception as e:
+            print(f"❌ 无法解析意图: {e}")
+            return {
+                "status": "fail",
+                "reply": "❌ 意图解析失败，请检查语句或配置。"
             }
+    else:
+        intent_result = intent or {}
 
-    # ✅ 意图分发
-    intent_result = dispatch_intents(intent, persona)
+    intent_type = intent_result.get("intent_type", "unknown")
+    required = intent_result.get("requires", None)
 
-    # ✅ 权限判断
-    required = intent_result.get("requires")
-    has_access = has_permission(persona, required)
+    print(f"🤖 接收消息: {message} | persona={persona} | intent_type={intent_type} | requires={required}")
 
-    if not has_access:
+    # ✅ 权限校验
+    if not has_permission(persona, required):
+        print("🔒 权限校验未通过")
         return {
-            "status": "success",
-            "reply": "⛔️ 权限不足，拒绝操作。",
-            "intent": intent_result,
-            "persona": persona
+            "status": "fail",
+            "reply": f"🔒 权限不足，拒绝操作。",
+            "intent": intent_result
         }
 
-    # ✅ 返回结果
+    # ✅ 分发处理
+    try:
+        response = intent_dispatcher.dispatch_intents(intent_result, persona)
+    except Exception as e:
+        print(f"❌ dispatch_intents 执行出错: {e}")
+        return {
+            "status": "fail",
+            "reply": "❌ dispatch_intents() 执行失败。",
+            "intent": intent_result
+        }
+
+    # ✅ 写入日志
+    try:
+        check_permission.write_log_to_supabase(persona, message, intent_result, response)
+    except Exception as e:
+        print(f"⚠️ 日志写入失败: {e}")
+
     return {
         "status": "success",
-        "reply": intent_result.get("reply", "✅ 指令已处理。"),
-        "intent": intent_result,
-        "persona": persona
+        **response
     }
