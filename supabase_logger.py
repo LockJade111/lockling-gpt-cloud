@@ -4,21 +4,19 @@ from datetime import datetime
 from supabase import create_client, Client
 from dotenv import load_dotenv
 
-# ✅ 加载本地环境变量
+# ✅ 加载环境变量
 load_dotenv()
 
-# ✅ 初始化 Supabase 客户端
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 SUPABASE_TABLE = os.getenv("SUPABASE_TABLE", "logs")
-
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# ✅ 写入日志记录
+# ✅ 写入日志
 def write_log_to_supabase(message: str, persona: str, intent_result: dict, reply: str):
     try:
         data = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",  # ISO 标准 UTC 时间
+            "timestamp": datetime.utcnow().isoformat() + "Z",
             "persona": persona,
             "message": message,
             "intent_type": intent_result.get("intent_type", "unknown"),
@@ -32,21 +30,28 @@ def write_log_to_supabase(message: str, persona: str, intent_result: dict, reply
         }
 
         response = supabase.table(SUPABASE_TABLE).insert(data).execute()
-        print("✅ 日志已写入 Supabase ✅")
+        print("✅ 日志已写入 Supabase")
         return response
 
     except Exception as e:
         print(f"❌ 写入 Supabase 失败: {e}")
         return None
 
-# ✅ 查询日志：可选 persona、限制条数
-def query_logs(persona=None, limit=5):
+# ✅ 查询日志（支持多条件筛选）
+def query_logs(persona=None, intent_type=None, allow=None, limit=5):
     try:
         query = supabase.table(SUPABASE_TABLE).select("*").order("timestamp", desc=True).limit(limit)
+        
         if persona:
             query = query.eq("persona", persona)
+        if intent_type:
+            query = query.eq("intent_type", intent_type)
+        if allow is not None:
+            query = query.eq("allow", allow)
+
         result = query.execute()
         return result.data
+
     except Exception as e:
         print(f"❌ 日志查询失败: {e}")
         return []
