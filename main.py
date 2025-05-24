@@ -1,5 +1,4 @@
 import os
-import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -15,7 +14,7 @@ load_dotenv()
 
 app = FastAPI()
 
-# ✅ CORS 设置
+# ✅ 启用跨域请求支持
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -27,8 +26,9 @@ app.add_middleware(
 @app.post("/chat")
 async def chat(request: Request):
     data = await request.json()
-    message = data.get("message", "")
-    persona = data.get("persona", "Lockling 锁灵")
+
+    message = data.get("message", "").strip()
+    persona = data.get("persona", "Lockling 锁灵").strip()
 
     if not message:
         return {
@@ -37,41 +37,21 @@ async def chat(request: Request):
             "persona": persona
         }
 
-    # ✅ 意图识别
+    # ✅ 分析意图
     intent_result = parse_intent(message, persona)
     print(f"🌐 调试中：intent_result = {intent_result}")
 
-    intent_type = intent_result.get("intent_type", "unknown")
+    # ✅ 日志写入（supabase 可选）
+    write_log_to_supabase(persona, message, intent_result)
 
-    # ✅ 权限检查
-    has_permission = check_permission(
-        persona=persona,
-        required=intent_result.get("requires_permission", ""),
-        intent_type=intent_type,
-        intent=intent_result
-    )
-    print(f"🔐 权限校验：{has_permission}")
-
-    if not has_permission:
-        return {
-            "reply": "⛔ 权限不足，拒绝操作",
-            "intent": intent_result,
-            "persona": persona
-        }
-
-    # ✅ 分发处理意图
+    # ✅ 分发意图 + 权限判断
     result = dispatch_intents(intent_result, persona)
-    print(f"📦 分发结果：{result}")
 
-    # ✅ 写入日志
-    write_log_to_supabase(message, persona, intent_result, result["reply"])
+    # ✅ 返回包含意图与身份的完整结构
+    result["intent"] = intent_result
+    result["persona"] = persona
+    return result
 
-    return {
-        "reply": result["reply"],
-        "intent": result.get("intent", intent_result),
-        "persona": persona
-    }
-
-# ✅ 启动入口（如需本地调试）
-if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=10000, reload=True)
+@app.get("/")
+async def root():
+    return {"status": "✅ Lockling AI 核心系统已启动"}
