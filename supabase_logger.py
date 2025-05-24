@@ -1,21 +1,27 @@
-from supabase import create_client
 import os
+import json
+from supabase import create_client, Client
+from dotenv import load_dotenv
+
+load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-LOG_TABLE = os.getenv("SUPABASE_LOG_TABLE", "logs")
+SUPABASE_TABLE = os.getenv("SUPABASE_TABLE", "logs")  # 默认写入 logs 表
 
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-async def write_log_to_supabase(message, reply, persona):
-    print("🟡 正在尝试写入 Supabase 日志")
+def write_log_to_supabase(message, persona, intent_result, reply):
     try:
         data = {
             "message": message,
-            "reply": reply,
-            "persona": persona
+            "persona": persona,
+            "intent_result": json.dumps(intent_result, ensure_ascii=False),  # 存为 JSON 字符串
+            "reply": reply
         }
-        result = supabase.table(LOG_TABLE).insert(data).execute()
-        print("✅ 日志写入成功：", result)
+        response = supabase.table(SUPABASE_TABLE).insert(data).execute()
+        print("✅ 日志已写入 Supabase")
+        return response
     except Exception as e:
-        print("❌ 写入 Supabase 日志失败：", e)
+        print(f"❌ 写入 Supabase 失败: {e}")
+        return None
