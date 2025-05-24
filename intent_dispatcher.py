@@ -8,6 +8,7 @@ from check_permission import (
     add_register_authorization,
     register_new_persona
 )
+from env_utils import add_authorization_env, activate_persona
 
 # ✅ intent: 密钥验证阶段
 def handle_confirm_secret(intent):
@@ -37,6 +38,7 @@ def handle_confirm_identity(intent):
 
     success = add_register_authorization(authorizer, grantee, permission="register_persona")
     if success:
+        add_authorization_env(authorizer, grantee)
         return {
             "reply": f"✅ 授权成功：{authorizer} 授权 {grantee} 拥有注册新角色权限。",
             "intent": intent
@@ -47,7 +49,7 @@ def handle_confirm_identity(intent):
             "intent": intent
         }
 
-# ✅ intent: 新角色注册
+# ✅ intent: 注册新角色
 def handle_register_persona(intent):
     name = intent.get("new_name", "").strip()
     if not name:
@@ -58,6 +60,7 @@ def handle_register_persona(intent):
 
     success = register_new_persona(name)
     if success:
+        activate_persona(name)
         return {
             "reply": f"✅ 新 persona 已注册成功：{name}",
             "intent": intent
@@ -68,7 +71,7 @@ def handle_register_persona(intent):
             "intent": intent
         }
 
-# ✅ intent: 查询权限
+# ✅ intent: 查询当前权限
 def handle_query_permission(intent, persona):
     perms = get_persona_permissions(persona)
     return {
@@ -91,7 +94,7 @@ def handle_revoke_authorization(intent, persona):
         "intent": intent
     }
 
-# ✅ intent: 权限同步（备用）
+# ✅ intent: 权限同步（从 .env 重建内存）
 def handle_sync_permission(intent, persona):
     updated = sync_permission()
     return {
