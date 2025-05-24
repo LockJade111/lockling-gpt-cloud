@@ -9,13 +9,13 @@ key = os.getenv("SUPABASE_KEY")
 supabase = create_client(url, key)
 
 def check_permission(persona: str, required: str, intent_type: str = None, intent: dict = None) -> bool:
-    # ✅ 授权操作判断：仅“将军” + 正确密钥才可执行授权
+    # ✅ 授权操作判断：仅“将军” + 正确密钥（前缀）才可执行授权
     if intent_type == "grant_permission":
         if persona != "将军":
             return False
         user_input = intent.get("source", "") if intent else ""
         secret = os.getenv("COMMANDER_SECRET", "")
-        if secret not in user_input:
+        if not user_input.strip().startswith(f"密钥{secret}"):
             return False
         return True
 
