@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head><title>Lockling 云脑控制台</title></head>
+<body>
+  <h1>🌐 Lockling 控制台</h1>
+  <p>当前身份：{{ persona }}</p>
+  <h2>注册角色列表：</h2>
+  <table border="1">
+    <tr><th>角色</th><th>等级</th><th>状态</th><th>失败次数</th></tr>
+    {% for p in personas %}
+      <tr>
+        <td>{{ p.persona }}</td>
+        <td>{{ p.role }}</td>
+        <td>{{ "✅" if not p.locked else "🔒" }}</td>
+        <td>{{ p.failed_attempts }}</td>
+      </tr>
+    {% endfor %}
+  </table>
+</body>
+</html>
