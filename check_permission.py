@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 auth_context = {}
 
-# ✅ 本地权限映射表，会根据授权写入动态更新
+# ✅ 本地权限映射表（静态 + 动态授权）
 permission_map = {
     "玉衡": ["query", "write", "schedule", "finance", "admin", "register_persona"],
     "司铃": ["schedule", "query", "email_notify"],
@@ -13,11 +13,11 @@ permission_map = {
     "小徒弟": ["schedule"]
 }
 
-# ✅ 获取某 persona 拥有的权限列表
+# ✅ 获取 persona 拥有的权限
 def get_persona_permissions(persona):
     return permission_map.get(persona.strip(), [])
 
-# ✅ 获取被谁授权（授权者列表）
+# ✅ 获取该 persona 被谁授权（返回所有授权者）
 def get_persona_authorizers(persona):
     authorized_pairs = os.getenv("AUTHORIZED_REGISTER", "")
     return [
@@ -26,7 +26,7 @@ def get_persona_authorizers(persona):
         if pair.endswith(f":{persona}")
     ]
 
-# ✅ 获取已被该 persona 授权的对象列表（grantee）
+# ✅ 获取该 persona 授权了谁（返回被授权对象列表）
 def get_persona_grantees(persona):
     authorized_pairs = os.getenv("AUTHORIZED_REGISTER", "")
     return [
@@ -35,19 +35,19 @@ def get_persona_grantees(persona):
         if pair.startswith(f"{persona}:")
     ]
 
-# ✅ 添加授权记录（如：将军授权军师猫）
+# ✅ 添加授权记录，将 {authorizer}:{grantee} 写入 .env
 def add_register_authorization(authorizer, grantee, permission="register_persona"):
     env_path = ".env"
     key = f"{authorizer}:{grantee}"
 
-    # 读取 .env 文件内容
+    # 读取 .env 内容
     if os.path.exists(env_path):
         with open(env_path, "r") as f:
             lines = f.readlines()
     else:
         lines = []
 
-    # 读取已有的授权对
+    # 找到原始授权行
     existing = ""
     for line in lines:
         if line.startswith("AUTHORIZED_REGISTER="):
@@ -57,56 +57,46 @@ def add_register_authorization(authorizer, grantee, permission="register_persona
     if key not in entries:
         entries.append(key)
 
-    # 写入新的 .env 内容
-    new_line = f'AUTHORIZED_REGISTER={",".join(sorted(entries))}\n'
+    updated_line = f'AUTHORIZED_REGISTER={",".join(entries)}\n'
+
+    # 重写 .env
     with open(env_path, "w") as f:
         for line in lines:
             if not line.startswith("AUTHORIZED_REGISTER="):
                 f.write(line)
-        f.write(new_line)
+        f.write(updated_line)
 
     return True
 
-# ✅ 检查权限通行逻辑
-def check_permission(persona, required, intent_type=None, intent=None):
-    print(f"🧠 调试中: intent_type={intent_type} | required={required} | persona={persona}")
+# ✅ 撤销授权，将 {authorizer}:{grantee} 从 .env 中删除
+def revoke_authorization(authorizer, grantee):
+    env_path = ".env"
+    pair = f"{authorizer}:{grantee}"
 
-    # ✅ 白名单阶段：无需密钥，直接通行
-    if intent_type in ["begin_auth", "confirm_identity", "confirm_secret"] and persona == "将军":
-        print(f"🟢 将军白名单放行: {intent_type}")
-        return True
+    if not os.path.exists(env_path):
+        return False
 
-    # ✅ 密钥阶段（confirm_secret）：验证身份后通行
-    if intent_type == "confirm_secret":
-        expected_secret = os.getenv("COMMANDER_SECRET", "").strip()
-        provided = intent.get("secret", "").strip() if intent else ""
-        if auth_context.get("stage") == 2 and provided == expected_secret:
-            auth_context["authorizer"] = "将军"
-            auth_context["grantee"] = auth_context.get("grantee")
-            print("✅ 密钥验证成功")
-            return True
+    with open(env_path, "r") as f:
+        lines = f.readlines()
+
+    updated_lines = []
+    for line in lines:
+        if line.startswith("AUTHORIZED_REGISTER="):
+            existing = line.strip().split("=", 1)[1]
+            entries = [x.strip() for x in existing.split(",") if x.strip() and x.strip() != pair]
+            new_line = f'AUTHORIZED_REGISTER={",".join(entries)}\n'
+            updated_lines.append(new_line)
         else:
-            print("❌ 密钥验证失败或阶段错误")
-            return False
+            updated_lines.append(line)
 
-    # ✅ 授权判断阶段
-    # 从权限映射中获取角色权限列表
-    permissions = get_persona_permissions(persona)
+    with open(env_path, "w") as f:
+        f.writelines(updated_lines)
 
-    if required in permissions:
-        print("✅ 权限检查通过（来自映射表）")
+    return True
+
+# ✅ 权限检查（在 main.py 中会调用）
+def has_permission(persona, required):
+    if not required:
         return True
-
-    # ✅ 支持注册授权对（如：将军:军师猫）
-    authorized_pairs = os.getenv("AUTHORIZED_REGISTER", "")
-    grantee = persona
-    authorizers = get_persona_authorizers(grantee)
-
-    for authorizer in authorizers:
-        if required in get_persona_permissions(authorizer):
-            print("✅ 权限继承检查通过")
-            return True
-
-    print("❌ 权限不足，拒绝操作")
-    return False
-
+    permissions = get_persona_permissions(persona)
+    return required in permissions
