@@ -1,10 +1,10 @@
 import os
 from dotenv import load_dotenv
 
+# ✅ 加载 .env 环境变量
 load_dotenv()
-auth_context = {}
 
-# ✅ 本地权限映射表（静态权限 + 动态授权扩展）
+# ✅ 基础静态权限（角色预设权限）
 permission_map = {
     "玉衡": ["query", "write", "schedule", "finance", "admin", "register_persona"],
     "司铃": ["schedule", "query", "email_notify"],
@@ -13,15 +13,21 @@ permission_map = {
     "小徒弟": ["schedule"]
 }
 
-# ✅ 获取 persona 拥有的权限（静态 + 动态）
+# ✅ 获取某 persona 的完整权限（静态 + 动态）
 def get_persona_permissions(persona):
     base = permission_map.get(persona.strip(), [])
     authorized_pairs = os.getenv("AUTHORIZED_REGISTER", "")
-    if any(pair.strip() == f"{auth}:{persona}" for pair in authorized_pairs.split(",") if pair.strip()):
-        base += ["register_persona"]
+
+    # ✅ 授权链判定（如：将军:司铃）
+    for pair in authorized_pairs.split(","):
+        if pair.strip().endswith(f":{persona}"):
+            base.append("register_persona")
+            break
+
     return sorted(set(base))
 
-# ✅ 获取 persona 被哪些人授权过（反查）
+
+# ✅ 获取所有对 persona 授权过的人（反查）
 def get_persona_authorizers(persona):
     authorized_pairs = os.getenv("AUTHORIZED_REGISTER", "")
     return [
@@ -30,7 +36,8 @@ def get_persona_authorizers(persona):
         if pair.strip().endswith(f":{persona}")
     ]
 
-# ✅ 获取 persona 授权过哪些人
+
+# ✅ 获取 persona 授权过谁（正向）
 def get_persona_grantees(persona):
     authorized_pairs = os.getenv("AUTHORIZED_REGISTER", "")
     return [
@@ -39,7 +46,8 @@ def get_persona_grantees(persona):
         if pair.strip().startswith(f"{persona}:")
     ]
 
-# ✅ 添加授权关系 authorizer:grantee 到 .env
+
+# ✅ 添加授权关系（如：将军:司铃）写入 .env
 def add_register_authorization(authorizer, grantee):
     env_path = ".env"
     key = f"{authorizer}:{grantee}"
@@ -50,25 +58,26 @@ def add_register_authorization(authorizer, grantee):
     else:
         lines = []
 
-    # 查找旧值
-    authorized_line = next((line for line in lines if line.startswith("AUTHORIZED_REGISTER=")), "")
-    current_values = authorized_line.strip().split("=", 1)[1] if authorized_line else ""
-    entries = [x.strip() for x in current_values.split(",") if x.strip()]
+    # 提取旧值
+    existing_line = next((line for line in lines if line.startswith("AUTHORIZED_REGISTER=")), "")
+    existing_value = existing_line.strip().split("=", 1)[1] if existing_line else ""
+    pairs = [x.strip() for x in existing_value.split(",") if x.strip()]
 
-    # 添加并去重
-    if key not in entries:
-        entries.append(key)
+    if key not in pairs:
+        pairs.append(key)
 
-    updated_line = f'AUTHORIZED_REGISTER={",".join(sorted(set(entries)))}\n'
-    new_lines = [line for line in lines if not line.startswith("AUTHORIZED_REGISTER=")]
-    new_lines.append(updated_line)
+    # 重写 .env
+    new_line = f'AUTHORIZED_REGISTER={",".join(pairs)}\n'
+    lines = [line for line in lines if not line.startswith("AUTHORIZED_REGISTER=")]
+    lines.append(new_line)
 
     with open(env_path, "w") as f:
-        f.writelines(new_lines)
+        f.writelines(lines)
 
     return True
 
-# ✅ 撤销授权（从 .env 移除 authorizer:grantee）
+
+# ✅ 移除授权关系（撤销：将军:司铃）
 def revoke_authorization(authorizer, grantee):
     env_path = ".env"
     key = f"{authorizer}:{grantee}"
@@ -79,18 +88,20 @@ def revoke_authorization(authorizer, grantee):
     with open(env_path, "r") as f:
         lines = f.readlines()
 
-    authorized_line = next((line for line in lines if line.startswith("AUTHORIZED_REGISTER=")), "")
-    current_values = authorized_line.strip().split("=", 1)[1] if authorized_line else ""
-    entries = [x.strip() for x in current_values.split(",") if x.strip()]
-    if key not in entries:
+    existing_line = next((line for line in lines if line.startswith("AUTHORIZED_REGISTER=")), "")
+    existing_value = existing_line.strip().split("=", 1)[1] if existing_line else ""
+    pairs = [x.strip() for x in existing_value.split(",") if x.strip()]
+
+    if key not in pairs:
         return False
 
-    entries.remove(key)
-    updated_line = f'AUTHORIZED_REGISTER={",".join(sorted(set(entries)))}\n'
-    new_lines = [line for line in lines if not line.startswith("AUTHORIZED_REGISTER=")]
-    new_lines.append(updated_line)
+    pairs = [x for x in pairs if x != key]
+    new_line = f'AUTHORIZED_REGISTER={",".join(pairs)}\n'
+
+    lines = [line for line in lines if not line.startswith("AUTHORIZED_REGISTER=")]
+    lines.append(new_line)
 
     with open(env_path, "w") as f:
-        f.writelines(new_lines)
+        f.writelines(lines)
 
     return True
