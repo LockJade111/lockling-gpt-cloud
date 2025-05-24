@@ -1,6 +1,6 @@
 from check_permission import check_secret_permission
 
-# ✅ 密钥验证响应（不再决定权限，仅确认匹配）
+# ✅ 密钥验证响应
 def handle_confirm_secret(intent):
     print("📥 收到意图：confirm_secret")
     persona = intent.get("persona", "").strip()
@@ -19,7 +19,7 @@ def handle_confirm_secret(intent):
             "intent": intent
         }
 
-# ✅ 注册 persona（由 GPT 和 main.py 判断权限后才会到达这里）
+# ✅ 注册 persona
 def handle_register_persona(intent):
     print("📥 收到意图：register_persona")
     persona = intent.get("persona", "").strip()
@@ -38,6 +38,43 @@ def handle_register_persona(intent):
         "intent": intent
     }
 
+# ✅ 撤销授权（revoke_identity）
+def handle_revoke_identity(intent):
+    print("🗑️ 收到意图：revoke_identity")
+    persona = intent.get("persona", "").strip()
+    target = intent.get("target", "").strip()
+
+    if not target:
+        return {
+            "status": "fail",
+            "reply": "❌ 撤销失败：未指定目标 persona。",
+            "intent": intent
+        }
+
+    return {
+        "status": "success",
+        "reply": f"✅ 授权已撤销：{target} 现在无权再注册新角色。",
+        "intent": intent
+    }
+
+# ✅ 删除角色（delete_persona）
+def handle_delete_persona(intent):
+    print("🗑️ 收到意图：delete_persona")
+    target = intent.get("target", "").strip()
+
+    if not target:
+        return {
+            "status": "fail",
+            "reply": "❌ 删除失败：未指定要删除的角色。",
+            "intent": intent
+        }
+
+    return {
+        "status": "success",
+        "reply": f"✅ 角色已删除：{target} 已从系统中注销。",
+        "intent": intent
+    }
+
 # ✅ 主调度器
 async def dispatch_intent(intent):
     try:
@@ -50,6 +87,12 @@ async def dispatch_intent(intent):
         elif intent_type == "register_persona":
             return handle_register_persona(intent)
 
+        elif intent_type == "revoke_identity":
+            return handle_revoke_identity(intent)
+
+        elif intent_type == "delete_persona":
+            return handle_delete_persona(intent)
+
         else:
             return {
                 "status": "fail",
@@ -59,7 +102,7 @@ async def dispatch_intent(intent):
 
     except Exception as e:
         return {
-            "status": "error",
-            "reply": f"💥 dispatcher 执行异常：{str(e)}",
+            "status": "fail",
+            "reply": f"❌ 意图调度失败：{str(e)}",
             "intent": intent
         }
