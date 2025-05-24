@@ -2,33 +2,32 @@ import os
 from dotenv import load_dotenv
 from supabase import create_client
 
-# ✅ 环境加载
+# ✅ 环境变量加载
 load_dotenv()
 url = os.getenv("SUPABASE_URL")
 key = os.getenv("SUPABASE_KEY")
 supabase = create_client(url, key)
 
 def check_permission(persona: str, required: str, intent_type: str = None, intent: dict = None) -> bool:
-    # ✅ 授权操作检查（如 grant_permission）
+    # ✅ 授权操作判断：仅“将军” + 正确密钥才可执行授权
     if intent_type == "grant_permission":
-        # 1. 必须是将军
         if persona != "将军":
             return False
-        # 2. 必须包含“密钥”字样（从 intent 源信息中判断）
         user_input = intent.get("source", "") if intent else ""
-        if "密钥" not in user_input:
+        secret = os.getenv("COMMANDER_SECRET", "")
+        if secret not in user_input:
             return False
         return True
 
-    # ✅ 注册角色时，检查是否有将军授权
+    # ✅ 注册角色：检查是否已获得授权
     if intent_type == "register_persona" and intent:
-        authorizer = intent.get("persona")     # 发起授权的人
-        grantee = persona                      # 当前尝试注册的人
+        authorizer = intent.get("persona")
+        grantee = persona
         pair = f"{authorizer}:{grantee}"
-        auth_list = os.getenv("AUTHORIZED_REGISTER", "")
-        return pair in [x.strip() for x in auth_list.split(",") if x.strip()]
+        auth_line = os.getenv("AUTHORIZED_REGISTER", "")
+        return pair in [x.strip() for x in auth_line.split(",") if x.strip()]
 
-    # ✅ 默认：查询 Supabase 权限表
+    # ✅ 其余权限：查数据库角色权限
     response = supabase.table("roles").select("permissions").eq("name", persona).execute()
     if not response.data:
         return False
