@@ -25,7 +25,7 @@ def handle_confirm_secret(intent):
             "intent": intent
         }
 
-# ✅ 注册角色
+# ✅ 注册 persona
 def handle_register_persona(intent):
     print("📥 收到意图：register_persona")
     persona = intent.get("persona", "").strip()
@@ -53,12 +53,20 @@ def handle_register_persona(intent):
         "intent": intent
     }
 
-# ✅ 撤销权限
+# ✅ 撤销权限（仅将军可执行）
 def handle_revoke_identity(intent):
     print("🗑️ 收到意图：revoke_identity")
     persona = intent.get("persona", "").strip()
     target = intent.get("target", "").strip()
     secret = intent.get("secret", "").strip()
+
+    # 权限限制：仅将军可执行
+    if persona != "将军":
+        return {
+            "status": "fail",
+            "reply": "🚫 权限不足，只有将军可以撤销他人授权。",
+            "intent": intent
+        }
 
     if not check_persona_secret(persona, secret):
         return {
@@ -74,12 +82,20 @@ def handle_revoke_identity(intent):
         "intent": intent
     }
 
-# ✅ 删除 persona
+# ✅ 删除 persona（仅将军可执行）
 def handle_delete_persona(intent):
     print("🗑️ 收到意图：delete_persona")
     persona = intent.get("persona", "").strip()
     target = intent.get("target", "").strip()
     secret = intent.get("secret", "").strip()
+
+    # 权限限制：仅将军可删除
+    if persona != "将军":
+        return {
+            "status": "fail",
+            "reply": "🚫 权限不足，只有将军可以删除角色。",
+            "intent": intent
+        }
 
     if not check_persona_secret(persona, secret):
         return {
@@ -95,7 +111,7 @@ def handle_delete_persona(intent):
         "intent": intent
     }
 
-# ✅ 主调度器
+# ✅ 意图总调度器
 def dispatch_intents(intent):
     intent_type = intent.get("intent_type", "unknown")
 
