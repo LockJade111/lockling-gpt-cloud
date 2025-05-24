@@ -1,12 +1,13 @@
 import os
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 
 import intent_dispatcher
 from parse_intent_with_gpt import parse_intent
-from check_permission import check_secret_permission
-from supabase_logger import write_log_to_supabase
+from check_permission import check_secret_permission, has_log_access
+from supabase_logger import write_log_to_supabase, query_logs
 from supabase import create_client, Client
 
 # ✅ 环境变量加载
@@ -29,7 +30,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ /chat：主指令入口
+# ✅ 主指令入口：/chat
 @app.post("/chat")
 async def chat(request: Request):
     try:
@@ -38,63 +39,76 @@ async def chat(request: Request):
         persona = data.get("persona", "Lockling 锁灵").strip()
         skip_parsing = data.get("skip_parsing", False)
 
-        # ✅ GPT 解析意图
+        # ✅ 语义解析：GPT解析意图或跳过
         if skip_parsing and "intent" in data:
             intent = data["intent"]
         else:
             intent = parse_intent(message, persona)
 
-        intent["source"] = message
         intent["persona"] = persona
+        intent["source"] = message
 
-        # ✅ 未识别意图类型
-        if intent.get("intent_type") == "unknown":
-            return {
-                "status": "success",
-                "reply": {
-                    "reply": f"❌ dispatch_intents 无法识别 intent 类型：{intent.get('intent_type')}",
-                    "intent": intent
-                },
+        # ✅ 权限核验
+        if not check_secret_permission(persona, intent.get("secret", "")):
+            intent["allow"] = False
+            intent["reason"] = "密钥错误或未授权"
+            reply = {
+                "status": "fail",
+                "reply": "❌ 身份验证失败，指令未执行。",
                 "intent": intent,
                 "persona": persona
             }
+            write_log_to_supabase(intent, reply)
+            return JSONResponse(reply)
 
-        # ✅ 执行意图
-        reply = intent_dispatcher.dispatch_intents(intent)
+        # ✅ 权限允许 → 派发执行
+        intent["allow"] = True
+        intent["reason"] = "身份验证成功"
+        result = intent_dispatcher.dispatch_intents(intent)
 
-        # ✅ 写入操作日志
-        write_log_to_supabase(
-            message=message,
-            persona=persona,
-            intent_result=reply.get("intent", {}),
-            reply=reply.get("reply", "")
-        )
-
-        return {
+        reply = {
             "status": "success",
-            "reply": reply,
+            "reply": result,
             "intent": intent,
             "persona": persona
         }
 
-    except Exception as e:
-        return {
-            "status": "error",
-            "reply": f"💥 系统异常：{str(e)}"
-        }
+        write_log_to_supabase(intent, reply)
+        return JSONResponse(reply)
 
-# ✅ /logs：操作日志查看接口（最近50条）
-@app.get("/logs")
-async def get_logs():
-    try:
-        result = supabase.table("logs").select("*").order("timestamp", desc=True).limit(50).execute()
-        return {
-            "status": "success",
-            "count": len(result.data),
-            "logs": result.data
-        }
     except Exception as e:
-        return {
+        return JSONResponse({
             "status": "error",
-            "message": f"日志查询失败：{str(e)}"
-        }
+            "message": f"💥 服务异常：{str(e)}"
+        })
+
+# ✅ 日志查询接口：/log/query（将军专属）
+@app.post("/log/query")
+async def query_log(request: Request):
+    data = await request.json()
+    persona = data.get("persona", "").strip()
+    message = data.get("message", "").strip()
+
+    # ✅ 权限控制：仅将军可查
+    if not has_log_access(persona):
+        return JSONResponse({
+            "status": "fail",
+            "reply": "🚫 当前身份无权查询日志。",
+            "logs": []
+        })
+
+    # 简易关键词判断（可升级 GPT 理解）
+    if "全部" in message or "最近" in message:
+        logs = query_logs(limit=5)
+    elif "助手" in message:
+        logs = query_logs(persona="小助手")
+    elif "司铃" in message:
+        logs = query_logs(persona="司铃")
+    else:
+        logs = query_logs(persona=persona)
+
+    return JSONResponse({
+        "status": "success",
+        "reply": f"✅ 为您找到 {len(logs)} 条日志记录：",
+        "logs": logs
+    })
