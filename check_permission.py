@@ -2,11 +2,10 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
-auth_context = {}
+env_path = ".env"
 
 # ✅ 写入注册权限授权记录
 def add_register_authorization(authorizer: str, grantee: str):
-    env_path = ".env"
     key = f"{authorizer}:{grantee}"
 
     if not os.path.exists(env_path):
@@ -36,7 +35,6 @@ def add_register_authorization(authorizer: str, grantee: str):
 
 # ✅ 撤销注册权限
 def revoke_authorization(authorizer: str, grantee: str):
-    env_path = ".env"
     key = f"{authorizer}:{grantee}"
 
     if not os.path.exists(env_path):
@@ -64,28 +62,24 @@ def revoke_authorization(authorizer: str, grantee: str):
 
     return True
 
-# ✅ 检查某个 persona 是否拥有注册新 persona 的授权
-def check_register_permission(authorizer: str, grantee: str) -> bool:
-    if not authorizer or not grantee:
+# ✅ 查询是否已获得注册授权
+def has_register_authorization(authorizer: str, grantee: str) -> bool:
+    key = f"{authorizer}:{grantee}"
+
+    if not os.path.exists(env_path):
         return False
 
-    auth_string = os.getenv("AUTHORIZED_REGISTER", "")
-    pairs = [x.strip() for x in auth_string.split(",") if x.strip()]
-    return f"{authorizer}:{grantee}" in pairs
+    with open(env_path, "r") as f:
+        for line in f:
+            if line.startswith("AUTHORIZED_REGISTER="):
+                existing = line.strip().split("=", 1)[1]
+                entries = [x.strip() for x in existing.split(",") if x.strip()]
+                return key in entries
 
-# ✅ 检查密钥口令是否正确
-def check_secret_permission(persona: str, secret: str) -> bool:
-    if not persona or not secret:
-        return False
-
-    auth_string = os.getenv("AUTHORIZED_SECRET", "")
-    if not auth_string:
-        return False
-
-    entries = [x.strip() for x in auth_string.split(",") if x.strip()]
-    for entry in entries:
-        if ":" in entry:
-            name, sec = entry.split(":", 1)
-            if name == persona and sec == secret:
-                return True
     return False
+
+# ✅ 查询某 persona 是否设置密钥
+def check_secret_for_persona(persona: str, secret: str) -> bool:
+    persona_key = f"PERSONA_{persona}"
+    actual_secret = os.getenv(persona_key)
+    return actual_secret == secret
