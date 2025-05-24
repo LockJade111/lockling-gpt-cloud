@@ -30,7 +30,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ 主指令入口 /chat
+# ✅ 主接口 /chat：指令识别 → 权限验证 → 分发 → 日志写入
 @app.post("/chat")
 async def chat(request: Request):
     try:
@@ -54,14 +54,14 @@ async def chat(request: Request):
             intent["reason"] = "密钥错误或未授权"
             reply = {
                 "status": "fail",
-                "reply": "❌ 密钥错误，身份验证失败。",
+                "reply": "❌ 身份验证失败，指令未执行。",
                 "intent": intent,
                 "persona": persona
             }
             write_log_to_supabase(message, persona, intent, reply["reply"])
             return JSONResponse(reply)
 
-        # ✅ 执行命令
+        # ✅ 允许执行 → 分发意图
         intent["allow"] = True
         intent["reason"] = "身份验证成功"
         result = intent_dispatcher.dispatch_intents(intent)
@@ -72,6 +72,7 @@ async def chat(request: Request):
             "intent": intent,
             "persona": persona
         }
+
         write_log_to_supabase(message, persona, intent, result)
         return JSONResponse(reply)
 
@@ -81,15 +82,17 @@ async def chat(request: Request):
             "message": f"💥 服务异常：{str(e)}"
         })
 
-# ✅ 日志查询接口 /log/query
+# ✅ 日志查询接口 /log/query：支持分页与多条件筛选
 @app.post("/log/query")
 async def query_log(request: Request):
     data = await request.json()
     persona = data.get("persona", "").strip()
-    message = data.get("message", "").strip()
     limit = int(data.get("limit", 5))
+    filter_persona = data.get("filter_persona", "").strip()
+    filter_type = data.get("intent_type", "").strip()
     filter_allow = data.get("allow", None)
 
+    # ✅ 权限判断
     if not has_log_access(persona):
         return JSONResponse({
             "status": "fail",
@@ -97,21 +100,25 @@ async def query_log(request: Request):
             "logs": []
         })
 
-    logs = query_logs(persona=None, limit=limit)
+    # ✅ 查询调用
+    logs = query_logs(
+        persona=filter_persona if filter_persona else None,
+        intent_type=filter_type if filter_type else None,
+        allow=filter_allow,
+        limit=limit
+    )
 
-    # 精简字段输出
-    simplified_logs = []
-    for log in logs:
-        if filter_allow is not None and str(log.get("allow")) != str(filter_allow):
-            continue
-        simplified_logs.append({
+    # ✅ 精简字段输出
+    simplified_logs = [
+        {
             "timestamp": log["timestamp"],
             "persona": log["persona"],
             "message": log["message"],
             "intent_type": log.get("intent_type", ""),
             "allow": log.get("allow", False),
             "reason": log.get("reason", "")
-        })
+        } for log in logs
+    ]
 
     return JSONResponse({
         "status": "success",
