@@ -1,8 +1,9 @@
-import openai
 import os
 import json
+from openai import OpenAI
 
-openai.api_key = os.getenv("OPENAI_API_KEY")  # 确保 .env 中有此项
+# ✅ 初始化 OpenAI 客户端（新 SDK 写法）
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def parse_intent(message: str, persona: str):
     prompt = f"""
@@ -22,7 +23,7 @@ def parse_intent(message: str, persona: str):
 - “我要授权司铃可以注册角色” → confirm_identity，需判断 persona 是否有授权权力
 - “你好” → unknown, allow=False
 
-返回格式：
+返回格式（严格 JSON）：
 {{
   "intent_type": "...",
   "target": "...",
@@ -37,22 +38,27 @@ def parse_intent(message: str, persona: str):
 请你返回结构化 JSON，不要解释或注释。
 """
 
-    response = openai.ChatCompletion.create(
-        model="gpt-4",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0
-    )
-
     try:
-        result = json.loads(response["choices"][0]["message"]["content"])
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0
+        )
+
+        content = response.choices[0].message.content
+        result = json.loads(content)
+
         result["persona"] = persona
         result["source"] = message
         return result
+
     except Exception as e:
         return {
             "intent_type": "unknown",
             "persona": persona,
             "source": message,
             "allow": False,
-            "reason": f"⚠️ GPT响应解析失败：{str(e)}"
+            "reason": f"⚠️ GPT响应失败：{str(e)}"
         }
