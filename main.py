@@ -1,11 +1,12 @@
 import os
 from fastapi import FastAPI, Request, Form
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 
+# 自定义模块导入
 import intent_dispatcher
 from parse_intent_with_gpt import parse_intent
 from check_permission import check_secret_permission
@@ -35,7 +36,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ 核心指令入口：解析意图 + 权限校验 + 派发执行
+# ✅ 主聊天入口（GPT语义解析）
 @app.post("/chat")
 async def chat(request: Request):
     try:
@@ -44,97 +45,57 @@ async def chat(request: Request):
         persona = data.get("persona", "Lockling 锁灵").strip()
         skip_parsing = data.get("skip_parsing", False)
 
-        # ✅ GPT 语义解析
-        intent = data["intent"] if skip_parsing and "intent" in data else parse_intent(message, persona)
-        intent["persona"] = persona
-        intent["source"] = message
+        if not message:
+            return JSONResponse(content={"error": "空消息"}, status_code=400)
 
-        # ✅ 权限验证
-        if not check_secret_permission(persona, intent.get("secret", "")):
-            intent["allow"] = False
-            intent["reason"] = "密钥错误或未授权"
-            reply = {
-                "status": "fail",
-                "reply": "❌ 身份验证失败，指令未执行。",
-                "intent": intent,
-                "persona": persona
-            }
-            write_log_to_supabase(message, persona, intent, reply["reply"])
-            return JSONResponse(reply)
+        if not skip_parsing:
+            intent = parse_intent(message, persona)
+        else:
+            intent = data.get("intent", {})
 
-        # ✅ 分发执行
-        intent["allow"] = True
-        intent["reason"] = "身份验证成功"
-        result = intent_dispatcher.dispatch_intents(intent)
+        # 权限校验
+        permission_passed = check_secret_permission(intent, persona)
+        if not permission_passed:
+            write_log_to_supabase(persona, intent, "denied", "权限验证失败")
+            return JSONResponse(content={"error": "权限不足"}, status_code=403)
 
-        reply = {
-            "status": "success",
-            "reply": result,
-            "intent": intent,
-            "persona": persona
-        }
-        write_log_to_supabase(message, persona, intent, result)
-        return JSONResponse(reply)
+        # 意图派发
+        result = intent_dispatcher.dispatch(intent)
+        write_log_to_supabase(persona, intent, "success", result)
+
+        return JSONResponse(content={"result": result})
 
     except Exception as e:
-        return JSONResponse({
-            "status": "error",
-            "message": f"💥 服务异常：{str(e)}"
-        })
+        write_log_to_supabase("系统", {}, "error", f"异常：{str(e)}")
+        return JSONResponse(content={"error": str(e)}, status_code=500)
 
-# ✅ 查询日志接口（用于 Postman 调试）
-@app.post("/log/query")
-async def query_log(request: Request):
-    data = await request.json()
-    persona = data.get("persona", "").strip()
-    secret = data.get("secret", "").strip()
-    limit = int(data.get("limit", 50))
-    filter_persona = data.get("filter_persona", "").strip()
-    filter_type = data.get("intent_type", "").strip()
-    filter_allow = data.get("allow", None)
-
-    if not check_secret_permission(persona, secret):
-        return JSONResponse({
-            "status": "fail",
-            "reply": "🚫 身份或密钥错误，无权查询日志。",
-            "logs": []
-        })
-
-    logs = query_logs(
-        persona=filter_persona if filter_persona else None,
-        intent_type=filter_type if filter_type else None,
-        allow=filter_allow,
-        limit=limit
-    )
-
-    simplified = [{
-        "timestamp": log["timestamp"],
-        "persona": log["persona"],
-        "message": log["message"],
-        "intent_type": log.get("intent_type", ""),
-        "target": log.get("target", ""),
-        "allow": log.get("allow", False),
-        "reason": log.get("reason", ""),
-        "reply": log.get("reply", "")
-    } for log in logs]
-
-    return JSONResponse({
-        "status": "success",
-        "reply": f"✅ 共返回 {len(simplified)} 条日志记录：",
-        "logs": simplified
-    })
-
-# ✅ 控制台 UI 路由（HTML 可视化）
-@app.get("/logs")
-def show_logs(request: Request, persona: str = None):
-    logs = query_logs(limit=50, persona=persona)
-    return templates.TemplateResponse("logs.html", {"request": request, "logs": logs})
-
-# ✅ 删除 persona（仅限将军）
+# ✅ 删除 persona 接口
 @app.post("/delete_persona")
-async def delete_persona_ui(persona: str, request: Request):
-    acting_persona = request.cookies.get("persona") or "将军"
-    if acting_persona != "将军":
-        return JSONResponse({"error": "无权删除角色"}, status_code=403)
-    delete_persona(persona)
-    return RedirectResponse("/logs", status_code=303)
+async def delete_persona_api(request: Request):
+    data = await request.json()
+    persona = data.get("persona", "")
+    operator = data.get("operator", "")
+    
+    if not check_secret_permission({"intent_type": "delete_persona"}, operator):
+        return JSONResponse(content={"error": "权限不足"}, status_code=403)
+    
+    result = delete_persona(persona)
+    write_log_to_supabase(operator, {"intent_type": "delete_persona", "target": persona}, "success", result)
+    return JSONResponse(content={"result": result})
+
+# ✅ 查询日志 API
+@app.post("/log/query")
+async def query_logs_api(request: Request):
+    data = await request.json()
+    filters = {
+        "persona": data.get("persona"),
+        "intent_type": data.get("intent_type"),
+        "allow": data.get("allow"),
+    }
+    logs = query_logs(filters)
+    return JSONResponse(content={"logs": logs})
+
+# ✅ /logs 页面展示接口
+@app.get("/logs", response_class=HTMLResponse)
+async def logs_page(request: Request):
+    return templates.TemplateResponse("logs.html", {"request": request})
