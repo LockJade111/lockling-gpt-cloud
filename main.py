@@ -15,7 +15,7 @@ load_dotenv()
 
 app = FastAPI()
 
-# ✅ 跨域设置（允许前端访问）
+# ✅ CORS 设置
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -27,50 +27,43 @@ app.add_middleware(
 @app.post("/chat")
 async def chat(request: Request):
     data = await request.json()
-    message = data.get("message")
+    message = data.get("message", "")
     persona = data.get("persona", "Lockling 锁灵")
 
     if not message:
         return {
-            "reply": "[系统错误] message 为空",
+            "reply": "❌ message 为空，无法处理",
             "intent": {"intent": "unknown"},
             "persona": persona
         }
 
-    # ✅ 1. 意图识别
+    # ✅ 意图识别
     intent_result = parse_intent(message, persona)
+    print(f"🌐 调试：intent_result = {intent_result}")
 
-    if not isinstance(intent_result, dict) or intent_result.get("intent") == "unknown":
+    # ✅ 权限检查
+    intent_type = intent_result.get("intent_type", "unknown")
+    has_permission = check_permission(persona, required=None, intent_type=intent_type, intent=intent_result)
+
+    if not has_permission:
         return {
-            "reply": "❌ 意图识别失败：dispatch_intents() 无法识别结构",
+            "reply": "⛔ 权限不足，拒绝操作",
             "intent": intent_result,
             "persona": persona
         }
 
-    # ✅ 2. 权限判断
-    intent_type = intent_result.get("intent_type")
-    required = intent_result.get("requires_permission", "")
-    allowed = check_permission(persona, required, intent_type=intent_type, intent=intent_result)
-
-    if not allowed:
-        return {
-            "reply": f"⚠️ {persona} 没有权限执行该操作。",
-            "intent": intent_result,
-            "persona": persona
-        }
-
-    # ✅ 3. 派发执行逻辑
+    # ✅ 分发意图并生成回复
     reply = dispatch_intents(intent_result, persona)
+    print(f"📤 调试：reply = {reply}")
 
-    # ✅ 4. 写入日志
+    # ✅ 写入 Supabase 日志
     write_log_to_supabase(message, persona, intent_result, reply)
 
     return {
-        "reply": reply,
+        "reply": reply.get("reply", "🤖 无法生成回复"),
         "intent": intent_result,
         "persona": persona
     }
 
-# ✅ 启动本地测试（可忽略，Render 不使用此入口）
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=10000, reload=True)
