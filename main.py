@@ -3,18 +3,15 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-from openai_helper import ask_gpt
-from supabase_logger import write_log_to_supabase
-from intent_parser import parse_intent
-from check_permission import get_persona_permissions
 from intent_dispatcher import dispatch_intents
+from check_permission import get_persona_permissions
 
 # ✅ 加载环境变量
 load_dotenv()
 
 app = FastAPI()
 
-# ✅ 跨域支持（开发/前端测试用）
+# ✅ 跨域支持（前端调试）
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -23,7 +20,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ 权限判断（移除旧的 check_permission 引用）
+# ✅ 权限判断（旧版本函数保留）
 def has_permission(persona, required):
     if not required:
         return True
@@ -42,45 +39,27 @@ async def chat(request: Request):
     if not message:
         return {
             "status": "fail",
-            "reply": "❌ message 为空，无法处理。",
-            "intent": {"intent": "unknown"},
-            "persona": persona
+            "reply": "❌ message 为空，无法处理。"
         }
 
-    # ✅ 自动意图识别（除非已传入完整 intent）
-    if not intent or not isinstance(intent, dict) or not skip_parsing:
-        intent = parse_intent(message, persona)
+    # ✅ fallback intent 自动构建
+    if not intent:
+        intent = {
+            "intent": "unknown",
+            "intent_type": "unknown",
+            "source": message
+        }
 
     intent_type = intent.get("intent_type", "unknown")
-    required_permission = intent.get("requires_permission", "")
 
-    print(f"🧠 intent_type={intent_type}, requires={required_permission}, persona={persona}")
+    print(f"🧠 接收到意图类型: {intent_type}")
 
-    # ✅ 权限判断
-    if not has_permission(persona, required_permission):
-        reply = f"⛔ 权限不足（需要 {required_permission} 权限）"
-        write_log_to_supabase(persona, message, intent, reply)
-        return {
-            "status": "denied",
-            "reply": reply,
-            "intent": intent,
-            "persona": persona
-        }
-
-    # ✅ 分发执行
+    # ✅ 分发处理逻辑
     result = dispatch_intents(intent, persona)
-    reply = result.get("reply", "🤖 无响应")
-
-    # ✅ 日志记录
-    write_log_to_supabase(persona, message, intent, reply)
 
     return {
         "status": "success",
-        "reply": reply,
-        "intent": intent,
+        "reply": result.get("reply", "⚠️ 无返回内容"),
+        "intent": result.get("intent", intent),
         "persona": persona
     }
-
-@app.get("/")
-async def root():
-    return {"status": "✅ Lockling Cloud Ready"}
