@@ -8,7 +8,6 @@ import json
 # 设置 OpenAI API Key
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-
 # ✅ GPT 智能语义解析器
 def gpt_parse(message: str) -> dict:
     system_prompt = """
@@ -26,7 +25,7 @@ def gpt_parse(message: str) -> dict:
 
     try:
         response = openai.ChatCompletion.create(
-            model="gpt-4",  # 可替换为 "gpt-3.5-turbo"
+            model="gpt-4",  # 可替换为 gpt-3.5-turbo
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": message}
@@ -40,58 +39,51 @@ def gpt_parse(message: str) -> dict:
         print(f"⚠️ GPT解析失败：{e}")
         return None
 
-
-# ✅ 本地备用解析器（正则规则）
+# ✅ 本地备用解析器（fallback 正则规则）
 def local_parse(message: str) -> dict:
-    message = message.strip()
-    intent = {"intent": "unknown", "intent_type": "unknown"}
+    # 授权指令（包含“授权”、“允许”，和“口令”）
+    if re.search(r"(授权|允许).+(注册|创建).+口令", message):
+        target_match = re.search(r"(?:授权|允许)(.*?)可以", message)
+        secret_match = re.search(r"口令(是|为)?(.+)", message)
+        if target_match and secret_match:
+            return {
+                "intent": "confirm_secret",
+                "intent_type": "confirm_secret",
+                "target": target_match.group(1).strip(),
+                "secret": secret_match.group(2).strip()
+            }
 
-    if "注册角色" in message:
-        match = re.search(r"注册角色[\s]*([^\s，。]+)", message)
-        if match:
-            intent.update({
+    # 注册角色（如：“我要注册角色 小助手”）
+    if re.search(r"(我要)?注册(新)?角色", message):
+        name_match = re.search(r"角色[：:\s]?(.+)", message)
+        if name_match:
+            return {
                 "intent": "register_persona",
                 "intent_type": "register_persona",
-                "new_name": match.group(1),
-                "source": message
-            })
-    elif "授权" in message and "注册角色" in message:
-        match = re.search(r"授权([\u4e00-\u9fa5A-Za-z0-9_]+).*注册角色", message)
-        secret_match = re.search(r"口令是([\u4e00-\u9fa5A-Za-z0-9_]+)", message)
-        if match:
-            intent.update({
-                "intent": "confirm_identity",
-                "intent_type": "confirm_identity",
-                "target": match.group(1),
-                "secret": secret_match.group(1) if secret_match else "",
-                "source": message
-            })
-    elif "取消" in message and "权限" in message:
-        match = re.search(r"取消([\u4e00-\u9fa5A-Za-z0-9_]+).*权限", message)
-        if match:
-            intent.update({
+                "new_name": name_match.group(1).strip()
+            }
+
+    # 撤销权限（如：“我要取消司铃注册权限”）
+    if "取消" in message and "权限" in message:
+        target_match = re.search(r"取消(.*?)权限", message)
+        if target_match:
+            return {
                 "intent": "revoke_identity",
                 "intent_type": "revoke_identity",
-                "target": match.group(1),
-                "source": message
-            })
+                "target": target_match.group(1).strip()
+            }
 
-    return intent
+    # 未识别成功
+    return {
+        "intent": "unknown",
+        "intent_type": "unknown"
+    }
 
-
-# ✅ 主入口：统一调用接口
-def parse_intent(message: str, persona: str = None) -> dict:
-    print(f"🧠 开始解析意图：message='{message}' | persona='{persona}'")
-    intent = gpt_parse(message)
-
-    if intent is None or intent.get("intent_type") == "unknown":
-        print("🔁 尝试 fallback 到本地解析器...")
-        intent = local_parse(message)
-
-    if not isinstance(intent, dict):
-        return {"intent": "unknown", "intent_type": "unknown"}
-    
-    # 加入 source 和 persona 补充字段
-    intent.setdefault("source", message)
-    intent.setdefault("persona", persona)
-    return intent
+# ✅ 顶层调用接口
+def parse_intent(message: str) -> dict:
+    parsed = gpt_parse(message)
+    if parsed and parsed.get("intent_type") != "unknown":
+        return parsed
+    else:
+        print("⚠️ GPT未能成功解析，启用本地规则")
+        return local_parse(message)
