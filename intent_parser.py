@@ -6,20 +6,24 @@ from openai import OpenAI
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def parse_intent(user_input: str, persona: str) -> dict:
-    # ✅ 口头授权识别：「密钥玉衡在手，授权军师猫可以注册新角色」
-    if "密钥" in user_input and "授权" in user_input and "注册" in user_input:
-        grantee_match = re.search(r"授权\s*(\S+?)\s*(可以)?注册", user_input)
-        if grantee_match:
-            grantee = grantee_match.group(1)
+    # ✅ 一句话式口令授权：「我是将军，我要授权军师猫注册新角色，密钥是玉衡在手」
+    if any(kw in user_input for kw in ["授权", "注册", "密钥", "口令"]):
+        persona_match = re.search(r"我是(\S+)", user_input)
+        grantee_match = re.search(r"授权(\S+?)注册", user_input)
+        permission_match = "register_persona" if "注册新角色" in user_input else None
+        secret_match = re.search(r"(?:密钥|口令)[为是:]?\s*([^\s，。；：]*)", user_input)
+
+        if persona_match and grantee_match and permission_match and secret_match:
             return {
                 "intent": "grant_permission",
-                "persona": persona,
-                "grantee": grantee,
-                "permission": "register_persona",
-                "source": user_input  # ✅ 添加原始语句来源
+                "persona": persona_match.group(1),
+                "grantee": grantee_match.group(1),
+                "permission": permission_match,
+                "secret": secret_match.group(1),
+                "source": user_input
             }
 
-    # ✅ 注册角色识别：「注册角色小艾，权限为 query，语气为活泼」
+    # ✅ 注册角色意图
     if "注册角色" in user_input or "创建角色" in user_input:
         name_match = re.search(r"(?:注册|创建)角色\s*([\u4e00-\u9fa5A-Za-z0-9_]+)", user_input)
         permission_match = re.search(r"权限(?:为|是)?\s*([a-zA-Z_]+)", user_input)
@@ -31,10 +35,10 @@ def parse_intent(user_input: str, persona: str) -> dict:
             "new_name": name_match.group(1) if name_match else "未知",
             "permissions": [permission_match.group(1)] if permission_match else [],
             "tone": tone_match.group(1) if tone_match else "默认",
-            "source": user_input  # ✅ 添加原始语句来源
+            "source": user_input
         }
 
-    # ✅ 其他意图默认由 GPT 辅助判断
+    # ✅ 默认调用 GPT 模型解析
     system_prompt = f"""
 你是 LockJade 云脑的“意图判断器”，你的任务是从用户自然语言中提取结构化意图，并用以下 JSON 格式回答：
 
@@ -59,18 +63,9 @@ def parse_intent(user_input: str, persona: str) -> dict:
             temperature=0.1,
         )
         result = response.choices[0].message.content.strip()
-        if result.startswith("{") and result.endswith("}"):
-            parsed = json.loads(result)
-            parsed["source"] = user_input  # ✅ 强制添加 source 字段
-            return parsed
-        else:
-            return {
-                "intent": "unknown",
-                "persona": persona,
-                "error": "GPT 返回格式非法",
-                "source": user_input
-            }
-
+        parsed = json.loads(result)
+        parsed["source"] = user_input  # 强制加入原文
+        return parsed
     except Exception as e:
         return {
             "intent": "unknown",
