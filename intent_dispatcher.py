@@ -43,7 +43,7 @@ def handle_confirm_identity(intent):
         }
     else:
         return {
-            "reply": f"⚠️ 授权失败，系统未成功写入。",
+            "reply": f"⚠️ 授权失败，操作未生效。",
             "intent": intent
         }
 
@@ -61,33 +61,32 @@ def handle_revoke_identity(intent):
     success = revoke_authorization(authorizer, grantee)
     if success:
         return {
-            "reply": f"✅ 授权已取消：{authorizer} 不再允许 {grantee} 注册 persona。",
+            "reply": f"✅ 已取消授权：{authorizer} 不再授权 {grantee}。",
             "intent": intent
         }
     else:
         return {
-            "reply": f"⚠️ 取消失败，未找到原有授权关系。",
+            "reply": f"⚠️ 取消失败，可能不存在该授权关系。",
             "intent": intent
         }
 
-# ✅ intent 处理：注册 persona（注册新角色）
+# ✅ intent 处理：注册新角色
 def handle_register_persona(intent):
     new_name = intent.get("new_name", "").strip()
     if not new_name:
         return {
-            "reply": "⚠️ 注册失败：缺少角色名称。",
+            "reply": "⚠️ 注册失败，缺少角色名。",
             "intent": intent
         }
-
     activate_persona(new_name)
     return {
-        "reply": f"✅ persona 角色已注册并激活：{new_name}",
+        "reply": f"✅ 新 persona 已注册并激活：{new_name}",
         "intent": intent
     }
 
-# ✅ intent 主调度器
+# ✅ 主调度函数
 def dispatch_intents(intent: dict, persona: str = None) -> dict:
-    intent_type = intent.get("intent_type")
+    intent_type = intent.get("intent_type", "unknown")
 
     if intent_type == "confirm_secret":
         return handle_confirm_secret(intent)
@@ -102,10 +101,5 @@ def dispatch_intents(intent: dict, persona: str = None) -> dict:
     else:
         return {
             "reply": f"❌ 未知意图类型：{intent_type}",
-            "intent": {
-                "intent": "unknown",
-                "intent_type": "unknown",
-                "source": intent.get("source", "")
-            },
-            "persona": persona
+            "intent": intent
         }
