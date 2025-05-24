@@ -11,7 +11,7 @@ load_dotenv()
 
 app = FastAPI()
 
-# ✅ 跨域支持（前端调试）
+# ✅ 跨域支持
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -20,7 +20,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ 权限判断（旧版本函数保留）
+# ✅ 权限判断（保留兼容性）
 def has_permission(persona, required):
     if not required:
         return True
@@ -42,24 +42,35 @@ async def chat(request: Request):
             "reply": "❌ message 为空，无法处理。"
         }
 
-    # ✅ fallback intent 自动构建
-    if not intent:
-        intent = {
-            "intent": "unknown",
-            "intent_type": "unknown",
-            "source": message
+    # ✅ fallback: 自动构建密钥意图
+    if not intent or intent.get("intent_type") in ["", "unknown"]:
+        if "玉衡在手" in message:
+            intent = {
+                "intent": "confirm_secret",
+                "intent_type": "confirm_secret",
+                "secret": "玉衡在手",
+                "source": message
+            }
+
+    # ✅ 意图分发
+    intent_result = dispatch_intents(intent, persona)
+
+    # ✅ 权限判断
+    required = intent_result.get("requires")
+    has_access = has_permission(persona, required)
+
+    if not has_access:
+        return {
+            "status": "success",
+            "reply": "⛔️ 权限不足，拒绝操作。",
+            "intent": intent_result,
+            "persona": persona
         }
 
-    intent_type = intent.get("intent_type", "unknown")
-
-    print(f"🧠 接收到意图类型: {intent_type}")
-
-    # ✅ 分发处理逻辑
-    result = dispatch_intents(intent, persona)
-
+    # ✅ 返回结果
     return {
         "status": "success",
-        "reply": result.get("reply", "⚠️ 无返回内容"),
-        "intent": result.get("intent", intent),
+        "reply": intent_result.get("reply", "✅ 指令已处理。"),
+        "intent": intent_result,
         "persona": persona
     }
