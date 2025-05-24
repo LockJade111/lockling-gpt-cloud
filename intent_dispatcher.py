@@ -23,7 +23,7 @@ def handle_begin_auth(intent):
         "intent": intent
     }
 
-# ✅ intent 处理：执行注册授权
+# ✅ intent 处理：执行注册授权（confirm_identity）
 def handle_confirm_identity(intent):
     authorizer = intent.get("identity", "").strip()
     grantee = intent.get("target", "").strip()
@@ -43,48 +43,51 @@ def handle_confirm_identity(intent):
         }
     else:
         return {
-            "reply": f"⚠️ 授权失败，操作未生效。",
+            "reply": "❌ 授权失败，系统写入异常。",
             "intent": intent
         }
 
-# ✅ intent 处理：取消授权
+# ✅ intent 处理：撤销授权（revoke_identity）
 def handle_revoke_identity(intent):
     authorizer = intent.get("identity", "").strip()
     grantee = intent.get("target", "").strip()
 
     if not authorizer or not grantee:
         return {
-            "reply": "⚠️ 取消失败，缺少身份或目标。",
+            "reply": "⚠️ 撤销失败，缺少身份或目标。",
             "intent": intent
         }
 
     success = revoke_authorization(authorizer, grantee)
     if success:
         return {
-            "reply": f"✅ 已取消授权：{authorizer} 不再授权 {grantee}。",
+            "reply": f"✅ 已撤销 {grantee} 的注册权限（由 {authorizer} 授权）。",
             "intent": intent
         }
     else:
         return {
-            "reply": f"⚠️ 取消失败，可能不存在该授权关系。",
+            "reply": "❌ 撤销失败，未找到有效授权关系。",
             "intent": intent
         }
 
-# ✅ intent 处理：注册新角色
-def handle_register_persona(intent):
+# ✅ intent 处理：注册新 persona（register_persona）
+def register_new_persona(intent):
     new_name = intent.get("new_name", "").strip()
+    source = intent.get("source", "").strip()
+
     if not new_name:
         return {
-            "reply": "⚠️ 注册失败，缺少角色名。",
+            "reply": "⚠️ 注册失败，缺少角色名称。",
             "intent": intent
         }
-    activate_persona(new_name)
+
+    activate_persona(new_name)  # 启动 .env 中的 persona
     return {
-        "reply": f"✅ 新 persona 已注册并激活：{new_name}",
+        "reply": f"✅ 新 persona {new_name} 已激活，欢迎加入 Lockling 系统。",
         "intent": intent
     }
 
-# ✅ 主调度函数
+# ✅ 主调度函数：根据 intent_type 分发处理
 def dispatch_intents(intent: dict, persona: str = None) -> dict:
     intent_type = intent.get("intent_type", "unknown")
 
@@ -97,7 +100,7 @@ def dispatch_intents(intent: dict, persona: str = None) -> dict:
     elif intent_type == "revoke_identity":
         return handle_revoke_identity(intent)
     elif intent_type == "register_persona":
-        return handle_register_persona(intent)
+        return register_new_persona(intent)
     else:
         return {
             "reply": f"❌ 未知意图类型：{intent_type}",
