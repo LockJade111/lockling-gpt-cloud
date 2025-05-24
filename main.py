@@ -39,11 +39,18 @@ async def chat(request: Request):
 
     # ✅ 意图识别
     intent_result = parse_intent(message, persona)
-    print(f"🌐 调试：intent_result = {intent_result}")
+    print(f"🌐 调试中：intent_result = {intent_result}")
+
+    intent_type = intent_result.get("intent_type", "unknown")
 
     # ✅ 权限检查
-    intent_type = intent_result.get("intent_type", "unknown")
-    has_permission = check_permission(persona, required=None, intent_type=intent_type, intent=intent_result)
+    has_permission = check_permission(
+        persona=persona,
+        required=intent_result.get("requires_permission", ""),
+        intent_type=intent_type,
+        intent=intent_result
+    )
+    print(f"🔐 权限校验：{has_permission}")
 
     if not has_permission:
         return {
@@ -52,18 +59,19 @@ async def chat(request: Request):
             "persona": persona
         }
 
-    # ✅ 分发意图并生成回复
-    reply = dispatch_intents(intent_result, persona)
-    print(f"📤 调试：reply = {reply}")
+    # ✅ 分发处理意图
+    result = dispatch_intents(intent_result, persona)
+    print(f"📦 分发结果：{result}")
 
-    # ✅ 写入 Supabase 日志
-    write_log_to_supabase(message, persona, intent_result, reply)
+    # ✅ 写入日志
+    write_log_to_supabase(message, persona, intent_result, result["reply"])
 
     return {
-        "reply": reply.get("reply", "🤖 无法生成回复"),
-        "intent": intent_result,
+        "reply": result["reply"],
+        "intent": result.get("intent", intent_result),
         "persona": persona
     }
 
+# ✅ 启动入口（如需本地调试）
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=10000, reload=True)
