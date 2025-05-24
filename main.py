@@ -4,14 +4,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
 import intent_dispatcher
-from parse_intent_with_gpt import parse_intent  # ✅ 使用新版 GPT 解析器
-from check_permission import check_secret_permission  # ✅ 本地密钥判断
+from parse_intent_with_gpt import parse_intent
+from check_permission import check_secret_permission
+from supabase_logger import write_log_to_supabase  # ✅ 日志模块
 
 load_dotenv()
 
 app = FastAPI()
 
-# ✅ 启用跨域支持（前端调试友好）
+# ✅ 启用 CORS（便于前端调试）
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -28,7 +29,7 @@ async def chat(request: Request):
         persona = data.get("persona", "Lockling 锁灵").strip()
         skip_parsing = data.get("skip_parsing", False)
 
-        # ✅ GPT 解析意图
+        # ✅ 意图解析（使用 GPT）
         if skip_parsing and "intent" in data:
             intent = data["intent"]
         else:
@@ -37,7 +38,7 @@ async def chat(request: Request):
         intent["source"] = message
         intent["persona"] = persona
 
-        # ✅ 阻止 unknown 意图进入执行流
+        # ✅ 意图类型为 unknown，直接返回
         if intent.get("intent_type") == "unknown":
             return {
                 "status": "success",
@@ -49,28 +50,16 @@ async def chat(request: Request):
                 "persona": persona
             }
 
-        # ✅ 若需要密钥校验（如 confirm_secret / confirm_identity）
-        if intent.get("intent_type") in ["confirm_secret", "confirm_identity"]:
-            secret = intent.get("secret", "").strip()
-            if not check_secret_permission(persona, secret):
-                return {
-                    "status": "fail",
-                    "reply": "🚫 密钥错误，身份验证失败。",
-                    "intent": intent,
-                    "persona": persona
-                }
+        # ✅ 调度意图执行
+        reply = intent_dispatcher.dispatch_intents(intent)
 
-        # ✅ GPT 判断不允许执行
-        if intent.get("allow") is False:
-            return {
-                "status": "fail",
-                "reply": f"⚠️ GPT 拒绝执行操作：{intent.get('reason', '权限不足')}",
-                "intent": intent,
-                "persona": persona
-            }
-
-        # ✅ 分发执行
-        reply = await intent_dispatcher.dispatch_intent(intent)
+        # ✅ 写入日志（无论成功失败）
+        write_log_to_supabase(
+            message=message,
+            persona=persona,
+            intent_result=reply.get("intent", {}),
+            reply=reply.get("reply", "")
+        )
 
         return {
             "status": "success",
@@ -82,7 +71,5 @@ async def chat(request: Request):
     except Exception as e:
         return {
             "status": "error",
-            "reply": f"💥 服务器内部错误：{str(e)}",
-            "intent": {},
-            "persona": "System"
+            "reply": f"💥 系统异常：{str(e)}"
         }
