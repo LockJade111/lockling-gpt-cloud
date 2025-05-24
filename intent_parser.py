@@ -15,7 +15,8 @@ def parse_intent(user_input: str, persona: str) -> dict:
                 "intent": "grant_permission",
                 "persona": persona,
                 "grantee": grantee,
-                "permission": "register_persona"
+                "permission": "register_persona",
+                "source": user_input  # ✅ 添加原始语句来源
             }
 
     # ✅ 注册角色识别：「注册角色小艾，权限为 query，语气为活泼」
@@ -29,7 +30,8 @@ def parse_intent(user_input: str, persona: str) -> dict:
             "persona": persona,
             "new_name": name_match.group(1) if name_match else "未知",
             "permissions": [permission_match.group(1)] if permission_match else [],
-            "tone": tone_match.group(1) if tone_match else "默认"
+            "tone": tone_match.group(1) if tone_match else "默认",
+            "source": user_input  # ✅ 添加原始语句来源
         }
 
     # ✅ 其他意图默认由 GPT 辅助判断
@@ -58,17 +60,21 @@ def parse_intent(user_input: str, persona: str) -> dict:
         )
         result = response.choices[0].message.content.strip()
         if result.startswith("{") and result.endswith("}"):
-            return json.loads(result)
+            parsed = json.loads(result)
+            parsed["source"] = user_input  # ✅ 强制添加 source 字段
+            return parsed
         else:
             return {
                 "intent": "unknown",
                 "persona": persona,
-                "error": "GPT 返回格式非法"
+                "error": "GPT 返回格式非法",
+                "source": user_input
             }
 
     except Exception as e:
         return {
             "intent": "unknown",
             "persona": persona,
-            "error": str(e)
+            "error": str(e),
+            "source": user_input
         }
