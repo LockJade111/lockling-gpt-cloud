@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv(dotenv_path=".env", override=True)
+
 import os
 from fastapi import FastAPI, Request, Form
 from fastapi.middleware.cors import CORSMiddleware
