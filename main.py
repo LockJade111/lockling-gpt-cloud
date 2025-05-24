@@ -4,15 +4,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
 import intent_dispatcher
-import semantic_parser  # ✅ 确保此模块存在并导入 parse_intent
+import semantic_parser
 import check_permission
-# from supabase_logger import write_log_to_supabase  # 如你尚未启用日志模块，可先注释
+# from supabase_logger import write_log_to_supabase  # 如尚未启用，可注释
 
 load_dotenv()
 
 app = FastAPI()
 
-# ✅ CORS 设置
+# ✅ 跨域设置
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -21,7 +21,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ 主接口
 @app.post("/chat")
 async def chat(request: Request):
     try:
@@ -30,11 +29,11 @@ async def chat(request: Request):
         persona = data.get("persona", "Lockling 锁灵").strip()
         skip_parsing = data.get("skip_parsing", False)
 
-        # ✅ 意图识别
+        # ✅ 语义解析与意图识别
         if skip_parsing and "intent" in data:
             intent = data["intent"]
         else:
-            intent = semantic_parser.parse_intent(message)
+            intent = semantic_parser.parse_intent(message, persona)
             intent["source"] = message
             intent["persona"] = persona
 
@@ -42,22 +41,37 @@ async def chat(request: Request):
         if not intent_type:
             return {
                 "status": "fail",
-                "reply": "❌ 无法识别意图。",
+                "reply": "❌ 无法识别意图类型。",
                 "intent": intent,
                 "persona": persona
             }
 
-        # ✅ 分发处理
-        result = intent_dispatcher.dispatch_intent(intent)
+        # ✅ 权限检查
+        required = intent.get("requires", "")
+        if required:
+            has_permission = check_permission.check_permission(persona, required)
+            if not has_permission:
+                return {
+                    "status": "fail",
+                    "reply": "🚫 权限不足，拒绝操作。",
+                    "intent": intent,
+                    "persona": persona
+                }
+
+        # ✅ 调用 intent 分发器处理
+        reply = await intent_dispatcher.dispatch_intent(intent)
+
+        # ✅ 可选日志记录
+        # write_log_to_supabase(persona, message, intent, reply)
+
         return {
-            "status": "success" if "✅" in result["reply"] else "fail",
-            "reply": result["reply"],
-            "intent": result.get("intent", intent),
+            "status": "success",
+            "reply": reply,
+            "intent": intent,
             "persona": persona
         }
 
     except Exception as e:
-        print(f"🔥 错误：{e}")
         return {
             "status": "error",
             "reply": f"💥 服务器内部错误：{str(e)}",
