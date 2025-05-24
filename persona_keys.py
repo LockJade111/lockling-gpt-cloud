@@ -17,20 +17,49 @@ def register_persona(persona: str, secret: str, created_by="系统", role="user"
         "secret_hash": hashed,
         "created_by": created_by,
         "role": role,
-        "active": True
+        "active": True,
+        "failed_attempts": 0,
+        "locked": False
     }).execute()
     return result
 
-# ✅ 验证 persona 密钥（数据库哈希验证）
+# ✅ 验证 persona 密钥（含失败计数与锁定机制）
 def check_persona_secret(persona: str, input_secret: str) -> bool:
     try:
-        result = supabase.table(TABLE).select("secret_hash").eq("persona", persona).eq("active", True).limit(1).execute()
+        result = supabase.table(TABLE).select("*").eq("persona", persona).eq("active", True).limit(1).execute()
         if not result.data:
+            print(f"[❌] 无法找到 persona：{persona}")
             return False
-        stored_hash = result.data[0]["secret_hash"]
-        return bcrypt.checkpw(input_secret.encode(), stored_hash.encode())
+
+        row = result.data[0]
+
+        # ✅ 已锁定的账号拒绝验证
+        if row.get("locked"):
+            print(f"[🔒] 账号已锁定：{persona}")
+            return False
+
+        stored_hash = row["secret_hash"]
+        if bcrypt.checkpw(input_secret.encode(), stored_hash.encode()):
+            # ✅ 验证成功，重置失败次数
+            supabase.table(TABLE).update({
+                "failed_attempts": 0
+            }).eq("persona", persona).execute()
+            print(f"[✅] 密钥验证成功：{persona}")
+            return True
+        else:
+            # ❌ 验证失败：更新失败计数 + 如有必要锁定
+            failed = row.get("failed_attempts", 0) + 1
+            update_payload = {"failed_attempts": failed}
+            if failed >= 5:
+                update_payload["locked"] = True
+                print(f"[⛔️] 失败次数过多，账号已锁定：{persona}")
+
+            supabase.table(TABLE).update(update_payload).eq("persona", persona).execute()
+            print(f"[❌] 密钥错误，当前失败次数：{failed}")
+            return False
+
     except Exception as e:
-        print(f"[❌] 验证失败: {e}")
+        print(f"[⚠️] 验证异常：{e}")
         return False
 
 # ✅ 撤销 persona（禁用注册权限）
