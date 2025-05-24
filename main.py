@@ -21,7 +21,7 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 # ✅ FastAPI 初始化
 app = FastAPI()
 
-# ✅ 跨域中间件设置
+# ✅ 启用跨域中间件
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -30,7 +30,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ 主接口 /chat：语义解析 → 权限验证 → 指令执行 → 日志写入
+# ✅ 主指令接口：语义解析 → 权限校验 → 派发执行 → 日志写入
 @app.post("/chat")
 async def chat(request: Request):
     try:
@@ -39,7 +39,7 @@ async def chat(request: Request):
         persona = data.get("persona", "Lockling 锁灵").strip()
         skip_parsing = data.get("skip_parsing", False)
 
-        # ✅ 语义解析（可跳过）
+        # ✅ 意图解析
         if skip_parsing and "intent" in data:
             intent = data["intent"]
         else:
@@ -48,7 +48,7 @@ async def chat(request: Request):
         intent["persona"] = persona
         intent["source"] = message
 
-        # ✅ 权限校验（密钥验证）
+        # ✅ 权限验证（密钥匹配）
         if not check_secret_permission(persona, intent.get("secret", "")):
             intent["allow"] = False
             intent["reason"] = "密钥错误或未授权"
@@ -61,7 +61,7 @@ async def chat(request: Request):
             write_log_to_supabase(message, persona, intent, reply["reply"])
             return JSONResponse(reply)
 
-        # ✅ 执行指令
+        # ✅ 分发执行
         intent["allow"] = True
         intent["reason"] = "身份验证成功"
         result = intent_dispatcher.dispatch_intents(intent)
@@ -82,8 +82,7 @@ async def chat(request: Request):
             "message": f"💥 服务异常：{str(e)}"
         })
 
-
-# ✅ 日志查询接口 /log/query：密钥验证 + 多条件筛选 + 精简输出
+# ✅ 日志查询接口：需密钥验证 + 支持多条件筛选
 @app.post("/log/query")
 async def query_log(request: Request):
     data = await request.json()
@@ -94,11 +93,11 @@ async def query_log(request: Request):
     filter_type = data.get("intent_type", "").strip()
     filter_allow = data.get("allow", None)
 
-    # ✅ 权限校验（必须提供密钥）
+    # ✅ 权限验证（密钥匹配 + 角色为将军）
     if not check_secret_permission(persona, secret):
         return JSONResponse({
             "status": "fail",
-            "reply": "🚫 无权访问日志，身份或密钥错误。",
+            "reply": "🚫 身份或密钥错误，无权查询日志。",
             "logs": []
         })
 
@@ -110,7 +109,7 @@ async def query_log(request: Request):
         limit=limit
     )
 
-    # ✅ 精简字段输出
+    # ✅ 精简字段结构输出
     simplified_logs = [
         {
             "timestamp": log["timestamp"],
