@@ -1,15 +1,6 @@
 import os
 
-# ✅ 本地权限映射表（如切换到 Supabase 可替换查询）
-permission_map = {
-    "玉衡": ["query", "write", "schedule", "finance"],
-    "司铃": ["schedule", "query", "email_notify"],
-    "军师猫": ["query", "fallback", "logs"],
-    "Lockling 锁灵": ["query", "write"],
-    "小徒弟": ["schedule"]
-}
-
-# ✅ 注册新 persona（写入 .env）
+# ✅ 注册新 persona（可选：写入 .env 以标记激活状态）
 def register_new_persona(name: str):
     env_path = ".env"
     if os.path.exists(env_path):
@@ -20,7 +11,7 @@ def register_new_persona(name: str):
 
     key = f"PERSONA_{name}=active\n"
     if any(line.startswith(f"PERSONA_{name}=") for line in lines):
-        return False
+        return False  # 已存在
 
     lines.append(key)
     with open(env_path, "w") as f:
@@ -43,22 +34,21 @@ def handle_begin_auth(intent):
 
 # ✅ intent: 授权注册权限
 def handle_confirm_identity(intent):
-    authorizer = intent.get("identity", "")
-    grantee = intent.get("target", "")
+    authorizer = intent.get("identity", "").strip()
+    grantee = intent.get("target", "").strip()
     if not authorizer or not grantee:
         return {
-            "reply": "⚠️ 授权失败，请检查身份与目标。",
+            "reply": "⚠️ 授权失败，身份或目标为空。",
             "intent": intent
         }
 
     env_path = ".env"
     key = f"{authorizer}:{grantee}"
+    lines = []
 
     if os.path.exists(env_path):
         with open(env_path, "r") as f:
             lines = f.readlines()
-    else:
-        lines = []
 
     existing = ""
     for line in lines:
@@ -69,10 +59,10 @@ def handle_confirm_identity(intent):
     if key not in entries:
         entries.append(key)
 
-    updated = f'AUTHORIZED_REGISTER={",".join(entries)}\n'
-    lines = [line for line in lines if not line.startswith("AUTHORIZED_REGISTER=")]
+    new_line = f'AUTHORIZED_REGISTER={",".join(sorted(entries))}\n'
     with open(env_path, "w") as f:
-        f.writelines(lines + [updated])
+        lines = [line for line in lines if not line.startswith("AUTHORIZED_REGISTER=")]
+        f.writelines(lines + [new_line])
 
     return {
         "reply": f"✅ 授权成功：{authorizer} 授权 {grantee} 拥有注册权限。",
@@ -82,27 +72,30 @@ def handle_confirm_identity(intent):
 # ✅ intent: 注册新角色
 def handle_register_persona(intent):
     name = intent.get("new_name", "").strip()
+    source = intent.get("source", "").strip()
+
     if not name:
         return {
-            "reply": "❌ 角色名不能为空。",
+            "reply": "⚠️ 注册失败，请提供角色名称。",
             "intent": intent
         }
+
     success = register_new_persona(name)
     if success:
         return {
-            "reply": f"✅ 已成功注册新角色：{name}",
+            "reply": f"✅ 角色 {name} 已成功注册（来源：{source}）",
             "intent": intent
         }
     else:
         return {
-            "reply": f"⚠️ 角色 {name} 已存在。",
+            "reply": f"⚠️ 角色 {name} 已存在或注册失败。",
             "intent": intent
         }
 
-# ✅ 主调度函数
+# ✅ 主调度器：根据意图分发处理
 def dispatch_intents(intent: dict, persona: str = None) -> dict:
-    intent_type = intent.get("intent_type")
-    print(f"🧭 dispatch 调用中：intent_type={intent_type} | persona={persona}")
+    intent_type = intent.get("intent_type", "").strip()
+    print(f"🐛 dispatch_intents 调试中：intent_type={intent_type}, persona={persona}")
 
     if intent_type == "confirm_secret":
         return handle_confirm_secret(intent)
@@ -114,7 +107,7 @@ def dispatch_intents(intent: dict, persona: str = None) -> dict:
         return handle_register_persona(intent)
     else:
         return {
-            "reply": f"❌ 意图识别失败：dispatch_intents() 无法识别结构",
+            "reply": f"❌ dispatch_intents 无法识别结构",
             "intent": {
                 "intent": "unknown",
                 "intent_type": "unknown",
