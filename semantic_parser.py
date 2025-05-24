@@ -2,28 +2,31 @@
 
 import os
 import openai
+import re
+import json
 
-# 设置 API 密钥
+# 设置 OpenAI API Key
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# ✅ GPT 智能解析器
+
+# ✅ GPT 智能语义解析器
 def gpt_parse(message: str) -> dict:
     system_prompt = """
-你是一个语义解析助手，请将用户的自然语言指令解析为以下结构：
+你是一个语义解析助手，请将用户的自然语言指令解析为以下结构的标准 JSON：
 {
-  "intent_type": "...",
-  "target": "...",        # 若有授权对象
-  "new_name": "...",      # 若是注册角色
-  "secret": "...",        # 若有口令
-  "requires": "..."       # 系统权限，如 "register_persona"
+  "intent": "...",           // 意图关键词
+  "intent_type": "...",      // 意图类型
+  "target": "...",           // 若为授权操作，目标对象是谁
+  "new_name": "...",         // 若为注册，角色名称
+  "secret": "...",           // 若包含口令
+  "requires": "..."          // 所请求的权限（如注册 register_persona）
 }
-如果无法识别意图，请设置 intent_type 为 "unknown"。
-请确保返回内容为标准 JSON 格式，绝不添加注释或多余文本。
+如果无法判断，请设置 intent_type 为 "unknown"。不要添加注释或多余语言。
 """
 
     try:
         response = openai.ChatCompletion.create(
-            model="gpt-4",  # 可改为 gpt-3.5-turbo
+            model="gpt-4",  # 可替换为 "gpt-3.5-turbo"
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": message}
@@ -31,55 +34,64 @@ def gpt_parse(message: str) -> dict:
             temperature=0.2
         )
         content = response.choices[0].message.content.strip()
-        if content.startswith("{"):
-            return eval(content)
-        return {"intent_type": "unknown"}
+        parsed = json.loads(content)
+        return parsed
     except Exception as e:
         print(f"⚠️ GPT解析失败：{e}")
         return None
 
-# ✅ 本地备用解析器
+
+# ✅ 本地备用解析器（正则规则）
 def local_parse(message: str) -> dict:
     message = message.strip()
-    result = {
-        "intent": "unknown",
-        "intent_type": "unknown"
-    }
+    intent = {"intent": "unknown", "intent_type": "unknown"}
 
-    if "授权" in message and "口令是" in message:
-        result["intent"] = "confirm_secret"
-        result["intent_type"] = "confirm_secret"
-        result["secret"] = message.split("口令是")[-1].strip()
+    if "注册角色" in message:
+        match = re.search(r"注册角色[\s]*([^\s，。]+)", message)
+        if match:
+            intent.update({
+                "intent": "register_persona",
+                "intent_type": "register_persona",
+                "new_name": match.group(1),
+                "source": message
+            })
+    elif "授权" in message and "注册角色" in message:
+        match = re.search(r"授权([\u4e00-\u9fa5A-Za-z0-9_]+).*注册角色", message)
+        secret_match = re.search(r"口令是([\u4e00-\u9fa5A-Za-z0-9_]+)", message)
+        if match:
+            intent.update({
+                "intent": "confirm_identity",
+                "intent_type": "confirm_identity",
+                "target": match.group(1),
+                "secret": secret_match.group(1) if secret_match else "",
+                "source": message
+            })
+    elif "取消" in message and "权限" in message:
+        match = re.search(r"取消([\u4e00-\u9fa5A-Za-z0-9_]+).*权限", message)
+        if match:
+            intent.update({
+                "intent": "revoke_identity",
+                "intent_type": "revoke_identity",
+                "target": match.group(1),
+                "source": message
+            })
 
-    elif "授权" in message and "注册" in message:
-        result["intent"] = "confirm_identity"
-        result["intent_type"] = "confirm_identity"
-        for name in ["司铃", "军师猫", "小助手"]:
-            if name in message:
-                result["target"] = name
-        result["requires"] = "register_persona"
+    return intent
 
-    elif "注册角色" in message:
-        result["intent"] = "register_persona"
-        result["intent_type"] = "register_persona"
-        result["new_name"] = message.split("注册角色")[-1].strip()
-        result["requires"] = "register_persona"
 
-    elif "取消" in message and "授权" in message:
-        result["intent"] = "revoke_identity"
-        result["intent_type"] = "revoke_identity"
-        for name in ["司铃", "军师猫", "小助手"]:
-            if name in message:
-                result["target"] = name
+# ✅ 主入口：统一调用接口
+def parse_intent(message: str, persona: str = None) -> dict:
+    print(f"🧠 开始解析意图：message='{message}' | persona='{persona}'")
+    intent = gpt_parse(message)
 
-    return result
+    if intent is None or intent.get("intent_type") == "unknown":
+        print("🔁 尝试 fallback 到本地解析器...")
+        intent = local_parse(message)
 
-# ✅ 自动调度：优先 GPT，失败则 fallback 本地
-def parse_intent(message: str) -> dict:
-    parsed = gpt_parse(message)
-    if parsed:
-        print("🧠 使用 GPT 解析成功")
-        return parsed
-    else:
-        print("⚙️ 回退至本地解析")
-        return local_parse(message)
+    if not isinstance(intent, dict):
+        return {"intent": "unknown", "intent_type": "unknown"}
+    
+    # 加入 source 和 persona 补充字段
+    intent.setdefault("source", message)
+    intent.setdefault("persona", persona)
+    return intent
