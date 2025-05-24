@@ -3,19 +3,19 @@ from check_permission import (
     get_persona_permissions,
     get_persona_authorizers,
     get_persona_grantees,
-    revoke_authorization,
     add_register_authorization,
+    revoke_authorization,
 )
 from env_utils import add_authorization_env, activate_persona
 
-# ✅ 密钥验证（模拟将军密钥确认授权过程）
+# ✅ intent 处理：密钥确认
 def handle_confirm_secret(intent):
     return {
         "reply": "✅ 密钥验证通过，权限已激活。",
         "intent": intent
     }
 
-# ✅ 授权流程第一步：提示输入身份
+# ✅ intent 处理：开始身份确认阶段
 def handle_begin_auth(intent):
     target = intent.get("target", "")
     return {
@@ -23,7 +23,7 @@ def handle_begin_auth(intent):
         "intent": intent
     }
 
-# ✅ 授权流程第二步：身份 + 授权写入
+# ✅ intent 处理：执行注册授权
 def handle_confirm_identity(intent):
     authorizer = intent.get("identity", "").strip()
     grantee = intent.get("target", "").strip()
@@ -43,87 +43,69 @@ def handle_confirm_identity(intent):
         }
     else:
         return {
-            "reply": f"⚠️ 授权失败，可能已存在或写入失败。",
+            "reply": f"⚠️ 授权失败，系统未成功写入。",
             "intent": intent
         }
 
-# ✅ 注册新 persona
-def handle_register_persona(intent):
-    name = intent.get("new_name", "").strip()
-    if not name:
+# ✅ intent 处理：取消授权
+def handle_revoke_identity(intent):
+    authorizer = intent.get("identity", "").strip()
+    grantee = intent.get("target", "").strip()
+
+    if not authorizer or not grantee:
         return {
-            "reply": "⚠️ 注册失败，缺少角色名称。",
+            "reply": "⚠️ 取消失败，缺少身份或目标。",
             "intent": intent
         }
 
-    activate_persona(name)
-    return {
-        "reply": f"✅ persona 注册成功：{name}",
-        "intent": intent
-    }
-
-# ✅ 查询权限
-def handle_query_permission(intent, persona):
-    perms = get_persona_permissions(persona)
-    return {
-        "reply": f"🔐 当前权限：{perms}",
-        "intent": intent
-    }
-
-# ✅ 撤销授权
-def handle_revoke_authorization(intent, persona):
-    target = intent.get("target", "").strip()
-    if not target:
-        return {
-            "reply": "⚠️ 撤销失败，缺少目标。",
-            "intent": intent
-        }
-
-    success = revoke_authorization(persona, target)
+    success = revoke_authorization(authorizer, grantee)
     if success:
         return {
-            "reply": f"🔻 授权已撤销：{persona} → {target}",
+            "reply": f"✅ 授权已取消：{authorizer} 不再允许 {grantee} 注册 persona。",
             "intent": intent
         }
     else:
         return {
-            "reply": f"⚠️ 撤销失败，记录不存在。",
+            "reply": f"⚠️ 取消失败，未找到原有授权关系。",
             "intent": intent
         }
 
-# ✅ 权限同步占位（如需用 Supabase 自动同步）
-def handle_sync_permission(intent, persona):
+# ✅ intent 处理：注册 persona（注册新角色）
+def handle_register_persona(intent):
+    new_name = intent.get("new_name", "").strip()
+    if not new_name:
+        return {
+            "reply": "⚠️ 注册失败：缺少角色名称。",
+            "intent": intent
+        }
+
+    activate_persona(new_name)
     return {
-        "reply": f"🌀 权限同步逻辑尚未启用（开发中）",
+        "reply": f"✅ persona 角色已注册并激活：{new_name}",
         "intent": intent
     }
 
-# ✅ 主调度器：根据 intent_type 调用分支
+# ✅ intent 主调度器
 def dispatch_intents(intent: dict, persona: str = None) -> dict:
-    intent_type = intent.get("intent_type", "").strip()
+    intent_type = intent.get("intent_type")
 
-    try:
-        if intent_type == "confirm_secret":
-            return handle_confirm_secret(intent)
-        elif intent_type == "begin_auth":
-            return handle_begin_auth(intent)
-        elif intent_type == "confirm_identity":
-            return handle_confirm_identity(intent)
-        elif intent_type == "register_persona":
-            return handle_register_persona(intent)
-        elif intent_type == "query_permission":
-            return handle_query_permission(intent, persona)
-        elif intent_type == "revoke_authorization":
-            return handle_revoke_authorization(intent, persona)
-        elif intent_type == "sync_permission":
-            return handle_sync_permission(intent, persona)
-        else:
-            return {
-                "reply": f"❌ 未知意图类型：{intent_type}",
-                "intent": intent
-            }
-    except Exception as e:
+    if intent_type == "confirm_secret":
+        return handle_confirm_secret(intent)
+    elif intent_type == "begin_auth":
+        return handle_begin_auth(intent)
+    elif intent_type == "confirm_identity":
+        return handle_confirm_identity(intent)
+    elif intent_type == "revoke_identity":
+        return handle_revoke_identity(intent)
+    elif intent_type == "register_persona":
+        return handle_register_persona(intent)
+    else:
         return {
-            "reply": f"🚨 执行 intent 时发生错误：{str(e)}",
-            "intent": intent
+            "reply": f"❌ 未知意图类型：{intent_type}",
+            "intent": {
+                "intent": "unknown",
+                "intent_type": "unknown",
+                "source": intent.get("source", "")
+            },
+            "persona": persona
         }
