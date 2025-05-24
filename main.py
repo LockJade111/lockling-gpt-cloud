@@ -9,12 +9,12 @@ from intent_parser import parse_intent
 from check_permission import check_permission
 from intent_dispatcher import dispatch_intents
 
-# ✅ 加载 .env 文件
+# ✅ 加载环境变量
 load_dotenv()
 
 app = FastAPI()
 
-# ✅ 启用跨域请求支持
+# ✅ CORS 设置：允许跨域访问
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -29,43 +29,51 @@ async def chat(request: Request):
 
     message = data.get("message", "").strip()
     persona = data.get("persona", "Lockling 锁灵").strip()
+    intent = data.get("intent")  # 用户是否直接传了intent结构
+    skip_parsing = data.get("skip_parsing", False)
 
     if not message:
         return {
-            "reply": "❌ message 为空，无法处理",
+            "reply": "❌ message 为空，无法处理。",
             "intent": {"intent": "unknown"},
             "persona": persona
         }
 
-    # ✅ 分析意图
-    intent_result = parse_intent(message, persona)
-    print(f"🌐 调试中：intent_result = {intent_result}")
+    # ✅ 如果没有传入 intent，就用 GPT 解析意图
+    if not intent or not isinstance(intent, dict) or skip_parsing is False:
+        intent = parse_intent(message, persona)
 
-    # ✅ 权限检查
-    required = intent_result.get("requires_permission", "")
-    intent_type = intent_result.get("intent_type", "")
-    is_allowed = check_permission(persona, required, intent_type, intent_result)
-    print(f"🔒 权限校验：{is_allowed}")
+    intent_type = intent.get("intent_type", "")
+    required = intent.get("requires_permission", "")
 
+    print(f"📥 收到请求：persona={persona}, intent_type={intent_type}, message={message}")
+
+    # ✅ 权限校验
+    is_allowed = check_permission(persona, required, intent_type, intent)
     if not is_allowed:
         reply = "⛔ 权限不足，拒绝操作"
-        write_log_to_supabase(persona, message, intent_result, reply)
+        write_log_to_supabase(persona, message, intent, reply)
         return {
             "reply": reply,
-            "intent": intent_result,
+            "intent": intent,
             "persona": persona
         }
 
-    # ✅ 执行意图处理
-    result = dispatch_intents(intent_result, persona)
-    reply = result.get("reply", "🤖 未知响应")
-    print(f"📤 最终回复：{reply}")
+    # ✅ 分发处理意图
+    response = dispatch_intents(intent, persona)
+    reply = response.get("reply", "🤖 未知响应")
+    print(f"📤 回复：{reply}")
 
-    # ✅ 日志写入（含回复）
-    write_log_to_supabase(persona, message, intent_result, reply)
+    # ✅ 写入日志
+    write_log_to_supabase(persona, message, intent, reply)
 
+    # ✅ 返回结构
     return {
         "reply": reply,
-        "intent": intent_result,
+        "intent": intent,
         "persona": persona
     }
+
+@app.get("/")
+async def root():
+    return {"status": "✅ Lockling GPT Cloud API 已启动"}
