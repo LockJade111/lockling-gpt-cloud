@@ -1,95 +1,119 @@
 # semantic_parser.py
 import re
+import os
 import openai
+import json
 
-openai.api_key = "你的GPT-API-KEY"  # 或从环境变量加载更安全
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# 主函数：由主逻辑调用
 def parse_intent(message, persona):
     # 优先尝试 GPT 理解
     intent = try_gpt_parse(message, persona)
-    if intent["intent_type"] != "unknown":
+    if intent.get("intent_type") != "unknown":
         return intent
 
-    # GPT失败再走正则兜底
+    # 如果GPT失败，走正则解析兜底
     return try_regex_parse(message, persona)
 
 
 # ========== GPT解析模块 ==========
 def try_gpt_parse(message, persona):
     try:
-        prompt = f"""你是一个语义识别助手，请从下列句子中提取意图结构。输出JSON格式，字段包括：
-- intent_type（如：register_persona、confirm_identity、revoke_identity、unknown）
-- new_name（如是注册请求）
-- identity（如是口令验证）
-- target（如是授权/撤销谁）
-- requires（如是赋予权限）
-- source（原始消息）
+        prompt = f"""
+你是一个语义理解助手，请根据下方输入内容提取操作意图，并以 JSON 结构返回（不要任何注释或解释）：
 
-句子如下：
+字段包括：
+- intent：英文动作（如 register_persona、confirm_identity、revoke_identity）
+- intent_type：同 intent（可重复）
+- new_name：如是注册角色
+- identity：如包含口令
+- target：如涉及对象（被授权/撤权者）
+- requires：如赋予的权限关键字
+- source：原始语句
+- persona：说话人身份
+
+输入：
 「{message}」
 说话人是：{persona}
 
-请用英文JSON结构体返回，不加说明。
+输出JSON：
 """
+
         completion = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",  # 可换成你的GPT版本
+            model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.0,
+            temperature=0.2,
         )
+
         response = completion.choices[0].message.content.strip()
-        return eval(response)  # 或用 json.loads(response) 更安全
+        data = json.loads(response)
+
+        # 确保必要字段存在
+        data.setdefault("intent", "unknown")
+        data.setdefault("intent_type", "unknown")
+        data.setdefault("source", message)
+        data.setdefault("persona", persona)
+
+        return data
+
     except Exception as e:
         return {
             "intent": "unknown",
             "intent_type": "unknown",
             "source": message,
             "persona": persona,
-            "error": f"GPT解析异常：{str(e)}"
         }
 
 
-# ========== 正则兜底模块 ==========
+# ========== 正则兜底解析 ==========
 def try_regex_parse(message, persona):
-    if "注册角色" in message:
-        match = re.search(r"注册角色\s*(\S+)", message)
-        if match:
-            return {
-                "intent": "register_persona",
-                "intent_type": "register_persona",
-                "new_name": match.group(1),
-                "source": message,
-                "persona": persona
-            }
-
-    if "授权" in message and "注册" in message:
-        match = re.search(r"授权(\S+)[可以]*注册.*口令是(\S+)", message)
-        if match:
-            return {
-                "intent": "confirm_identity",
-                "intent_type": "confirm_identity",
-                "target": match.group(1),
-                "secret": match.group(2),
-                "requires": "register_persona",
-                "source": message,
-                "persona": persona
-            }
-
-    if "取消" in message and "权限" in message:
-        match = re.search(r"取消(\S+)注册权限", message)
-        if match:
-            return {
-                "intent": "revoke_identity",
-                "intent_type": "revoke_identity",
-                "target": match.group(1),
-                "requires": "register_persona",
-                "source": message,
-                "persona": persona
-            }
-
-    return {
+    result = {
         "intent": "unknown",
         "intent_type": "unknown",
         "source": message,
-        "persona": persona
+        "persona": persona,
     }
+
+    # 注册角色
+    if re.search(r"注册角色", message):
+        match = re.search(r"注册角色\s*(\S+)", message)
+        if match:
+            new_name = match.group(1)
+            result.update({
+                "intent": "register_persona",
+                "intent_type": "register_persona",
+                "new_name": new_name
+            })
+
+    # 授权操作（带口令）
+    elif re.search(r"授权\S+可以注册", message) and re.search(r"口令是", message):
+        target_match = re.search(r"授权(\S+?)可以注册", message)
+        secret_match = re.search(r"口令是(\S+)", message)
+        if target_match and secret_match:
+            result.update({
+                "intent": "confirm_identity",
+                "intent_type": "confirm_identity",
+                "target": target_match.group(1),
+                "secret": secret_match.group(1),
+                "requires": "register_persona"
+            })
+
+    # 取消授权
+    elif re.search(r"取消(\S+)注册权限", message):
+        target = re.search(r"取消(\S+)注册权限", message).group(1)
+        result.update({
+            "intent": "revoke_identity",
+            "intent_type": "revoke_identity",
+            "target": target,
+            "requires": "register_persona"
+        })
+
+    # 单独识别口令
+    elif re.search(r"口令是\s*(\S+)", message):
+        result.update({
+            "intent": "confirm_secret",
+            "intent_type": "confirm_secret",
+            "secret": re.search(r"口令是\s*(\S+)", message).group(1)
+        })
+
+    return result
