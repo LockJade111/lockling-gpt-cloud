@@ -6,12 +6,14 @@ load_dotenv()
 auth_context = {}
 
 def check_permission(persona, required, intent_type=None, intent=None):
-    # ✅ 白名单阶段：允许将军走 begin_auth / confirm_identity / confirm_secret
-    if intent_type in ["begin_auth", "confirm_identity"] and persona == "将军":
-        print(f"🟢 将军白名单放行 {intent_type}")
-        return True
+    print(f"🐛 调试中：intent_type={intent_type} | persona={persona}")
 
-    # ✅ 密钥验证
+    # ✅ 白名单阶段：允许将军走 begin_auth / confirm_identity / confirm_secret
+    if intent_type in ["begin_auth", "confirm_identity", "confirm_secret"] and persona.strip() == "将军":
+    print(f"🟢 将军白名单放行 {intent_type}")
+    return True
+        
+    # ✅ 密钥验证阶段（intent_type == confirm_secret）
     if intent_type == "confirm_secret":
         expected_secret = os.getenv("COMMANDER_SECRET", "").strip()
         provided = intent.get("secret", "").strip()
@@ -42,20 +44,12 @@ def check_permission(persona, required, intent_type=None, intent=None):
             print("❌ 密钥验证失败")
             return False
 
-    # ✅ begin_auth 启动授权流程（stage 1）
-    if intent_type == "begin_auth":
-        auth_context["stage"] = 1
-        auth_context["grantee"] = intent.get("target")
-        print(f"📜 授权对象记录为：{auth_context['grantee']}")
-        return True  # ← 这就是修复关键！允许执行 intent 响应，而不是拒绝
+    # ✅ 授权成功后的正式权限检查
+    pair = f"{persona}:{intent.get('grantee', '')}"
+    authorized = os.getenv("AUTHORIZED_REGISTER", "")
+    if pair in [x.strip() for x in authorized.split(",") if x.strip()]:
+        print(f"✅ {pair} 已获授权")
+        return True
 
-    # ✅ 注册角色：检查 AUTHORIZED_REGISTER 是否包含
-    if intent_type == "register_persona" and intent:
-        authorizer = intent.get("persona")
-        grantee = persona
-        pair = f"{authorizer}:{grantee}"
-        auth_line = os.getenv("AUTHORIZED_REGISTER", "")
-        return pair in [x.strip() for x in auth_line.split(",") if x.strip()]
-
-    # ✅ 其他权限判断走 Supabase（可扩展）
-    return False  # 默认拒绝
+    print(f"❌ {persona} 无权执行 {intent_type}")
+    return False
