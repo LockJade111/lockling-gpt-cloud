@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 import intent_dispatcher
 import semantic_parser
 import check_permission
-# from supabase_logger import write_log_to_supabase  # 如尚未启用，可注释
+# from supabase_logger import write_log_to_supabase  # 如果未启用可保持注释
 
 load_dotenv()
 
@@ -29,40 +29,28 @@ async def chat(request: Request):
         persona = data.get("persona", "Lockling 锁灵").strip()
         skip_parsing = data.get("skip_parsing", False)
 
-        # ✅ 语义解析与意图识别
+        # ✅ 步骤1：语义解析
         if skip_parsing and "intent" in data:
             intent = data["intent"]
         else:
             intent = semantic_parser.parse_intent(message, persona)
-            intent["source"] = message
-            intent["persona"] = persona
 
+        # ✅ 附加字段：source 与 persona
+        intent["source"] = message
+        intent["persona"] = persona
+
+        # ✅ 步骤2：分发意图
         intent_type = intent.get("intent_type", "")
         if not intent_type:
             return {
                 "status": "fail",
-                "reply": "❌ 无法识别意图类型。",
+                "reply": "❌ dispatch_intents 无法识别 intent 类型: unknown",
                 "intent": intent,
                 "persona": persona
             }
 
-        # ✅ 权限检查
-        required = intent.get("requires", "")
-        if required:
-            has_permission = check_permission.check_permission(persona, required)
-            if not has_permission:
-                return {
-                    "status": "fail",
-                    "reply": "🚫 权限不足，拒绝操作。",
-                    "intent": intent,
-                    "persona": persona
-                }
-
-        # ✅ 调用 intent 分发器处理
-        reply = await intent_dispatcher.dispatch_intent(intent)
-
-        # ✅ 可选日志记录
-        # write_log_to_supabase(persona, message, intent, reply)
+        # ✅ 步骤3：处理意图逻辑
+        reply = intent_dispatcher.dispatch_intent(intent)
 
         return {
             "status": "success",
