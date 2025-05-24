@@ -1,54 +1,41 @@
-import openai
 import os
 import json
+from openai import OpenAI
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def parse_intent(user_input: str, persona: str) -> dict:
     system_prompt = f"""
-你是 LockJade 云脑的意图判断器，职责是根据用户输入判断其意图，并以 JSON 格式返回结果。
-请仅返回以下格式的 JSON，不允许自然语言或解释。
+你是 LockJade 云脑的“意图判断器”，你的任务是从用户自然语言中提取结构化意图，并用以下 JSON 格式回答：
 
-示例格式：
 {{
-  "intent": "log_finance",
-  "module": "finance",
-  "action": "write",
+  "intent": "log_entry / query_logs / schedule_event / log_finance / log_customer / unknown",
+  "module": "logs / finance / schedule / customer / unknown",
+  "action": "write / query / schedule / unknown",
   "persona": "{persona}",
-  "requires_permission": "finance"
+  "requires_permission": "write / query / schedule / finance / unknown"
 }}
 
-如无法识别意图，请返回：
-{{
-  "intent": "unknown",
-  "persona": "{persona}"
-}}
+严格返回 JSON 格式，不要添加解释或多余语言。
 """
 
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-4",
             messages=[
                 {"role": "system", "content": system_prompt.strip()},
-                {"role": "user", "content": user_input.strip()}
+                {"role": "user", "content": user_input}
             ],
             temperature=0.1,
         )
-        content = response.choices[0].message["content"].strip()
+        result = response.choices[0].message.content.strip()
 
-        # 清洗 GPT 输出
-        if content.startswith("```json"):
-            content = content.replace("```json", "").strip()
-        if content.endswith("```"):
-            content = content.replace("```", "").strip()
-
-        # 尝试解析为 JSON
-        parsed = json.loads(content)
-        return parsed
+        # 尝试解析成 dict
+        if result.startswith("{") and result.endswith("}"):
+            return json.loads(result)
+        else:
+            return {"intent": "unknown", "error": "⚠️ GPT 返回非标准结构"}
 
     except Exception as e:
-        return {
-            "intent": "unknown",
-            "persona": persona,
-            "error": str(e)
-        }
+        print("❌ GPT意图解析失败:", e)
+        return {"intent": "unknown", "error": str(e)}
