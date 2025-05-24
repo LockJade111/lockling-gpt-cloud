@@ -12,7 +12,7 @@ def check_permission(persona, required, intent_type=None, intent=None):
         print(f"🟢 白名单将军放行阶段一：{intent_type}")
         return True
 
-    # ✅ 阶段二：密钥验证授权注册权限
+    # ✅ 阶段二：密钥验证并注册授权
     if intent_type == "confirm_secret":
         expected_secret = os.getenv("COMMANDER_SECRET", "").strip()
         provided = intent.get("secret", "").strip()
@@ -21,7 +21,7 @@ def check_permission(persona, required, intent_type=None, intent=None):
             grantee = auth_context.get("grantee")
             pair = f"{authorizer}:{grantee}"
 
-            # 写入/更新 AUTHORIZED_REGISTER 字段
+            # 写入 AUTHORIZED_REGISTER 环境变量
             env_path = ".env"
             authorized = os.getenv("AUTHORIZED_REGISTER", "")
             new_entries = set([x.strip() for x in authorized.split(",") if x.strip()])
@@ -43,17 +43,12 @@ def check_permission(persona, required, intent_type=None, intent=None):
             print("❌ 密钥验证失败或阶段错误")
             return False
 
-    # ✅ 阶段三：正式权限判断阶段
-    if required == "register_persona":
-        authorized_list = os.getenv("AUTHORIZED_REGISTER", "").split(",")
-        pair = f"{persona}:{intent.get('target', '')}"
-        if pair in authorized_list:
-            print(f"✅ 白名单验证通过：{pair}")
-            return True
-        else:
-            print(f"⛔ 权限不足：{pair} 不在授权列表中")
-            return False
+    # ✅ 阶段三：判断是否在授权表中
+    authorized_list = os.getenv("AUTHORIZED_REGISTER", "")
+    if f"{persona}:{intent.get('grantee')}" in authorized_list.split(","):
+        print(f"✅ 已授权的注册者：{persona} 可为 {intent.get('grantee')} 执行 {intent_type}")
+        return True
 
-    # 默认拒绝其他操作
-    print(f"⛔ 未通过权限系统，拒绝操作：intent_type={intent_type}, required={required}")
+    # 默认拒绝
+    print(f"❌ 未通过权限系统，拒绝操作: intent_type={intent_type}, required={required}")
     return False
