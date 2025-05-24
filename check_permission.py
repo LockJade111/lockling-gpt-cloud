@@ -1,21 +1,26 @@
-from pathlib import Path
+import os
 
-# ✅ 使用绝对路径读取 .env，避免路径不一致导致空值
-env_path = Path(__file__).resolve().parent / ".env"
+# ✅ Persona → 环境变量 key 映射表（所有密钥统一英文变量名）
+PERSONA_SECRET_KEY_MAP = {
+    "将军": "SECRET_COMMANDER",
+    "司铃": "SECRET_ASSISTANT",
+    "军师猫": "SECRET_STRATEGIST",
+    # 可继续扩展其他角色
+}
 
-# ✅ 精确读取 .env 中变量
-def read_env_key_strict(key):
-    if not env_path.exists():
-        return ""
-    with open(env_path, "r", encoding="utf-8") as f:
-        for line in f:
-            if line.strip().startswith(f"{key}="):
-                return line.strip().split("=", 1)[1].strip()
-    return ""
+def check_secret_permission(persona: str, secret: str) -> bool:
+    """
+    核心密钥验证函数：
+    - 将 persona 转换为合法的环境变量 key
+    - 比对用户口令是否与系统记录一致
+    """
+    env_key = PERSONA_SECRET_KEY_MAP.get(persona)
 
-# ✅ 最终保留函数：密钥匹配（如 SECRET_将军=玉衡在手）
-def check_secret_permission(persona: str, secret: str):
-    key = f"SECRET_{persona}"
-    stored = read_env_key_strict(key)
+    if not env_key:
+        print(f"[❌] 密钥验证失败：未知 persona：{persona}")
+        return False
+
+    stored = os.getenv(env_key)
     print(f"[🔐] 密钥验证：persona={persona}，输入密钥={secret}，系统密钥={stored}")
-    return secret == stored
+
+    return stored == secret
