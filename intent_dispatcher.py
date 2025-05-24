@@ -2,23 +2,28 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
-
 auth_context = {}
 
+# ✅ intent: confirm_secret
 def handle_confirm_secret(intent):
+    print("📥 调用：handle_confirm_secret")
     return {
         "reply": "✅ 密钥验证通过，权限已激活。",
         "intent": intent
     }
 
+# ✅ intent: begin_auth
 def handle_begin_auth(intent):
+    print("📥 调用：handle_begin_auth")
     target = intent.get("target", "未知对象")
     return {
         "reply": f"✅ 身份确认阶段开始，目标授权对象为 {target}，请告知身份。",
         "intent": intent
     }
 
+# ✅ intent: confirm_identity
 def handle_confirm_identity(intent):
+    print("📥 调用：handle_confirm_identity")
     authorizer = intent.get("identity", "")
     grantee = intent.get("target", "")
     if authorizer and grantee:
@@ -31,7 +36,9 @@ def handle_confirm_identity(intent):
         "intent": intent
     }
 
+# ✅ intent: register_persona
 def handle_register_persona(intent):
+    print("📥 调用：handle_register_persona")
     new_name = intent.get("new_name", "").strip()
     if new_name:
         return {
@@ -43,15 +50,10 @@ def handle_register_persona(intent):
         "intent": intent
     }
 
+# ✅ dispatch_intents 主调度函数
 def dispatch_intents(intent: dict, persona: str = None) -> dict:
-    if not isinstance(intent, dict):
-        return {
-            "reply": "❌ 意图识别失败：intent 格式不正确",
-            "intent": {"intent": "unknown", "intent_type": "unknown"}
-        }
-
     intent_type = intent.get("intent_type", "").strip()
-    print(f"🐞 调试中：intent_type={intent_type} | persona={persona}")
+    print(f"🐛 调试：dispatch_intents 接收到 intent_type={intent_type} | persona={persona}")
 
     if intent_type == "confirm_secret":
         return handle_confirm_secret(intent)
@@ -63,7 +65,6 @@ def dispatch_intents(intent: dict, persona: str = None) -> dict:
         return handle_register_persona(intent)
     else:
         return {
-            "reply": f"❌ 意图识别失败：dispatch_intents() 无法识别结构",
-            "intent": {"intent": "unknown", "intent_type": "unknown", "source": intent.get("source", "")},
-            "persona": persona
+            "reply": f"❌ dispatch_intents 无法识别 intent 类型：{intent_type}",
+            "intent": intent
         }
