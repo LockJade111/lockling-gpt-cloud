@@ -6,11 +6,11 @@ from dotenv import load_dotenv
 
 import intent_dispatcher
 from parse_intent_with_gpt import parse_intent
-from check_permission import check_secret_permission, has_log_access
+from check_permission import check_secret_permission
 from supabase_logger import write_log_to_supabase, query_logs
 from supabase import create_client, Client
 
-# ✅ 环境变量加载
+# ✅ 加载 .env 环境变量
 load_dotenv()
 
 # ✅ 初始化 Supabase 客户端
@@ -21,7 +21,7 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 # ✅ FastAPI 初始化
 app = FastAPI()
 
-# ✅ 启用 CORS
+# ✅ 跨域中间件设置
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -30,7 +30,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ 主接口 /chat：指令识别 → 权限验证 → 分发 → 日志写入
+# ✅ 主接口 /chat：语义解析 → 权限验证 → 指令执行 → 日志写入
 @app.post("/chat")
 async def chat(request: Request):
     try:
@@ -39,7 +39,7 @@ async def chat(request: Request):
         persona = data.get("persona", "Lockling 锁灵").strip()
         skip_parsing = data.get("skip_parsing", False)
 
-        # ✅ 语义解析
+        # ✅ 语义解析（可跳过）
         if skip_parsing and "intent" in data:
             intent = data["intent"]
         else:
@@ -48,7 +48,7 @@ async def chat(request: Request):
         intent["persona"] = persona
         intent["source"] = message
 
-        # ✅ 权限校验
+        # ✅ 权限校验（密钥验证）
         if not check_secret_permission(persona, intent.get("secret", "")):
             intent["allow"] = False
             intent["reason"] = "密钥错误或未授权"
@@ -61,7 +61,7 @@ async def chat(request: Request):
             write_log_to_supabase(message, persona, intent, reply["reply"])
             return JSONResponse(reply)
 
-        # ✅ 允许执行 → 分发意图
+        # ✅ 执行指令
         intent["allow"] = True
         intent["reason"] = "身份验证成功"
         result = intent_dispatcher.dispatch_intents(intent)
@@ -82,25 +82,27 @@ async def chat(request: Request):
             "message": f"💥 服务异常：{str(e)}"
         })
 
-# ✅ 日志查询接口 /log/query：支持分页与多条件筛选
+
+# ✅ 日志查询接口 /log/query：密钥验证 + 多条件筛选 + 精简输出
 @app.post("/log/query")
 async def query_log(request: Request):
     data = await request.json()
     persona = data.get("persona", "").strip()
+    secret = data.get("secret", "").strip()
     limit = int(data.get("limit", 5))
     filter_persona = data.get("filter_persona", "").strip()
     filter_type = data.get("intent_type", "").strip()
     filter_allow = data.get("allow", None)
 
-    # ✅ 权限判断
-    if not has_log_access(persona):
+    # ✅ 权限校验（必须提供密钥）
+    if not check_secret_permission(persona, secret):
         return JSONResponse({
             "status": "fail",
-            "reply": "🚫 当前身份无权查询日志。",
+            "reply": "🚫 无权访问日志，身份或密钥错误。",
             "logs": []
         })
 
-    # ✅ 查询调用
+    # ✅ 查询日志
     logs = query_logs(
         persona=filter_persona if filter_persona else None,
         intent_type=filter_type if filter_type else None,
