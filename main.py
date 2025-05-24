@@ -28,46 +28,43 @@ async def chat(request: Request):
         persona = data.get("persona", "Lockling 锁灵").strip()
         skip_parsing = data.get("skip_parsing", False)
 
-        # ✅ 解析意图
+        # ✅ 解析意图（加入容错与日志）
         if skip_parsing and "intent" in data:
             intent = data["intent"]
         else:
-            intent = semantic_parser.parse_intent(message, persona)
+            try:
+                intent = semantic_parser.parse_intent(message, persona)
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "reply": f"💥 服务器内部错误：{str(e)}",
+                    "intent": {},
+                    "persona": "System"
+                }
 
-        # ✅ 附加信息
+        # ✅ 附加原始信息
         intent["source"] = message
         intent["persona"] = persona
 
-        # ✅ 检查 intent_type
+        # ✅ 中断非法 intent
         intent_type = intent.get("intent_type", "")
         if not intent_type or intent_type == "unknown":
             return {
-                "status": "fail",
-                "reply": "❌ 无法识别指令意图。",
+                "status": "success",
+                "reply": {
+                    "reply": f"❌ dispatch_intents 无法识别 intent 类型：{intent_type}",
+                    "intent": intent
+                },
                 "intent": intent,
                 "persona": persona
             }
 
-        # ✅ 权限要求判断（如果 intent 中要求权限）
-        required = intent.get("requires")
-        if required:
-            allowed = check_permission.check_permission(persona, required)
-            if not allowed:
-                return {
-                    "status": "fail",
-                    "reply": "🚫 权限不足，拒绝操作。",
-                    "intent": intent,
-                    "persona": persona
-                }
-
-        # ✅ 调用分发器处理
-        result = intent_dispatcher.dispatch_intent(intent)
-
-        # ✅ 统一返回结构
+        # ✅ 分发执行
+        reply = await intent_dispatcher.dispatch_intent(intent)
         return {
-            "status": "success" if "✅" in result.get("reply", "") else "fail",
-            "reply": result.get("reply", "无应答"),
-            "intent": result.get("intent", intent),
+            "status": "success",
+            "reply": reply,
+            "intent": intent,
             "persona": persona
         }
 
