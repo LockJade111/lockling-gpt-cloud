@@ -7,7 +7,7 @@ auth_context = {}
 def check_permission(persona, required, intent_type=None, intent=None):
     print(f"🐛 调试中：intent_type={intent_type} | required={required} | persona={persona}")
 
-    # ✅ 阶段一：白名单放行 - 将军可执行初始验证流程
+    # ✅ 阶段一：白名单放行（将军执行初始授权流程）
     if intent_type in ["begin_auth", "confirm_identity", "confirm_secret"] and persona.strip() == "将军":
         print(f"🟢 白名单将军放行阶段一：{intent_type}")
         return True
@@ -44,15 +44,16 @@ def check_permission(persona, required, intent_type=None, intent=None):
             print("❌ 密钥验证失败或阶段错误")
             return False
 
-    # ✅ 阶段三：正式权限判断
-    authorized_list = os.getenv("AUTHORIZED_REGISTER", "")
-    if (
-        required == "register_persona"
-        and intent is not None
-        and f"{persona}:{intent.get('grantee')}" in authorized_list.split(",")
-    ):
-        print("✅ 白名单授权通过，允许执行注册操作")
-        return True
+    # ✅ 阶段三：通用权限验证（用于 register_persona 等）
+    if required:
+        authorized_list = os.getenv("AUTHORIZED_REGISTER", "")
+        pair = f"{persona}:{required}"
+        if pair in [x.strip() for x in authorized_list.split(",") if x.strip()] or f"{persona}:*" in authorized_list:
+            print(f"🟢 {persona} 被授权执行 {required}")
+            return True
+        else:
+            print(f"⛔ {persona} 无权限执行 {required}")
+            return False
 
-    print("⛔ 权限不足，拒绝操作")
+    print("⛔ 未通过权限校验")
     return False
