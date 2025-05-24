@@ -21,7 +21,7 @@ def check_secret_permission(persona: str, secret: str) -> bool:
         print(f"[✅] 数据库验证成功：persona={persona}")
         return True
 
-    # ✅ Step 2：从映射表中查找该 persona 的本地 .env 对应 key
+    # ✅ Step 2：本地环境变量兜底验证
     env_key = PERSONA_SECRET_KEY_MAP.get(persona)
     if not env_key:
         print(f"[❌] 验证失败：未知 persona『{persona}』无对应环境变量 key")
@@ -34,3 +34,10 @@ def check_secret_permission(persona: str, secret: str) -> bool:
     else:
         print(f"[❌] 本地密钥匹配失败：persona={persona}，输入={secret}，预期={stored}")
         return False
+
+# ✅ 查询日志权限判断（将军专属）
+def has_log_access(persona: str) -> bool:
+    """
+    限定仅特定 persona（如“将军”）可访问系统日志接口。
+    """
+    return persona.strip() == "将军"
