@@ -41,17 +41,31 @@ async def chat(request: Request):
     intent_result = parse_intent(message, persona)
     print(f"🌐 调试中：intent_result = {intent_result}")
 
-    # ✅ 日志写入（supabase 可选）
-    write_log_to_supabase(persona, message, intent_result)
+    # ✅ 权限检查
+    required = intent_result.get("requires_permission", "")
+    intent_type = intent_result.get("intent_type", "")
+    is_allowed = check_permission(persona, required, intent_type, intent_result)
+    print(f"🔒 权限校验：{is_allowed}")
 
-    # ✅ 分发意图 + 权限判断
+    if not is_allowed:
+        reply = "⛔ 权限不足，拒绝操作"
+        write_log_to_supabase(persona, message, intent_result, reply)
+        return {
+            "reply": reply,
+            "intent": intent_result,
+            "persona": persona
+        }
+
+    # ✅ 执行意图处理
     result = dispatch_intents(intent_result, persona)
+    reply = result.get("reply", "🤖 未知响应")
+    print(f"📤 最终回复：{reply}")
 
-    # ✅ 返回包含意图与身份的完整结构
-    result["intent"] = intent_result
-    result["persona"] = persona
-    return result
+    # ✅ 日志写入（含回复）
+    write_log_to_supabase(persona, message, intent_result, reply)
 
-@app.get("/")
-async def root():
-    return {"status": "✅ Lockling AI 核心系统已启动"}
+    return {
+        "reply": reply,
+        "intent": intent_result,
+        "persona": persona
+    }
