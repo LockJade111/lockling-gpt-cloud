@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>操作日志</title>
+</head>
+<body>
+  <h2>📜 操作日志（仅显示最近 50 条）</h2>
+  <table border="1" cellpadding="6">
+    <thead>
+      <tr>
+        <th>Persona</th>
+        <th>Message</th>
+        <th>Intent</th>
+        <th>Target</th>
+        <th>Allow</th>
+        <th>Reason</th>
+        <th>Reply</th>
+        <th>Source</th>
+        <th>Time</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for log in logs %}
+      <tr>
+        <td>
+          {{ log.persona }}
+          <button onclick="showLog('{{ log.persona }}')">🧠</button>
+          <form method="post" action="/delete_persona" style="display:inline;">
+              <input type="hidden" name="persona" value="{{ log.persona }}">
+              <button type="submit" style="color:red;">❌</button>
+          </form>
+        </td>
+        <td>{{ log.message }}</td>
+        <td>{{ log.intent_type }}</td>
+        <td>{{ log.target }}</td>
+        <td>{{ log.allow }}</td>
+        <td>{{ log.reason }}</td>
+        <td>{{ log.reply }}</td>
+        <td>{{ log.source }}</td>
+        <td>{{ log.timestamp }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <hr>
+  <iframe id="logIframe" style="width:100%;height:300px;display:none;border:1px solid #ccc;"></iframe>
+
+  <script>
+    function showLog(persona) {
+      const iframe = document.getElementById("logIframe");
+      iframe.src = "/logs?persona=" + persona;
+      iframe.style.display = "block";
+    }
+  </script>
+</body>
+</html>

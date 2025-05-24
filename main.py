@@ -1,10 +1,7 @@
-from dotenv import load_dotenv
-load_dotenv(dotenv_path=".env", override=True)
-
 import os
 from fastapi import FastAPI, Request, Form
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
@@ -14,19 +11,22 @@ from parse_intent_with_gpt import parse_intent
 from check_permission import check_secret_permission
 from supabase_logger import write_log_to_supabase, query_logs
 from supabase import create_client, Client
+from persona_keys import delete_persona
 
-# ✅ 环境加载与 Supabase 初始化
-load_dotenv()
+# ✅ 加载 .env 环境变量
+load_dotenv(dotenv_path=".env", override=True)
+
+# ✅ 初始化 Supabase 客户端
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# ✅ FastAPI & 模板初始化
+# ✅ FastAPI 应用初始化
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# ✅ 跨域设置
+# ✅ CORS 跨域配置
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -35,7 +35,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ 指令入口 /chat
+# ✅ 核心指令入口：解析意图 + 权限校验 + 派发执行
 @app.post("/chat")
 async def chat(request: Request):
     try:
@@ -44,14 +44,12 @@ async def chat(request: Request):
         persona = data.get("persona", "Lockling 锁灵").strip()
         skip_parsing = data.get("skip_parsing", False)
 
-        if skip_parsing and "intent" in data:
-            intent = data["intent"]
-        else:
-            intent = parse_intent(message, persona)
-
+        # ✅ GPT 语义解析
+        intent = data["intent"] if skip_parsing and "intent" in data else parse_intent(message, persona)
         intent["persona"] = persona
         intent["source"] = message
 
+        # ✅ 权限验证
         if not check_secret_permission(persona, intent.get("secret", "")):
             intent["allow"] = False
             intent["reason"] = "密钥错误或未授权"
@@ -64,6 +62,7 @@ async def chat(request: Request):
             write_log_to_supabase(message, persona, intent, reply["reply"])
             return JSONResponse(reply)
 
+        # ✅ 分发执行
         intent["allow"] = True
         intent["reason"] = "身份验证成功"
         result = intent_dispatcher.dispatch_intents(intent)
@@ -74,7 +73,6 @@ async def chat(request: Request):
             "intent": intent,
             "persona": persona
         }
-
         write_log_to_supabase(message, persona, intent, result)
         return JSONResponse(reply)
 
@@ -84,13 +82,13 @@ async def chat(request: Request):
             "message": f"💥 服务异常：{str(e)}"
         })
 
-# ✅ 日志查询接口
+# ✅ 查询日志接口（用于 Postman 调试）
 @app.post("/log/query")
 async def query_log(request: Request):
     data = await request.json()
     persona = data.get("persona", "").strip()
     secret = data.get("secret", "").strip()
-    limit = int(data.get("limit", 5))
+    limit = int(data.get("limit", 50))
     filter_persona = data.get("filter_persona", "").strip()
     filter_type = data.get("intent_type", "").strip()
     filter_allow = data.get("allow", None)
@@ -109,46 +107,34 @@ async def query_log(request: Request):
         limit=limit
     )
 
-    simplified_logs = [
-        {
-            "timestamp": log["timestamp"],
-            "persona": log["persona"],
-            "message": log["message"],
-            "intent_type": log.get("intent_type", ""),
-            "allow": log.get("allow", False),
-            "reason": log.get("reason", "")
-        } for log in logs
-    ]
+    simplified = [{
+        "timestamp": log["timestamp"],
+        "persona": log["persona"],
+        "message": log["message"],
+        "intent_type": log.get("intent_type", ""),
+        "target": log.get("target", ""),
+        "allow": log.get("allow", False),
+        "reason": log.get("reason", ""),
+        "reply": log.get("reply", "")
+    } for log in logs]
 
     return JSONResponse({
         "status": "success",
-        "reply": f"✅ 共返回 {len(simplified_logs)} 条日志记录：",
-        "logs": simplified_logs
+        "reply": f"✅ 共返回 {len(simplified)} 条日志记录：",
+        "logs": simplified
     })
 
-# ✅ 将军专属控制台视图：登录页
-@app.get("/dashboard")
-async def dashboard_login(request: Request):
-    return templates.TemplateResponse("dashboard_login.html", {"request": request})
+# ✅ 控制台 UI 路由（HTML 可视化）
+@app.get("/logs")
+def show_logs(request: Request, persona: str = None):
+    logs = query_logs(limit=50, persona=persona)
+    return templates.TemplateResponse("logs.html", {"request": request, "logs": logs})
 
-# ✅ 控制台处理逻辑：身份验证 + 数据读取
-@app.post("/dashboard")
-async def dashboard_panel(request: Request):
-    form = await request.form()
-    persona = form.get("persona", "").strip()
-    secret = form.get("secret", "").strip()
-
-    if not check_secret_permission(persona, secret) or persona != "将军":
-        return templates.TemplateResponse("dashboard_login.html", {
-            "request": request,
-            "error": "身份验证失败"
-        })
-
-    result = supabase.table("persona_keys").select("*").order("created_at", desc=True).execute()
-    personas = result.data if result and result.data else []
-
-    return templates.TemplateResponse("dashboard.html", {
-        "request": request,
-        "personas": personas,
-        "persona": persona
-    })
+# ✅ 删除 persona（仅限将军）
+@app.post("/delete_persona")
+async def delete_persona_ui(persona: str, request: Request):
+    acting_persona = request.cookies.get("persona") or "将军"
+    if acting_persona != "将军":
+        return JSONResponse({"error": "无权删除角色"}, status_code=403)
+    delete_persona(persona)
+    return RedirectResponse("/logs", status_code=303)
