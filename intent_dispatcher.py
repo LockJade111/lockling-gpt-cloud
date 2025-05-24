@@ -1,8 +1,6 @@
-# intent_dispatcher.py
-
 import os
 
-# ✅ 本地测试权限映射表（若启用数据库版本，请改为 Supabase 查询）
+# ✅ 本地测试权限映射表（如接入 Supabase，请替换）
 permission_map = {
     "玉衡": ["query", "write", "schedule", "finance"],
     "司铃": ["schedule", "query", "email_notify"],
@@ -11,19 +9,17 @@ permission_map = {
     "小徒弟": ["schedule"]
 }
 
-# ✅ 写入注册授权关系到 .env（如：将军:军师猫）
+# ✅ 写入注册授权关系到 .env（格式：将军:军师猫）
 def add_register_authorization(authorizer, grantee):
     env_path = ".env"
     key = f"{authorizer}:{grantee}"
 
-    # 读取 .env 内容
     if os.path.exists(env_path):
         with open(env_path, "r") as f:
             lines = f.readlines()
     else:
         lines = []
 
-    # 查找是否已存在
     existing = ""
     for line in lines:
         if line.startswith("AUTHORIZED_REGISTER="):
@@ -34,7 +30,6 @@ def add_register_authorization(authorizer, grantee):
         entries.append(key)
 
     new_line = f"AUTHORIZED_REGISTER={','.join(entries)}\n"
-
     with open(env_path, "w") as f:
         lines = [line for line in lines if not line.startswith("AUTHORIZED_REGISTER=")]
         f.writelines(lines + [new_line])
