@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 auth_context = {}
 
-# ✅ 权限映射（本地内存，用于演示）
+# ✅ 本地权限映射表（会被授权写入同步更新）
 permission_map = {
     "玉衡": ["query", "write", "schedule", "finance"],
     "司铃": ["schedule", "query", "email_notify"],
@@ -13,7 +13,7 @@ permission_map = {
     "小徒弟": ["schedule"]
 }
 
-# ✅ 写入注册授权到 .env 并同步权限
+# ✅ 添加注册授权，并同步写入 .env 和 permission_map
 def add_register_authorization(authorizer, grantee, permission="register_persona"):
     env_path = ".env"
     key = f"{authorizer}:{grantee}"
@@ -43,81 +43,56 @@ def add_register_authorization(authorizer, grantee, permission="register_persona
     if permission not in permission_map[grantee]:
         permission_map[grantee].append(permission)
 
-    print(f"✅ 授权成功：{key} -> {permission}")
-    return True
 
-# ✅ 撤销授权
-def revoke_authorization(authorizer, grantee, permission="register_persona"):
-    env_path = ".env"
-    pair = f"{authorizer}:{grantee}"
+# ✅ 获取某个角色的权限列表（供 UI 或日志显示）
+def get_persona_permissions(persona: str) -> list:
+    from dotenv import load_dotenv
+    load_dotenv()
 
-    if os.path.exists(env_path):
-        with open(env_path, "r") as f:
-            lines = f.readlines()
-        updated_lines = []
-        for line in lines:
-            if line.startswith("AUTHORIZED_REGISTER="):
-                entries = line.strip().split("=", 1)[1].split(",")
-                entries = [x.strip() for x in entries if x.strip() and x.strip() != pair]
-                updated_lines.append(f'AUTHORIZED_REGISTER={",".join(entries)}\n')
-            else:
-                updated_lines.append(line)
-        with open(env_path, "w") as f:
-            f.writelines(updated_lines)
-        print(f"🔻 授权关系已删除：{pair}")
+    persona = persona.strip()
+    authorized = os.getenv("AUTHORIZED_REGISTER", "")
+    entries = [x.strip() for x in authorized.split(",") if ":" in x]
+    granted_targets = [pair.split(":")[1] for pair in entries if pair.startswith(f"{persona}:")]
 
-    if grantee in permission_map and permission in permission_map[grantee]:
-        permission_map[grantee].remove(permission)
+    default_roles = {
+        "将军": ["admin", "query", "write", "register"],
+        "军师猫": ["query", "register"],
+        "司铃": ["query", "schedule"],
+    }
+
+    return default_roles.get(persona, []) + (["register"] if granted_targets else [])
+
 
 # ✅ 主权限判断函数
 def check_permission(persona, required, intent_type=None, intent=None):
-    print(f"🔍 调试中：intent_type={intent_type} | required={required} | persona={persona}")
+    print(f"🧠 调试中: intent_type={intent_type} | required={required} | persona={persona}")
 
-    # ✅ 白名单身份：将军直接放行敏感操作
+    # ✅ 白名单阶段
     if intent_type in ["begin_auth", "confirm_identity", "confirm_secret"] and persona.strip() == "将军":
-        print(f"🟢 白名单将军放行阶段：{intent_type}")
+        print(f"🟢 将军白名单放行: {intent_type}")
         return True
 
-    # ✅ 密钥验证：confirm_secret
+    # ✅ 密钥验证阶段
     if intent_type == "confirm_secret":
         expected_secret = os.getenv("COMMANDER_SECRET", "").strip()
         provided = intent.get("secret", "").strip() if intent else ""
-        if provided == expected_secret:
-            auth_context["confirmed"] = True
-            auth_context["stage"] = 2
-            auth_context["grantee"] = intent.get("grantee") or ""
-            auth_context["identity"] = persona
-            print(f"🟢 密钥验证成功，身份={persona}，授权目标={auth_context['grantee']}")
+        if auth_context.get("stage") == 2 and provided == expected_secret:
+            authorizer = "将军"
+            grantee = auth_context.get("grantee")
+            pair = f"{authorizer}:{grantee}"
+            add_register_authorization(authorizer, grantee)
+            auth_context.clear()
+            print(f"✅ 密钥验证成功，写入白名单: {pair}")
             return True
         else:
-            print("❌ 密钥错误或缺失")
+            print("❌ 密钥验证失败或阶段错误")
             return False
 
-    # ✅ 注册授权阶段：confirm_identity
-    if intent_type == "confirm_identity":
-        if auth_context.get("confirmed") and auth_context.get("stage") == 2:
-            if auth_context.get("identity") == persona:
-                print("🟢 身份校验通过，允许执行注册授权")
-                return True
-            else:
-                print("❌ 身份不一致")
-                return False
-        else:
-            print("❌ 未通过密钥验证阶段")
-            return False
-
-    # ✅ 正式权限判断（支持 register_persona 等）
-    authorized = os.getenv("AUTHORIZED_REGISTER", "")
-    authorized_list = [x.strip() for x in authorized.split(",") if x.strip()]
-    pair = f"{persona}:{intent.get('target')}" if intent else ""
-    if required == "register_persona" and pair in authorized_list:
-        print(f"🟢 授权对已注册：{pair}")
+    # ✅ 权限判断
+    permissions = get_persona_permissions(persona)
+    print(f"🔐 权限核验: {permissions}")
+    if required in permissions:
         return True
-
-    # ✅ 直接权限列表检查（非授权绑定）
-    if required in permission_map.get(persona, []):
-        print(f"✅ 权限校验通过：{persona} 包含 {required}")
-        return True
-
-    print("⛔ 权限校验：False")
-    return False
+    else:
+        print("⛔ 权限不足")
+        return False
