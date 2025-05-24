@@ -1,37 +1,33 @@
 # schedule_helper.py
 
+from supabase import create_client
 import os
 from datetime import datetime
-from supabase import create_client
+from dotenv import load_dotenv
+
+load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SCHEDULE_TABLE = os.getenv("SUPABASE_SCHEDULE_TABLE", "schedule")
+
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-def schedule_event(name, phone, address, service_desc, amount, handler):
+def schedule_event(intent, persona=None):
     try:
-        supabase.table("customers").insert({
-            "name": name,
-            "phone": phone,
-            "address": address,
-            "service_desc": service_desc,
-            "amount": amount,
-            "handled_by": handler,
-            "created_at": datetime.utcnow().isoformat()
-        }).execute()
-        print("✅ 售后预约已成功记录")
-    except Exception as e:
-        print("❌ 售后预约记录失败:", e)
+        source = intent.get("source", "")
+        timestamp = datetime.utcnow().isoformat()
 
-def log_schedule(name, service_desc, scheduled_time, handled_by):
-    try:
-        supabase.table("customers").insert({
-            "name": name,
-            "service_desc": service_desc,
-            "timestamp": scheduled_time,
-            "handled_by": handled_by,
-            "created_at": datetime.utcnow().isoformat()
-        }).execute()
-        print("✅ 日程记录成功")
+        data = {
+            "timestamp": timestamp,
+            "event": source,
+            "created_by": persona or "系统"
+        }
+
+        response = supabase.table(SCHEDULE_TABLE).insert(data).execute()
+        print("✅ Schedule event logged:", response)
+        return {"reply": f"✅ 已安排事项：{source}"}
+
     except Exception as e:
-        print("❌ 写入 schedule 失败:", e)
+        print("❌ Failed to schedule event:", e)
+        return {"reply": f"❌ 日程写入失败：{str(e)}"}

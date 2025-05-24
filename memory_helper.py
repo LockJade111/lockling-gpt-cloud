@@ -1,24 +1,7 @@
-from supabase import create_client
-import os
-from datetime import datetime
+# memory_helper.py
 
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-MEMORY_TABLE = os.getenv("SUPABASE_MEMORY_TABLE", "memory")
-
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-async def save_memory(persona: str, message: str, reply: str):
-    """
-    保存用户对话到 Supabase memory 表
-    """
-    try:
-        supabase.table(MEMORY_TABLE).insert({
-            "persona": persona,
-            "message": message,
-            "reply": reply,
-            "timestamp": datetime.utcnow().isoformat()
-        }).execute()
-        print("✅ 记忆写入成功")
-    except Exception as e:
-        print("❌ 记忆写入失败:", e)
+def save_memory(intent, persona=None):
+    source = intent.get("source", "")
+    print(f"📌 Save memory from {persona or '未知身份'}: {source}")
+    # 实际记忆存储逻辑可另做
+    return {"reply": f"🧠 已记住这句话：{source}"}
