@@ -30,7 +30,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ 主指令入口：/chat
+# ✅ 主指令入口 /chat
 @app.post("/chat")
 async def chat(request: Request):
     try:
@@ -39,7 +39,7 @@ async def chat(request: Request):
         persona = data.get("persona", "Lockling 锁灵").strip()
         skip_parsing = data.get("skip_parsing", False)
 
-        # ✅ 语义解析：GPT解析意图或跳过
+        # ✅ 语义解析
         if skip_parsing and "intent" in data:
             intent = data["intent"]
         else:
@@ -48,20 +48,20 @@ async def chat(request: Request):
         intent["persona"] = persona
         intent["source"] = message
 
-        # ✅ 权限核验
+        # ✅ 权限校验
         if not check_secret_permission(persona, intent.get("secret", "")):
             intent["allow"] = False
             intent["reason"] = "密钥错误或未授权"
             reply = {
                 "status": "fail",
-                "reply": "❌ 身份验证失败，指令未执行。",
+                "reply": "❌ 密钥错误，身份验证失败。",
                 "intent": intent,
                 "persona": persona
             }
-            write_log_to_supabase(intent, reply)
+            write_log_to_supabase(message, persona, intent, reply["reply"])
             return JSONResponse(reply)
 
-        # ✅ 权限允许 → 派发执行
+        # ✅ 执行命令
         intent["allow"] = True
         intent["reason"] = "身份验证成功"
         result = intent_dispatcher.dispatch_intents(intent)
@@ -72,8 +72,7 @@ async def chat(request: Request):
             "intent": intent,
             "persona": persona
         }
-
-        write_log_to_supabase(intent, reply)
+        write_log_to_supabase(message, persona, intent, result)
         return JSONResponse(reply)
 
     except Exception as e:
@@ -82,14 +81,15 @@ async def chat(request: Request):
             "message": f"💥 服务异常：{str(e)}"
         })
 
-# ✅ 日志查询接口：/log/query（将军专属）
+# ✅ 日志查询接口 /log/query
 @app.post("/log/query")
 async def query_log(request: Request):
     data = await request.json()
     persona = data.get("persona", "").strip()
     message = data.get("message", "").strip()
+    limit = int(data.get("limit", 5))
+    filter_allow = data.get("allow", None)
 
-    # ✅ 权限控制：仅将军可查
     if not has_log_access(persona):
         return JSONResponse({
             "status": "fail",
@@ -97,18 +97,24 @@ async def query_log(request: Request):
             "logs": []
         })
 
-    # 简易关键词判断（可升级 GPT 理解）
-    if "全部" in message or "最近" in message:
-        logs = query_logs(limit=5)
-    elif "助手" in message:
-        logs = query_logs(persona="小助手")
-    elif "司铃" in message:
-        logs = query_logs(persona="司铃")
-    else:
-        logs = query_logs(persona=persona)
+    logs = query_logs(persona=None, limit=limit)
+
+    # 精简字段输出
+    simplified_logs = []
+    for log in logs:
+        if filter_allow is not None and str(log.get("allow")) != str(filter_allow):
+            continue
+        simplified_logs.append({
+            "timestamp": log["timestamp"],
+            "persona": log["persona"],
+            "message": log["message"],
+            "intent_type": log.get("intent_type", ""),
+            "allow": log.get("allow", False),
+            "reason": log.get("reason", "")
+        })
 
     return JSONResponse({
         "status": "success",
-        "reply": f"✅ 为您找到 {len(logs)} 条日志记录：",
-        "logs": logs
+        "reply": f"✅ 共返回 {len(simplified_logs)} 条日志记录：",
+        "logs": simplified_logs
     })
