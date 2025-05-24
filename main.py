@@ -10,10 +10,12 @@ from intent_parser import parse_intent
 from check_permission import check_permission
 from intent_dispatcher import dispatch_intents
 
+# ✅ 加载 .env 文件
 load_dotenv()
 
 app = FastAPI()
 
+# ✅ 跨域设置（允许前端访问）
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -35,10 +37,9 @@ async def chat(request: Request):
             "persona": persona
         }
 
-    # 1. 意图识别
+    # ✅ 1. 意图识别
     intent_result = parse_intent(message, persona)
 
-    # 防止返回 None
     if not isinstance(intent_result, dict) or intent_result.get("intent") == "unknown":
         return {
             "reply": "❌ 意图识别失败：dispatch_intents() 无法识别结构",
@@ -46,36 +47,30 @@ async def chat(request: Request):
             "persona": persona
         }
 
-    # 2. 权限检查
-    permission_required = intent_result.get("requires_permission", "")
-    if not check_permission(persona, permission_required):
+    # ✅ 2. 权限判断
+    intent_type = intent_result.get("intent_type")
+    required = intent_result.get("requires_permission", "")
+    allowed = check_permission(persona, required, intent_type=intent_type, intent=intent_result)
+
+    if not allowed:
         return {
             "reply": f"⚠️ {persona} 没有权限执行该操作。",
             "intent": intent_result,
             "persona": persona
         }
 
-    # 3. 调用模块执行
-    try:
-        reply_text = dispatch_intents(intent_result, persona)
-    except Exception as e:
-        return {
-            "reply": f"❌ 调度失败: {str(e)}",
-            "intent": intent_result,
-            "persona": persona
-        }
+    # ✅ 3. 派发执行逻辑
+    reply = dispatch_intents(intent_result, persona)
 
-    # 4. 写入日志
-    try:
-        await write_log_to_supabase(message, reply_text, persona)
-    except Exception as e:
-        print("⚠️ Supabase 日志写入失败:", e)
+    # ✅ 4. 写入日志
+    write_log_to_supabase(message, persona, intent_result, reply)
 
     return {
-        "reply": reply_text,
+        "reply": reply,
         "intent": intent_result,
         "persona": persona
     }
 
+# ✅ 启动本地测试（可忽略，Render 不使用此入口）
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=10000)
+    uvicorn.run("main:app", host="0.0.0.0", port=10000, reload=True)
