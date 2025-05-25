@@ -1,7 +1,7 @@
 import os
 from fastapi import FastAPI, Request, Form
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
@@ -22,12 +22,12 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# ✅ FastAPI 应用初始化
+# ✅ FastAPI 初始化
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# ✅ CORS 跨域配置
+# ✅ CORS 支持
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -36,7 +36,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ 主聊天入口（GPT语义解析）
+# ✅ /chat 语义入口
 @app.post("/chat")
 async def chat(request: Request):
     try:
@@ -48,40 +48,42 @@ async def chat(request: Request):
         if not message:
             return JSONResponse(content={"error": "空消息"}, status_code=400)
 
+        # 意图解析
         if not skip_parsing:
             intent = parse_intent(message, persona)
         else:
             intent = data.get("intent", {})
 
-        permission_passed = check_secret_permission(intent, persona)
-        if not permission_passed:
-            write_log_to_supabase(persona, intent, "denied", "权限验证失败")
+        # 权限验证
+        permission = check_secret_permission(intent, persona)
+        if not permission:
+            write_log_to_supabase(persona, intent, "denied", "权限不足")
             return JSONResponse(content={"error": "权限不足"}, status_code=403)
 
+        # 执行意图
         result = intent_dispatcher.dispatch(intent)
         write_log_to_supabase(persona, intent, "success", result)
-
         return JSONResponse(content={"result": result})
 
     except Exception as e:
-        write_log_to_supabase("系统", {}, "error", f"异常：{str(e)}")
+        write_log_to_supabase("系统", {}, "error", str(e))
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
-# ✅ 删除 persona 接口
+# ✅ 删除 persona
 @app.post("/delete_persona")
 async def delete_persona_api(request: Request):
     data = await request.json()
     persona = data.get("persona", "")
     operator = data.get("operator", "")
-    
+
     if not check_secret_permission({"intent_type": "delete_persona"}, operator):
         return JSONResponse(content={"error": "权限不足"}, status_code=403)
-    
+
     result = delete_persona(persona)
     write_log_to_supabase(operator, {"intent_type": "delete_persona", "target": persona}, "success", result)
     return JSONResponse(content={"result": result})
 
-# ✅ 查询日志 API
+# ✅ 日志查询接口（带分页）
 @app.post("/log/query")
 async def query_logs_api(request: Request):
     data = await request.json()
@@ -90,10 +92,13 @@ async def query_logs_api(request: Request):
         "intent_type": data.get("intent_type"),
         "allow": data.get("allow"),
     }
-    logs = query_logs(filters)
+    limit = data.get("limit", 25)
+    offset = data.get("offset", 0)
+
+    logs = query_logs(filters, limit=limit, offset=offset)
     return JSONResponse(content={"logs": logs})
 
-# ✅ /logs 页面展示接口
+# ✅ logs 页面
 @app.get("/logs", response_class=HTMLResponse)
 async def logs_page(request: Request):
     return templates.TemplateResponse("logs.html", {"request": request})
