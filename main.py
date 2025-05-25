@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -44,96 +44,78 @@ def wrap_result(status: str, reply: str, intent: dict = {}):
 @app.api_route("/chat", methods=["GET", "POST"])
 async def chat(request: Request):
     try:
-        data = await request.json() if request.method == "POST" else dict(request.query_params)
-        message = data.get("message", "").strip()
-        persona = data.get("persona", "").strip() or "访客"
-        skip_parsing = data.get("skip_parsing", False)
-
-        if not message:
-            return JSONResponse(content=wrap_result("fail", "❌ 空消息"), status_code=400)
-
-        intent = data.get("intent") if skip_parsing else parse_intent(message, persona)
-        if not check_secret_permission(intent, persona):
-            return JSONResponse(content=wrap_result("fail", "🔒 权限不足", intent), status_code=403)
-
-        result = intent_dispatcher(intent)
-        return JSONResponse(content=wrap_result("success", result, intent))
-
-    except Exception as e:
-        return JSONResponse(content=wrap_result("error", str(e)), status_code=500)
-
-# ✅ 注册角色接口
-@app.post("/persona/register")
-async def register_persona_api(request: Request):
-    try:
         data = await request.json()
-        persona = data.get("persona", "").strip()
-        secret = data.get("secret", "").strip()
-        operator = data.get("operator", "").strip()
+        query = data.get("query", "")
+        secret = data.get("secret", "")
+        print("📥 用户提问：", query)
 
-        if not check_secret_permission({"intent_type": "authorize"}, operator):
-            return JSONResponse(content={"success": False, "error": "❌ 权限不足"}, status_code=403)
+        if not check_secret_permission(secret):
+            raise HTTPException(status_code=403, detail="❌ 权限校验失败")
 
-        result = register_persona(persona, secret)
-        return JSONResponse(content={"success": True, "result": result})
+        intent = parse_intent(query)
+        print("🎯 识别意图：", intent)
+
+        reply = intent_dispatcher(intent)
+        write_log_to_supabase(query, reply, intent)
+
+        return JSONResponse(wrap_result("success", reply, intent))
+
     except Exception as e:
-        return JSONResponse(content={"success": False, "error": str(e)})
+        print("❌ 处理失败:", e)
+        return JSONResponse(wrap_result("error", f"处理失败：{str(e)}"))
 
-# ✅ 更新权限接口
-@app.post("/persona/update_permissions")
-async def update_permissions(request: Request):
+# ✅ 查询日志接口
+@app.get("/logs")
+async def get_logs():
     try:
-        data = await request.json()
-        role = data.get("role", "")
-        permissions = data.get("permissions", [])
-
-        if not role:
-            return JSONResponse(content={"success": False, "error": "❌ 缺少角色名"}, status_code=400)
-
-        supabase.table("roles").update({"permissions": permissions}).eq("role", role).execute()
-        return JSONResponse(content={"success": True})
+        logs = query_logs()
+        return JSONResponse(wrap_result("success", "日志查询成功", {"logs": logs}))
     except Exception as e:
-        return JSONResponse(content={"success": False, "error": str(e)})
+        return JSONResponse(wrap_result("error", f"日志查询失败：{str(e)}"))
 
-# ✅ 删除角色接口
-@app.post("/delete_persona")
-async def delete_persona_api(request: Request):
-    try:
-        data = await request.json()
-        persona = data.get("persona", "")
-        operator = data.get("operator", "")
-
-        if not check_secret_permission({"intent_type": "delete_persona"}, operator):
-            return JSONResponse(content={"success": False, "error": "❌ 权限不足"}, status_code=403)
-
-        result = delete_persona(persona)
-        return JSONResponse(content={"success": True, "result": result})
-    except Exception as e:
-        return JSONResponse(content={"success": False, "error": str(e)})
-
-# ✅ 页面路由
-@app.get("/dashboard")
-async def dashboard(request: Request):
-    return templates.TemplateResponse("dashboard.html", {"request": request})
-
+# ✅ 渲染角色管理页面（新增部分）
 @app.get("/dashboard/personas")
 async def dashboard_personas(request: Request):
-    return templates.TemplateResponse("dashboard_personas.html", {"request": request})
+    try:
+        # 🧪 示例数据，如需接 Supabase 查询替换下方内容
+        personas = [
+            {"id": 1, "name": "Lockling", "role": "智能守护者"},
+            {"id": 2, "name": "军师猫", "role": "智囊门神"},
+        ]
+        print("✅ personas 渲染列表：", personas)
+        return templates.TemplateResponse("dashboard_personas.html", {
+            "request": request,
+            "personas": personas
+        })
+    except Exception as e:
+        print("❌ 页面渲染失败：", e)
+        return HTMLResponse(content=f"<h1>服务器错误：{e}</h1>", status_code=500)
 
-# ✅ 分页日志接口（供前端加载）
-@app.post("/log/query")
-async def query_logs_api(request: Request):
+# ✅ 注册新角色
+@app.post("/persona/register")
+async def register_new_persona(request: Request):
     try:
         data = await request.json()
-        filters = {
-            "persona": data.get("persona"),
-            "intent_type": data.get("intent_type"),
-            "allow": data.get("allow"),
-        }
-        limit = data.get("limit", 20)
-        offset = data.get("offset", 0)
-
-        logs = query_logs(filters, limit=limit, offset=offset)
-        return JSONResponse(content={"logs": logs})
+        name = data.get("name")
+        role = data.get("role")
+        secret = data.get("secret", "")
+        if not check_secret_permission(secret):
+            raise HTTPException(status_code=403, detail="❌ 权限不足")
+        result = register_persona(name, role)
+        return JSONResponse(wrap_result("success", "角色注册成功", result))
     except Exception as e:
-        return JSONResponse(content={"logs": [], "error": str(e)})
+        return JSONResponse(wrap_result("error", f"注册失败：{str(e)}"))
+
+# ✅ 删除角色
+@app.post("/persona/delete")
+async def delete_existing_persona(request: Request):
+    try:
+        data = await request.json()
+        persona_id = data.get("id")
+        secret = data.get("secret", "")
+        if not check_secret_permission(secret):
+            raise HTTPException(status_code=403, detail="❌ 权限不足")
+        result = delete_persona(persona_id)
+        return JSONResponse(wrap_result("success", "角色删除成功", result))
+    except Exception as e:
+        return JSONResponse(wrap_result("error", f"删除失败：{str(e)}"))
