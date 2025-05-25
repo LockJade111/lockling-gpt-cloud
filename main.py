@@ -1,10 +1,10 @@
+import os
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
-import os
 
 # ✅ 加载环境变量
 load_dotenv()
@@ -45,7 +45,7 @@ async def chat(request: Request):
     try:
         data = await request.json()
         message = data.get("message", "").strip()
-        persona = data.get("persona", "将军").strip()
+        persona = data.get("persona", "访客").strip()
         skip_parsing = data.get("skip_parsing", False)
 
         if not message:
@@ -68,7 +68,7 @@ async def chat(request: Request):
         write_log_to_supabase("系统", {}, "error", str(e))
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
-# ✅ 注册 persona 接口
+# ✅ 注册 persona
 @app.post("/persona/register")
 async def register_persona_api(request: Request):
     data = await request.json()
@@ -84,33 +84,31 @@ async def register_persona_api(request: Request):
 
     try:
         result = register_persona(persona, secret)
-        return JSONResponse(content={"success": True, "result": result})
+        return JSONResponse(content={"success": True, "result": result.data if hasattr(result, 'data') else str(result)})
     except Exception as e:
+        if "already exists" in str(e):
+            return JSONResponse(content={"success": False, "error": "该角色已存在"}, status_code=400)
         return JSONResponse(content={"success": False, "error": str(e)})
 
-# ✅ 更新权限接口
-@app.post("/persona/update_permissions")
-async def update_permissions(request: Request):
-    data = await request.json()
-    role = data.get("role", "")
-    permissions = data.get("permissions", [])
-
-    try:
-        supabase.table("roles").update({"permissions": permissions}).eq("role", role).execute()
-        return JSONResponse(content={"status": "success"})
-    except Exception as e:
-        return JSONResponse(content={"status": "fail", "message": str(e)}, status_code=500)
-
-# ✅ 获取角色权限详情
+# ✅ 获取角色权限详情（分页支持）
 @app.get("/persona/details")
-async def get_persona_details():
+async def get_persona_details(page: int = 1, per_page: int = 10):
     try:
-        result = supabase.table("roles").select("role, permissions").execute()
-        return {"data": result.data}
-    except Exception as e:
-        return {"data": [], "error": str(e)}
+        offset = (page - 1) * per_page
+        result = supabase.table("roles").select("role, permissions").range(offset, offset + per_page - 1).execute()
+        total_result = supabase.table("roles").select("id", count="exact").execute()
+        total_count = total_result.count if hasattr(total_result, "count") else 0
 
-# ✅ 删除 persona（软删除）
+        return {
+            "data": result.data,
+            "page": page,
+            "per_page": per_page,
+            "total": total_count
+        }
+    except Exception as e:
+        return {"error": str(e), "data": []}
+
+# ✅ 删除 persona（软删除预留）
 @app.post("/delete_persona")
 async def delete_persona_api(request: Request):
     data = await request.json()
@@ -135,26 +133,27 @@ async def query_logs_api(request: Request):
     }
     limit = data.get("limit", 25)
     offset = data.get("offset", 0)
+
     logs = query_logs(filters, limit=limit, offset=offset)
     return JSONResponse(content={"logs": logs})
 
-# ✅ 控制台主页面
+# ✅ 控制台首页
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
     return templates.TemplateResponse("dashboard.html", {"request": request})
 
-# ✅ 角色权限管理页面
+# ✅ 管理界面
 @app.get("/dashboard/personas", response_class=HTMLResponse)
 async def dashboard_personas(request: Request):
     persona = request.query_params.get("persona", "")
     if not check_secret_permission({"intent_type": "view_personas"}, persona):
-        return HTMLResponse(content="<h3>❌ 权限不足</h3>", status_code=403)
+        return HTMLResponse(content="<h3>❌ 权限不足：仅将军可管理角色。</h3>", status_code=403)
     return templates.TemplateResponse("dashboard_personas.html", {"request": request})
 
-# ✅ 日志界面（将军专用）
+# ✅ 日志页面
 @app.get("/logs", response_class=HTMLResponse)
 async def logs_page(request: Request):
     persona = request.query_params.get("persona", "")
     if not check_secret_permission({"intent_type": "view_logs"}, persona):
-        return HTMLResponse(content="<h3>❌ 权限不足：仅将军可访问此页面</h3>", status_code=403)
+        return HTMLResponse(content="<h3>❌ 权限不足：仅将军可访问此页面。</h3>", status_code=403)
     return templates.TemplateResponse("logs.html", {"request": request})
