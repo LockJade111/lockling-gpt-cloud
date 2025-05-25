@@ -40,65 +40,48 @@ app.add_middleware(
 def wrap_result(status: str, reply: str, intent: dict = {}):
     return JSONResponse(content={"status": status, "reply": reply, "intent": intent})
 
-
 # ✅ 控制台首页重定向
 @app.get("/", include_in_schema=False)
-async def index():
+def root():
     return RedirectResponse(url="/dashboard/personas")
 
-
-# ✅ Persona 控制台页面
+# ✅ 控制台页面
 @app.get("/dashboard/personas", response_class=HTMLResponse)
-async def show_persona_dashboard(request: Request):
-    response = supabase.table("personas").select("*").execute()
-    personas = response.data if response else []
+def dashboard_personas(request: Request):
+    data = supabase.table("personas").select("*").execute()
+    personas = data.data if data.data else []
     return templates.TemplateResponse("dashboard_personas.html", {"request": request, "personas": personas})
 
-
-# ✅ 注册新 persona
+# ✅ 注册新角色
 @app.post("/persona/register")
-async def register_persona_route(
-    name: str = Form(...),
-    persona: str = Form(...),
-    permissions: str = Form(...),
-):
-    result = register_persona(supabase, name, persona, permissions, SUPER_SECRET_KEY)
-    return wrap_result("success", "注册成功", {}) if result else wrap_result("error", "注册失败")
+def register_persona_api(name: str = Form(...), persona: str = Form(...), permissions: str = Form(...)):
+    try:
+        register_persona(name, persona, permissions)
+        return RedirectResponse(url="/dashboard/personas", status_code=303)
+    except Exception as e:
+        return wrap_result("error", f"注册异常：{e}")
 
-
-# ✅ 删除 persona
+# ✅ 删除角色
 @app.post("/persona/delete")
-async def delete_persona_route(
-    persona: str = Form(...),
-    secret: str = Form(...),
-):
-    result = delete_persona(supabase, persona, secret, SUPER_SECRET_KEY)
-    return wrap_result("success", "删除成功", {}) if result else wrap_result("error", "删除失败")
+def delete_persona_api(persona: str = Form(...), secret: str = Form(...)):
+    try:
+        if not check_secret_permission(secret):
+            return wrap_result("error", "权限不足，拒绝删除")
+        delete_persona(persona)
+        return RedirectResponse(url="/dashboard/personas", status_code=303)
+    except Exception as e:
+        return wrap_result("error", f"删除异常：{e}")
 
-
-# ✅ 日志列表
-@app.get("/dashboard/logs", response_class=HTMLResponse)
-async def show_logs(request: Request):
-    logs = query_logs(supabase, limit=100)
-    return templates.TemplateResponse("dashboard_logs.html", {"request": request, "logs": logs})
-
-
-# ✅ 测试对话口
-@app.get("/chat_test", response_class=HTMLResponse)
-async def test_chat_ui(request: Request):
-    return templates.TemplateResponse("chat_test.html", {"request": request})
-
-
-# ✅ 接收对话消息
+# ✅ GPT 对话口（可选）
 @app.post("/chat")
-async def chat_endpoint(
-    prompt: str = Form(...),
-    secret: str = Form(...),
-):
-    if not check_secret_permission(secret, SUPER_SECRET_KEY):
-        return wrap_result("error", "❌ 权限密钥无效")
+def chat_api(prompt: str = Form(...), role: str = Form(...), secret: str = Form(...)):
+    try:
+        if not check_secret_permission(secret):
+            return wrap_result("error", "权限不足，拒绝访问")
 
-    intent = parse_intent(prompt)
-    reply = intent_dispatcher(intent)
-    write_log_to_supabase(supabase, prompt, reply, intent)
-    return wrap_result("success", reply, intent)
+        intent = parse_intent(prompt, role)
+        reply = intent_dispatcher(intent, supabase)
+        write_log_to_supabase(prompt, role, reply, intent)
+        return wrap_result("success", reply, intent)
+    except Exception as e:
+        return wrap_result("error", f"系统异常：{e}")
