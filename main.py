@@ -43,92 +43,62 @@ def wrap_result(status: str, reply: str, intent: dict = {}):
 
 # ✅ 控制台首页重定向
 @app.get("/", include_in_schema=False)
-def root():
+async def index():
     return RedirectResponse(url="/dashboard/personas")
 
 
-# ✅ 注册 persona（用于表单注册）
+# ✅ Persona 控制台页面
+@app.get("/dashboard/personas", response_class=HTMLResponse)
+async def show_persona_dashboard(request: Request):
+    response = supabase.table("personas").select("*").execute()
+    personas = response.data if response else []
+    return templates.TemplateResponse("dashboard_personas.html", {"request": request, "personas": personas})
+
+
+# ✅ 注册新 persona
 @app.post("/persona/register")
-async def register_persona_api(
+async def register_persona_route(
     name: str = Form(...),
     persona: str = Form(...),
-    secret: str = Form(...)
+    permissions: str = Form(...),
 ):
-    if not check_secret_permission(secret, ["创建角色", "注册"]):
-        return wrap_result("fail", "❌ 权限不足，无法注册角色")
-
-    try:
-        register_persona(supabase, name, persona)
-        return wrap_result("success", f"✅ 角色 {persona} 注册成功")
-    except Exception as e:
-        return wrap_result("error", f"⚠️ 注册失败：{str(e)}")
+    result = register_persona(supabase, name, persona, permissions, SUPER_SECRET_KEY)
+    return wrap_result("success", "注册成功", {}) if result else wrap_result("error", "注册失败")
 
 
-# ✅ 删除 persona（用于表单删除）
+# ✅ 删除 persona
 @app.post("/persona/delete")
-async def delete_persona_api(
+async def delete_persona_route(
     persona: str = Form(...),
-    secret: str = Form(...)
+    secret: str = Form(...),
 ):
-    if not check_secret_permission(secret, ["删除角色"]):
-        return wrap_result("fail", "❌ 权限不足，无法删除角色")
-
-    try:
-        delete_persona(supabase, persona)
-        return wrap_result("success", f"🗑️ 角色 {persona} 删除成功")
-    except Exception as e:
-        return wrap_result("error", f"⚠️ 删除失败：{str(e)}")
+    result = delete_persona(supabase, persona, secret, SUPER_SECRET_KEY)
+    return wrap_result("success", "删除成功", {}) if result else wrap_result("error", "删除失败")
 
 
-# ✅ 渲染角色列表页面
-@app.get("/dashboard/personas", response_class=HTMLResponse)
-async def show_personas_page(request: Request):
-    try:
-        result = supabase.table("personas").select("*").execute()
-        personas = result.data or []
-        return templates.TemplateResponse("dashboard_personas.html", {
-            "request": request,
-            "personas": personas
-        })
-    except Exception as e:
-        return HTMLResponse(content=f"<h3>❌ 加载失败：{str(e)}</h3>", status_code=500)
+# ✅ 日志列表
+@app.get("/dashboard/logs", response_class=HTMLResponse)
+async def show_logs(request: Request):
+    logs = query_logs(supabase, limit=100)
+    return templates.TemplateResponse("dashboard_logs.html", {"request": request, "logs": logs})
 
 
-# ✅ GPT 聊天主入口
+# ✅ 测试对话口
+@app.get("/chat_test", response_class=HTMLResponse)
+async def test_chat_ui(request: Request):
+    return templates.TemplateResponse("chat_test.html", {"request": request})
+
+
+# ✅ 接收对话消息
 @app.post("/chat")
-async def chat_handler(request: Request):
-    data = await request.json()
-    message = data.get("message", "")
-    persona = data.get("persona", "")
-    skip_parsing = data.get("skip_parsing", False)
+async def chat_endpoint(
+    prompt: str = Form(...),
+    secret: str = Form(...),
+):
+    if not check_secret_permission(secret, SUPER_SECRET_KEY):
+        return wrap_result("error", "❌ 权限密钥无效")
 
-    if not message:
-        return wrap_result("fail", "⛔ 空消息")
-
-    if not skip_parsing:
-        intent = parse_intent(message, persona)
-    else:
-        intent = data.get("intent", {})
-
-    if not check_secret_permission(intent, persona):
-        write_log_to_supabase(persona, intent, "denied", "权限不足")
-        return wrap_result("fail", "❌ 权限不足")
-
-    result = intent_dispatcher(intent)
-    write_log_to_supabase(persona, intent, "success", result)
-    return wrap_result("success", result, intent)
-
-
-# ✅ 查询日志接口
-@app.post("/log/query")
-async def query_logs_api(request: Request):
-    data = await request.json()
-    filters = {
-        "persona": data.get("persona"),
-        "intent_type": data.get("intent_type"),
-        "allow": data.get("allow"),
-    }
-    limit = data.get("limit", 25)
-    offset = data.get("offset", 0)
-    logs = query_logs(filters, limit=limit, offset=offset)
-    return JSONResponse(content={"logs": logs})							
+    intent = parse_intent(prompt)
+    reply = intent_dispatcher(intent)
+    write_log_to_supabase(supabase, prompt, reply, intent)
+    return wrap_result("success", reply, intent)
