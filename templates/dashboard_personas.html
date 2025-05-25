@@ -47,8 +47,9 @@
   </style>
 </head>
 <body>
-  <h2>🌿 Persona 超智体角色列表</h2>
+  <h1>🌌 Persona 超智体角色列表</h1>
   <button onclick="registerPersona()">➕ 注册新角色</button>
+
   <table>
     <thead>
       <tr>
@@ -57,89 +58,135 @@
         <th>操作</th>
       </tr>
     </thead>
-    <tbody id="personaTableBody"></tbody>
+    <tbody id="table-body">
+      <!-- 动态填充 -->
+    </tbody>
   </table>
+
   <div class="pagination">
-    <button onclick="prevPage()">上一页</button>
-    <span>第 <span id="currentPage">1</span> 页</span>
+    <button onclick="previousPage()">上一页</button>
+    第 <span id="current-page">1</span> 页
     <button onclick="nextPage()">下一页</button>
   </div>
 
   <script>
-    let page = 0;
+    let currentPage = 1;
     const limit = 5;
 
-    function loadPersonas() {
-      fetch('/persona/details')
-        .then(response => response.json())
-        .then(data => {
-          const tbody = document.getElementById('personaTableBody');
-          tbody.innerHTML = '';
-          const personas = data.data || [];
-          const pagePersonas = personas.slice(page * limit, (page + 1) * limit);
+    async function fetchPersonas() {
+      try {
+        const res = await fetch(`/persona/details`);
+        const data = await res.json();
+        const table = document.getElementById("table-body");
+        table.innerHTML = "";
 
-          pagePersonas.forEach(p => {
-            const row = document.createElement('tr');
-            const permissions = p.permissions?.length
-              ? p.permissions.join(', ')
-              : '<em>(无权限)</em>';
+        const personas = data.data || [];
+        const start = (currentPage - 1) * limit;
+        const pageData = personas.slice(start, start + limit);
 
-            row.innerHTML = `
-              <td>${p.role}</td>
-              <td>${permissions}</td>
-              <td>
-                <button onclick="editPermissions('${p.role}')">编辑</button>
-                <button class="danger" onclick="deletePersona('${p.role}')">删除</button>
-              </td>
-            `;
-            tbody.appendChild(row);
-          });
+        pageData.forEach(item => {
+          const row = document.createElement("tr");
 
-          document.getElementById('currentPage').textContent = page + 1;
-        })
-        .catch(err => alert("加载失败：" + err.message));
+          const roleCell = document.createElement("td");
+          roleCell.innerText = item.role;
+          row.appendChild(roleCell);
+
+          const permCell = document.createElement("td");
+          permCell.innerText = item.permissions?.length ? item.permissions.join(", ") : "(无权限)";
+          row.appendChild(permCell);
+
+          const actionsCell = document.createElement("td");
+
+          const editBtn = document.createElement("button");
+          editBtn.innerText = "编辑";
+          editBtn.onclick = () => editPermissions(item.role);
+          actionsCell.appendChild(editBtn);
+
+          const deleteBtn = document.createElement("button");
+          deleteBtn.innerText = "删除";
+          deleteBtn.classList.add("danger");
+          deleteBtn.onclick = () => deletePersona(item.role);
+          actionsCell.appendChild(deleteBtn);
+
+          row.appendChild(actionsCell);
+          table.appendChild(row);
+        });
+
+        document.getElementById("current-page").innerText = currentPage;
+      } catch (e) {
+        alert("❌ 加载失败：" + e.message);
+      }
     }
 
-    function prevPage() {
-      if (page > 0) {
-        page--;
-        loadPersonas();
+    function previousPage() {
+      if (currentPage > 1) {
+        currentPage--;
+        fetchPersonas();
       }
     }
 
     function nextPage() {
-      page++;
-      loadPersonas();
+      currentPage++;
+      fetchPersonas();
     }
 
     function editPermissions(role) {
-      const raw = prompt(`编辑功能尚未接入：role=${role}`);
-    }
+      const newPerms = prompt(`编辑功能尚未接入：role=${role}\n(未来将在此弹窗内可视化编辑权限)`);
 
-    function registerPersona() {
-      const raw = prompt('注册功能尚未接入');
+      // 未来接入 POST /persona/update_permissions 调用接口
+      if (newPerms) {
+        alert(`尚未接入权限更新：${newPerms}`);
+      }
     }
 
     function deletePersona(role) {
-      if (!confirm(`确定要删除角色「${role}」吗？`)) return;
-      fetch('/delete_persona', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+      if (!confirm(`确定要删除角色 "${role}" 吗？此操作不可恢复`)) return;
+
+      fetch("/delete_persona", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ persona: role, operator: "将军" })
       })
-        .then(res => res.json())
-        .then(data => {
-          if (data?.result?.status === 'fail') {
-            alert("删除失败：" + (data.result.error || "未知错误"));
-          } else {
-            alert("✅ 删除成功");
-            loadPersonas();
-          }
-        })
-        .catch(err => alert("删除失败：" + err.message));
+      .then(res => res.json())
+      .then(json => {
+        if (json.result) {
+          alert("✅ 删除成功");
+          fetchPersonas();
+        } else {
+          alert("❌ 删除失败：" + (json.error || "未知错误"));
+        }
+      })
+      .catch(err => {
+        alert("❌ 删除请求失败：" + err.message);
+      });
     }
 
-    window.onload = loadPersonas;
+    function registerPersona() {
+      const newRole = prompt("请输入新角色名称：");
+      const secret = prompt("请输入授权口令：");
+
+      if (newRole && secret) {
+        fetch("/persona/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ persona: newRole, secret: secret, operator: "将军" })
+        })
+        .then(res => res.json())
+        .then(json => {
+          if (json.success) {
+            alert("✅ 注册成功");
+            fetchPersonas();
+          } else {
+            alert("❌ 注册失败：" + (json.error || "未知错误"));
+          }
+        })
+        .catch(err => {
+          alert("❌ 注册请求失败：" + err.message);
+        });
+      }
+    }
+
+    window.onload = fetchPersonas;
   </script>
 </body>
 </html>
