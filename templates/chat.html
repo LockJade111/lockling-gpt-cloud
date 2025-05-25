@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>Lockling 云脑 · Chat 测试界面</title>
+</head>
+<body>
+  <h2>💬 Chat 测试界面</h2>
+  <form id="chatForm">
+    <input type="text" id="message" placeholder="输入一句话">
+    <button type="submit">发送</button>
+  </form>
+  <pre id="result"></pre>
+
+  <script>
+    document.getElementById("chatForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById("message").value;
+      const res = await fetch("/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: msg, persona: "将军" })
+      });
+      const data = await res.json();
+      document.getElementById("result").innerText = JSON.stringify(data, null, 2);
+    });
+  </script>
+</body>
+</html>
