@@ -119,11 +119,6 @@
 
       const data = await response.json();
 
-      if (data.error && data.error.includes("已存在")) {
-        alert("❌ 注册失败：该角色已存在！");
-        return;
-      }
-
       if (data.success) {
         alert("✅ 注册成功！");
         document.getElementById("registerForm").reset();
@@ -161,19 +156,18 @@
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          persona: currentEditing,
-          permissions: selected,
-          operator: "将军"
+          role: currentEditing,
+          permissions: selected
         })
       });
 
       const data = await res.json();
-      if (data.success) {
+      if (data.status === "success") {
         alert("✅ 权限已更新");
         closeModal();
         loadPersonas();
       } else {
-        alert("❌ 更新失败：" + (data.error || "未知错误"));
+        alert("❌ 更新失败：" + (data.message || "未知错误"));
       }
     }
 
