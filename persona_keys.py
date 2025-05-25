@@ -1,57 +1,91 @@
-from supabase import create_client
-import os
+✅ 注册 persona（支持写入角色）
+# ✅ 注册 persona（支持写入角色，返回布尔值 + 消息）
+def register_persona(persona: str, secret: str, created_by="系统", role="user"):
+    # 查重
+    existing = supabase.table(TABLE).select("persona").eq("persona", persona).execute()
+    if existing.data:
+        return False, f"角色 {persona} 已存在"
 
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY")
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+    hashed = bcrypt.hashpw(secret.encode(), bcrypt.gensalt()).decode()
+    result = supabase.table(TABLE).insert({
+        "persona": persona,
+        "secret_hash": hashed,
+        "created_by": created_by,
+        "role": role,
+        "active": True,
+        "failed_attempts": 0,
+        "locked": False
+    }).execute()
+    return result
 
-from passlib.hash import bcrypt
-
-def register_persona(persona, secret):
     try:
-        hashed = bcrypt.hash(secret)
-        supabase.table("persona_keys").insert({
+        result = supabase.table(TABLE).insert({
             "persona": persona,
-            "secret": hashed,
-            "permissions": []
+            "secret_hash": hashed,
+            "created_by": created_by,
+            "role": role,
+            "active": True,
+            "failed_attempts": 0,
+            "locked": False
         }).execute()
         return True, "注册成功"
     except Exception as e:
-        return False, f"注册失败：{e}"
+        return False, f"注册失败: {str(e)}"
 
-def check_secret(persona, secret):
-    try:
-        data = supabase.table("persona_keys").select("*").eq("persona", persona).single().execute().data
-        if not data:
-            return False, "未找到该角色"
-        if bcrypt.verify(secret, data.get("secret", "")):
-            return True, "密钥正确"
+# ✅ 验证 persona 密钥（含失败计数与锁定机制）
+def check_persona_secret(persona: str, input_secret: str) -> bool:
+@@ -44,49 +53,14 @@ def check_persona_secret(persona: str, input_secret: str) -> bool:
+            }).eq("persona", persona).execute()
+            return True
         else:
-            return False, "密钥错误"
-    except Exception as e:
-        return False, str(e)
+            new_fail_count = row.get("failed_attempts", 0) + 1
+            update_data = {
+                "failed_attempts": new_fail_count
+            }
+            if new_fail_count >= 5:
+            new_count = row.get("failed_attempts", 0) + 1
+            update_data = {"failed_attempts": new_count}
+            if new_count >= 5:
+                update_data["locked"] = True
+                print(f"[⚠️] 密钥失败超过 5 次，已锁定 persona：{persona}")
 
-def update_permissions(persona, permissions):
-    try:
-        supabase.table("persona_keys").update({"permissions": permissions}).eq("persona", persona).execute()
-        return True, "权限更新成功"
+            supabase.table(TABLE).update(update_data).eq("persona", persona).execute()
+            return False
     except Exception as e:
-        return False, f"更新失败：{e}"
+        print(f"[❌] 密钥验证异常：{e}")
+        print(f"[异常] 密钥验证异常: {e}")
+        return False
 
-def delete_persona_soft(persona):
-    try:
-        supabase.table("persona_keys").update({"deleted": True}).eq("persona", persona).execute()
-        return "🟡 角色软删除成功（已标记为 deleted=True）"
-    except Exception as e:
-        return f"❌ 软删除失败：{e}"
+# ✅ 撤销授权权限（active = False）
+def revoke_persona(persona: str):
+    return supabase.table(TABLE).update({
+        "active": False
+    }).eq("persona", persona).execute()
 
-def delete_persona_completely(persona):
+# ✅ 删除 persona（直接从表中移除）
+def delete_persona(persona: str):
+    return supabase.table(TABLE).delete().eq("persona", persona).execute()
+
+# ✅ 解锁 persona（将军专属）
+def unlock_persona(persona: str) -> bool:
     try:
-        supabase.table("persona_keys").delete().eq("persona", persona).execute()
-        try:
-            supabase.table("logs").delete().eq("persona", persona).execute()
-        except Exception as e:
-            print("[⚠️ 日志删除失败]", e)
-        return "✅ 角色与日志已彻底删除"
+        result = supabase.table(TABLE).update({
+            "locked": False,
+            "failed_attempts": 0
+        }).eq("persona", persona).execute()
+        return True if result.data else False
     except Exception as e:
-        return f"❌ 彻底删除失败：{e}"
+        print(f"[❌] 解锁失败: {e}")
+        return False
+
+# ✅ 查询 persona 权限等级
+def get_persona_role(persona: str) -> str:
+    try:
+        result = supabase.table(TABLE).select("role").eq("persona", persona).limit(1).execute()
+        if result.data:
+            return result.data[0].get("role", "user")
+        else:
+            return "user"
+    except Exception:
+        return "user"
+# ✅ 可扩展：注销、删除等接口可后续添加
