@@ -1,43 +1,64 @@
 import os
-from persona_keys import check_persona_secret  # 数据库密钥验证函数
+from persona_keys import check_persona_secret  # 数据库 bcrypt 哈希验证
 
-# ✅ Persona → 环境变量 key 映射（变量名使用英文，不含中文）
+# ✅ Persona → .env 环境变量名映射（用于本地密钥验证）
 PERSONA_SECRET_KEY_MAP = {
     "将军": "SECRET_COMMANDER",
     "司铃": "SECRET_ASSISTANT",
     "军师猫": "SECRET_STRATEGIST",
-    # 🧩 若新增角色，请在此处同步维护 KEY 映射关系
+    # 后续角色在此新增映射
 }
 
-def check_secret_permission(persona: str, secret: str) -> bool:
+def check_secret_permission(intent_or_persona, maybe_secret=None) -> bool:
     """
-    混合验证机制：
-    1. 优先使用 Supabase 数据库中的 bcrypt 哈希验证（安全）；
-    2. 若数据库中不存在或验证失败，则回退至 .env 明文对比（兜底机制）；
-    3. 匹配失败则统一返回 False。
+    ✅ 通用权限验证函数：
+    支持以下调用方式：
+    - check_secret_permission(intent, persona_dict or str)
+    - check_secret_permission(persona, secret)
     """
-    # ✅ Step 1：数据库验证
-    if check_persona_secret(persona, secret):
-        print(f"[✅] 数据库验证成功：persona={persona}")
-        return True
+    # 若传入为 intent + persona 格式
+    if isinstance(intent_or_persona, dict):
+        intent = intent_or_persona
+        persona = maybe_secret
 
-    # ✅ Step 2：本地环境变量兜底验证
-    env_key = PERSONA_SECRET_KEY_MAP.get(persona)
-    if not env_key:
-        print(f"[❌] 验证失败：未知 persona『{persona}』无对应环境变量 key")
-        return False
+        # 容错处理：若 persona 是 dict，从中提取 name
+        if isinstance(persona, dict):
+            persona = persona.get("name", "")
 
-    stored = os.getenv(env_key)
-    if stored == secret:
-        print(f"[✅] 本地密钥匹配成功：persona={persona}")
-        return True
+        # 若 intent 中标记 intent_type 受限，仅限将军
+        intent_type = intent.get("intent_type", "")
+        if intent_type in ["view_logs", "delete_persona", "revoke", "authorize"]:
+            return persona == "将军"
+        return True  # 默认放行
     else:
-        print(f"[❌] 本地密钥匹配失败：persona={persona}，输入={secret}，预期={stored}")
-        return False
+        # persona + secret 验证模式
+        persona = intent_or_persona
+        secret = maybe_secret
 
-# ✅ 查询日志权限判断（将军专属）
-def has_log_access(persona: str) -> bool:
-    """
-    限定仅特定 persona（如“将军”）可访问系统日志接口。
-    """
+        if isinstance(persona, dict):
+            persona = persona.get("name", "")
+
+        # ✅ Step 1：数据库验证
+        if check_persona_secret(persona, secret):
+            print(f"[✅] 数据库验证成功：persona={persona}")
+            return True
+
+        # ✅ Step 2：本地 .env 验证
+        env_key = PERSONA_SECRET_KEY_MAP.get(persona)
+        if not env_key:
+            print(f"[❌] 验证失败：未知 persona『{persona}』无对应环境变量 key")
+            return False
+
+        stored = os.getenv(env_key)
+        if stored == secret:
+            print(f"[✅] 本地密钥匹配成功：persona={persona}")
+            return True
+        else:
+            print(f"[❌] 本地密钥匹配失败：persona={persona}，输入={secret}，预期={stored}")
+            return False
+
+# ✅ 限制将军查看日志页面
+def has_log_access(persona) -> bool:
+    if isinstance(persona, dict):
+        persona = persona.get("name", "")
     return persona.strip() == "将军"
