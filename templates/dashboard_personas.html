@@ -41,7 +41,7 @@
 
   <hr>
   <h3>🆕 注册新角色</h3>
-  <form id="registerForm" onsubmit="return registerPersona();">
+  <form id="registerForm">
     <label>名称：</label>
     <input type="text" id="newPersona" required>
     <label>密钥：</label>
@@ -85,7 +85,8 @@
       loadPersonas();
     }
 
-    async function registerPersona() {
+    document.getElementById("registerForm").addEventListener("submit", async function(event) {
+      event.preventDefault(); // 阻止表单刷新
       const name = document.getElementById("newPersona").value.trim();
       const secret = document.getElementById("newSecret").value.trim();
       if (!name || !secret) return alert("名称与密钥不能为空");
@@ -97,14 +98,13 @@
       });
       const data = await response.json();
       if (data.success) {
-        alert("注册成功");
+        alert("✅ 注册成功！");
         loadPersonas();
         document.getElementById("registerForm").reset();
       } else {
-        alert("注册失败：" + (data.error || "未知错误"));
+        alert("❌ 注册失败：" + (data.error || "未知错误"));
       }
-      return false;
-    }
+    });
 
     loadPersonas();
   </script>
