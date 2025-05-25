@@ -1,6 +1,9 @@
 import os
 import json
+from dotenv import load_dotenv
 from openai import OpenAI
+
+load_dotenv()  # ✅ 确保加载 .env 文件中的 OPENAI_API_KEY
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -25,7 +28,7 @@ def parse_intent(message: str, persona: str):
 7. request_secret       → 要求输入密钥（如“我是将军”）
 8. unknown              → 无法识别或不属于以上类型的内容
 
-【输入】用户自然语言
+【输入】用户自然语言  
 【输出】格式必须为 JSON，无注释，字段包括：
 
 {
@@ -36,48 +39,22 @@ def parse_intent(message: str, persona: str):
   "allow": true 或 false,
   "reason": "若拒绝或失败，请写明原因"
 }
-
-【示例】：
-- “口令是玉衡在手” →
-{
-  "intent_type": "confirm_secret",
-  "target": "将军",
-  "permissions": [],
-  "secret": "玉衡在手",
-  "allow": true,
-  "reason": ""
-}
-
-- “我是将军” →
-{
-  "intent_type": "request_secret",
-  "target": "将军",
-  "permissions": [],
-  "secret": "",
-  "allow": false,
-  "reason": "需提供密钥"
-}
 """
 
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": prompt.strip()},
+            {"role": "user", "content": message}
+        ]
+    )
+
     try:
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            temperature=0.2,
-            messages=[
-                {"role": "system", "content": "你是一个语义解析助手，返回格式化 JSON 意图"},
-                {"role": "user", "content": prompt + f"\n用户输入：{message}\n输出："}
-            ]
-        )
-
-        output = response.choices[0].message.content.strip()
-        return json.loads(output)
-
+        content = response.choices[0].message.content.strip()
+        return json.loads(content)
     except Exception as e:
         return {
-            "intent_type": "unknown",
-            "target": "",
-            "permissions": [],
-            "secret": "",
-            "allow": False,
-            "reason": f"解析失败: {str(e)}"
+            "status": "error",
+            "reply": f"🐛 无法理解指令结构: {str(e)}",
+            "intent": {}
         }
