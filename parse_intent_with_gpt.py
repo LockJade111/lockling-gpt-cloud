@@ -5,7 +5,6 @@ from openai import OpenAI
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def parse_intent(message: str, persona: str):
-    # 注入当前身份 context
     persona_intro = f"你现在以 {persona} 的身份处理指令。身份等级将影响你是否有权限执行某些操作。\n\n"
 
     prompt = persona_intro + """
@@ -23,7 +22,8 @@ def parse_intent(message: str, persona: str):
 4. revoke_identity      → 取消授权，如 “我要取消 司铃 的注册权限”
 5. delete_persona       → 删除角色，如 “我要删除角色 小助手”
 6. authorize            → 授权他人权限（简略指令，如 “授权小艾只读”）
-7. unknown              → 无法识别或不属于以上类型的内容
+7. request_secret       → 要求输入密钥（如“我是将军”）
+8. unknown              → 无法识别或不属于以上类型的内容
 
 【输入】用户自然语言
 【输出】格式必须为 JSON，无注释，字段包括：
@@ -48,28 +48,30 @@ def parse_intent(message: str, persona: str):
   "reason": ""
 }
 
-- “我要注册角色 小助手，口令是玉衡在手” →
+- “我是将军” →
 {
-  "intent_type": "register_persona",
-  "target": "小助手",
+  "intent_type": "request_secret",
+  "target": "将军",
   "permissions": [],
-  "secret": "玉衡在手",
-  "allow": true,
-  "reason": ""
+  "secret": "",
+  "allow": false,
+  "reason": "需提供密钥"
 }
 """
 
     try:
         response = client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-3.5-turbo",
+            temperature=0.2,
             messages=[
-                {"role": "system", "content": prompt},
-                {"role": "user", "content": message}
-            ],
-            temperature=0.2
+                {"role": "system", "content": "你是一个语义解析助手，返回格式化 JSON 意图"},
+                {"role": "user", "content": prompt + f"\n用户输入：{message}\n输出："}
+            ]
         )
+
         output = response.choices[0].message.content.strip()
         return json.loads(output)
+
     except Exception as e:
         return {
             "intent_type": "unknown",
