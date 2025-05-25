@@ -16,7 +16,7 @@ from supabase import create_client, Client
 from persona_keys import delete_persona, register_persona
 
 # ✅ 加载环境变量
-load_dotenv(dotenv_path=".env", override=True)
+load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -35,7 +35,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ /chat 核心入口
+# ✅ /chat 核心接口
 @app.post("/chat")
 async def chat(request: Request):
     try:
@@ -78,7 +78,7 @@ async def delete_persona_api(request: Request):
     write_log_to_supabase(operator, {"intent_type": "delete_persona", "target": persona}, "success", result)
     return JSONResponse(content={"result": result})
 
-# ✅ 日志分页查询
+# ✅ 日志查询接口
 @app.post("/log/query")
 async def query_logs_api(request: Request):
     data = await request.json()
@@ -93,7 +93,7 @@ async def query_logs_api(request: Request):
     logs = query_logs(filters, limit=limit, offset=offset)
     return JSONResponse(content={"logs": logs})
 
-# ✅ 可视化日志页
+# ✅ 日志页面（权限判断）
 @app.get("/logs", response_class=HTMLResponse)
 async def logs_page(request: Request):
     persona = request.query_params.get("persona", "")
@@ -106,7 +106,7 @@ async def logs_page(request: Request):
 async def dashboard(request: Request):
     return templates.TemplateResponse("dashboard.html", {"request": request})
 
-# ✅ persona 注册页（将军专属）
+# ✅ persona 管理页
 @app.get("/dashboard/personas", response_class=HTMLResponse)
 async def dashboard_personas(request: Request):
     persona = request.query_params.get("persona", "")
@@ -114,7 +114,7 @@ async def dashboard_personas(request: Request):
         return HTMLResponse(content="<h3>❌ 权限不足：仅将军可管理角色。</h3>", status_code=403)
     return templates.TemplateResponse("dashboard_personas.html", {"request": request})
 
-# ✅ 获取 persona 列表
+# ✅ 获取 persona 简单列表
 @app.get("/persona/list")
 async def get_personas():
     try:
@@ -124,7 +124,7 @@ async def get_personas():
     except Exception as e:
         return {"error": str(e), "personas": []}
 
-# ✅ 注册 persona（将军专属）
+# ✅ 注册 persona（将军权限）
 @app.post("/persona/register")
 async def register_persona_api(request: Request):
     data = await request.json()
@@ -145,3 +145,12 @@ async def register_persona_api(request: Request):
         if "already exists" in str(e):
             return JSONResponse(content={"success": False, "error": "该角色已存在"}, status_code=400)
         return JSONResponse(content={"success": False, "error": str(e)})
+
+# ✅ 获取 persona 权限详情（用于前端展示）
+@app.get("/persona/details")
+async def get_persona_details():
+    try:
+        result = supabase.table("roles").select("role, permissions").execute()
+        return {"data": result.data}
+    except Exception as e:
+        return {"error": str(e), "data": []}

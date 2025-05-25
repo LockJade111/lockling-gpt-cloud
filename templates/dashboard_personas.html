@@ -32,7 +32,11 @@
 
   <table id="personaTable">
     <thead>
-      <tr><th>Persona</th><th>操作</th></tr>
+      <tr>
+        <th>Persona</th>
+        <th>权限列表</th>
+        <th>操作</th>
+      </tr>
     </thead>
     <tbody id="personaList">
       <!-- JS 渲染角色列表 -->
@@ -58,18 +62,21 @@
     }
 
     async function loadPersonas() {
-      const response = await fetch("/persona/list", { method: "GET" });
+      const response = await fetch("/persona/details");
       const data = await response.json();
-      const personas = data.personas || [];
+      const personas = data.data || [];
 
       const list = document.getElementById("personaList");
       list.innerHTML = "";
 
-      personas.forEach(name => {
+      personas.forEach(p => {
+        const role = p.role;
+        const perms = Array.isArray(p.permissions) ? p.permissions.join(", ") : "";
         const row = document.createElement("tr");
         row.innerHTML = `
-          <td>${name}</td>
-          <td><button onclick="deletePersona('${name}')">删除</button></td>
+          <td>${role}</td>
+          <td>${perms}</td>
+          <td><button onclick="deletePersona('${role}')">删除</button></td>
         `;
         list.appendChild(row);
       });
@@ -86,7 +93,7 @@
     }
 
     document.getElementById("registerForm").addEventListener("submit", async function(event) {
-      event.preventDefault(); // 阻止默认提交
+      event.preventDefault();
       const name = document.getElementById("newPersona").value.trim();
       const secret = document.getElementById("newSecret").value.trim();
       if (!name || !secret) return alert("名称与密钥不能为空");
