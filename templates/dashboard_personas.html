@@ -43,42 +43,77 @@
   </style>
 </head>
 <body>
-  <h1>🌌 Persona 超智体角色列表</h1>
 
-  <table>
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>名称</th>
-        <th>角色</th>
-        <th>操作</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for p in personas %}
-        <tr>
-          <td>{{ p.id }}</td>
-          <td>{{ p.name }}</td>
-          <td>{{ p.persona }}</td>
-          <td>
-            <form method="post" action="/persona/delete" style="display:inline;">
-              <input type="hidden" name="id" value="{{ p.id }}">
-              <input type="text" name="secret" placeholder="权限密钥" required>
-              <button class="danger">删除</button>
-            </form>
-          </td>
-        </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+<h2>🔐 Persona 超智体角色列表</h2>
 
-  <h2>🆕 注册新角色</h2>
-  <form method="post" action="/persona/register">
-    <label>名称: <input type="text" name="name" required></label><br>
-    <label>角色: <input type="text" name="persona" required></label><br>
-    <label>权限密钥: <input type="text" name="secret" required></label><br>
-    <button type="submit">提交注册</button>
-  </form>
+<table>
+  <thead>
+    <tr>
+      <th>角色名</th>
+      <th>操作</th>
+    </tr>
+  </thead>
+  <tbody id="personaTable">
+    {% for p in personas %}
+    <tr>
+      <td>{{ p.persona }}</td>
+      <td>
+        <button class="danger" onclick="deletePersona('{{ p.persona }}')">删除</button>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h3>➕ 注册新角色</h3>
+<form id="registerForm">
+  <input type="text" id="name" placeholder="名称" required>
+  <input type="text" id="persona" placeholder="角色名" required>
+  <input type="password" id="secret" placeholder="密钥（由将军输入）" required>
+  <button type="submit">注册</button>
+</form>
+
+<script>
+document.getElementById("registerForm").addEventListener("submit", async function (e) {
+  e.preventDefault();
+
+  const name = document.getElementById("name").value.trim();
+  const persona = document.getElementById("persona").value.trim();
+  const secret = document.getElementById("secret").value.trim();
+
+  const formData = new FormData();
+  formData.append("name", name);
+  formData.append("persona", persona);
+  formData.append("secret", secret);
+
+  const res = await fetch("/persona/register", {
+    method: "POST",
+    body: formData
+  });
+
+  const data = await res.json();
+  alert(data.reply || "操作完成");
+  location.reload();
+});
+
+async function deletePersona(persona) {
+  const secret = prompt("请输入将军密钥以确认删除角色 [" + persona + "]：");
+  if (!secret) return;
+
+  const formData = new FormData();
+  formData.append("persona", persona);
+  formData.append("secret", secret);
+
+  const res = await fetch("/persona/delete", {
+    method: "POST",
+    body: formData
+  });
+
+  const data = await res.json();
+  alert(data.reply || "已执行删除操作");
+  location.reload();
+}
+</script>
 
 </body>
 </html>
