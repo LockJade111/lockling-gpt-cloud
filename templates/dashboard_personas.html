@@ -43,45 +43,42 @@
   </style>
 </head>
 <body>
+  <h1>🌌 Persona 超智体角色列表</h1>
 
-<h2>🌌 Persona 超智体角色列表</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>名称</th>
+        <th>角色</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in personas %}
+        <tr>
+          <td>{{ p.id }}</td>
+          <td>{{ p.name }}</td>
+          <td>{{ p.persona }}</td>
+          <td>
+            <form method="post" action="/persona/delete" style="display:inline;">
+              <input type="hidden" name="id" value="{{ p.id }}">
+              <input type="text" name="secret" placeholder="权限密钥" required>
+              <button class="danger">删除</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 
-<table>
-  <thead>
-    <tr>
-      <th>ID</th>
-      <th>名称</th>
-      <th>角色</th>
-      <th>操作</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for item in personas %}
-    <tr>
-      <td>{{ item.id }}</td>
-      <td>{{ item.name }}</td>
-      <td>{{ item.persona }}</td>
-      <td>
-        <!-- 删除按钮 -->
-        <form method="post" action="/persona/delete" style="display:inline;">
-          <input type="hidden" name="id" value="{{ item.id }}">
-          <input type="text" name="secret" placeholder="权限密钥" required>
-          <button type="submit" class="danger">删除</button>
-        </form>
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-
-<!-- 注册新角色 -->
-<h3>🆕 注册新角色</h3>
-<form method="post" action="/persona/register">
-  名称：<input type="text" name="name" required>
-  角色：<input type="text" name="persona" required>
-  权限密钥：<input type="text" name="secret" required>
-  <button type="submit">提交注册</button>
-</form>
+  <h2>🆕 注册新角色</h2>
+  <form method="post" action="/persona/register">
+    <label>名称: <input type="text" name="name" required></label><br>
+    <label>角色: <input type="text" name="persona" required></label><br>
+    <label>权限密钥: <input type="text" name="secret" required></label><br>
+    <button type="submit">提交注册</button>
+  </form>
 
 </body>
 </html>
