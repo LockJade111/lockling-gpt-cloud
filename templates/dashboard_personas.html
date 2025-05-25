@@ -5,174 +5,158 @@
   <title>角色管理 · Lockling 云脑</title>
   <style>
     body { font-family: sans-serif; padding: 30px; background-color: #f8f9fa; }
-    h2 { margin-bottom: 20px; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
     th, td { border: 1px solid #ccc; padding: 8px 10px; text-align: left; }
     th { background-color: #eee; }
-    button { padding: 5px 10px; border: none; border-radius: 4px; background-color: #dc3545; color: white; cursor: pointer; margin-right: 5px; }
-    button:hover { background-color: #c82333; }
-    input[type="text"], input[type="password"] {
-      padding: 6px;
-      margin: 5px;
-      border-radius: 4px;
+    button { padding: 5px 10px; border: none; border-radius: 4px; background-color: #007bff; color: white; cursor: pointer; margin-right: 5px; }
+    button:hover { background-color: #0056b3; }
+    .danger { background-color: #dc3545; }
+    .danger:hover { background-color: #c82333; }
+    #editModal {
+      display: none;
+      position: fixed;
+      top: 20%;
+      left: 30%;
+      width: 40%;
+      padding: 20px;
+      background: white;
       border: 1px solid #ccc;
-    }
-    form button {
-      background-color: #007bff;
-      margin-top: 10px;
-    }
-    form button:hover {
-      background-color: #0056b3;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+      z-index: 999;
     }
   </style>
 </head>
 <body>
 
-  <h2>🧑‍💼 当前注册角色</h2>
+<h2>🧑‍💼 Persona 权限管理</h2>
 
-  <table id="personaTable">
-    <thead>
-      <tr>
-        <th>Persona</th>
-        <th>权限列表</th>
-        <th>操作</th>
-      </tr>
-    </thead>
-    <tbody id="personaList"></tbody>
-  </table>
+<table>
+  <thead>
+    <tr>
+      <th>角色名</th>
+      <th>权限列表</th>
+      <th>操作</th>
+    </tr>
+  </thead>
+  <tbody id="personaList"></tbody>
+</table>
 
-  <hr>
-  <h3>🆕 注册新角色</h3>
-  <form id="registerForm">
-    <label>名称：</label>
-    <input type="text" id="newPersona" required>
-    <label>密钥：</label>
-    <input type="password" id="newSecret" required>
-    <input type="checkbox" id="showSecret" onchange="toggleSecret()"> 显示密钥
-    <br>
-    <button type="submit">注册</button>
-  </form>
+<h3>➕ 注册新角色</h3>
+<form id="registerForm">
+  <input type="text" id="newPersona" placeholder="角色名" required>
+  <input type="password" id="newSecret" placeholder="密钥" required>
+  <input type="checkbox" id="showSecret" onchange="toggleSecret()"> 显示密钥
+  <br><br>
+  <button type="submit">注册</button>
+</form>
 
-  <!-- 权限编辑弹窗 -->
-  <div id="editModal" style="display:none; position:fixed; top:20%; left:30%; width:40%; padding:20px; background:white; border:1px solid #ccc; box-shadow:0 0 10px rgba(0,0,0,0.3); z-index:999;">
-    <h3>编辑权限 - <span id="editPersonaName"></span></h3>
-    <div id="permissionOptions"></div>
-    <button onclick="savePermissions()">保存</button>
-    <button onclick="closeModal()">取消</button>
-  </div>
+<!-- 编辑弹窗 -->
+<div id="editModal">
+  <h3>编辑权限 - <span id="editPersonaName"></span></h3>
+  <div id="permissionOptions"></div>
+  <br>
+  <button onclick="savePermissions()">保存</button>
+  <button class="danger" onclick="closeModal()">取消</button>
+</div>
 
-  <script>
-    const availablePermissions = ["read", "write", "admin", "query", "report", "budget"];
-    let currentEditing = "";
+<script>
+  const availablePermissions = ["read", "write", "admin", "query", "report", "budget"];
+  let currentEditing = "";
 
-    function toggleSecret() {
-      const input = document.getElementById("newSecret");
-      input.type = document.getElementById("showSecret").checked ? "text" : "password";
-    }
+  function toggleSecret() {
+    const input = document.getElementById("newSecret");
+    input.type = document.getElementById("showSecret").checked ? "text" : "password";
+  }
 
-    async function loadPersonas() {
-      const response = await fetch("/persona/details");
-      const data = await response.json();
-      const personas = data.data || [];
+  async function loadPersonas() {
+    const response = await fetch("/persona/details");
+    const data = await response.json();
+    const table = document.getElementById("personaList");
+    table.innerHTML = "";
 
-      const list = document.getElementById("personaList");
-      list.innerHTML = "";
+    (data.data || []).forEach(p => {
+      const perms = Array.isArray(p.permissions) ? p.permissions : [];
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${p.role}</td>
+        <td>${perms.join(", ")}</td>
+        <td>
+          <button onclick="openModal('${p.role}', ${JSON.stringify(perms)})">编辑</button>
+        </td>
+      `;
+      table.appendChild(row);
+    });
+  }
 
-      personas.forEach(p => {
-        const role = p.role;
-        const perms = Array.isArray(p.permissions) ? p.permissions.join(", ") : "";
-        const permsRaw = JSON.stringify(p.permissions || []);
-        const row = document.createElement("tr");
-        row.innerHTML = `
-          <td>${role}</td>
-          <td>${perms}</td>
-          <td>
-            <button onclick="deletePersona('${role}')">删除</button>
-            <button onclick="openModal('${role}', ${permsRaw})">编辑</button>
-          </td>
-        `;
-        list.appendChild(row);
-      });
-    }
+  async function savePermissions() {
+    const checkboxes = document.querySelectorAll("#permissionOptions input[type='checkbox']");
+    const selected = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
 
-    async function deletePersona(name) {
-      if (!confirm(`确认要删除 ${name} 吗？`)) return;
-      await fetch("/delete_persona", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ persona: name, operator: "将军" })
-      });
-      loadPersonas();
-    }
-
-    document.getElementById("registerForm").addEventListener("submit", async function(event) {
-      event.preventDefault();
-      const name = document.getElementById("newPersona").value.trim();
-      const secret = document.getElementById("newSecret").value.trim();
-      if (!name || !secret) return alert("名称与密钥不能为空");
-
-      const response = await fetch("/persona/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ persona: name, secret: secret, operator: "将军" })
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        alert("✅ 注册成功！");
-        document.getElementById("registerForm").reset();
-        loadPersonas();
-      } else {
-        alert("❌ 注册失败：" + (data.error || "未知错误"));
-      }
+    const res = await fetch("/persona/update_permissions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        role: currentEditing,
+        permissions: selected
+      })
     });
 
-    function openModal(role, existingPermissions) {
-      currentEditing = role;
-      document.getElementById("editPersonaName").innerText = role;
-
-      const container = document.getElementById("permissionOptions");
-      container.innerHTML = "";
-
-      availablePermissions.forEach(perm => {
-        const checked = existingPermissions.includes(perm) ? "checked" : "";
-        container.innerHTML += `<label><input type="checkbox" value="${perm}" ${checked}> ${perm}</label><br>`;
-      });
-
-      document.getElementById("editModal").style.display = "block";
+    const data = await res.json();
+    if (data.status === "success") {
+      alert("✅ 权限已更新");
+      closeModal();
+      loadPersonas();
+    } else {
+      alert("❌ 更新失败：" + (data.message || "未知错误"));
     }
+  }
 
-    function closeModal() {
-      document.getElementById("editModal").style.display = "none";
-      currentEditing = "";
+  function openModal(role, permissions) {
+    currentEditing = role;
+    document.getElementById("editPersonaName").innerText = role;
+    const container = document.getElementById("permissionOptions");
+    container.innerHTML = "";
+
+    availablePermissions.forEach(p => {
+      const checked = permissions.includes(p) ? "checked" : "";
+      container.innerHTML += `<label><input type="checkbox" value="${p}" ${checked}> ${p}</label><br>`;
+    });
+
+    document.getElementById("editModal").style.display = "block";
+  }
+
+  function closeModal() {
+    document.getElementById("editModal").style.display = "none";
+    currentEditing = "";
+  }
+
+  document.getElementById("registerForm").addEventListener("submit", async function (e) {
+    e.preventDefault();
+    const name = document.getElementById("newPersona").value.trim();
+    const secret = document.getElementById("newSecret").value.trim();
+
+    const res = await fetch("/persona/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        persona: name,
+        secret: secret,
+        operator: "将军"
+      })
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      alert("✅ 注册成功");
+      loadPersonas();
+      document.getElementById("registerForm").reset();
+    } else {
+      alert("❌ 注册失败：" + (data.error || "未知错误"));
     }
+  });
 
-    async function savePermissions() {
-      const checkboxes = document.querySelectorAll("#permissionOptions input[type='checkbox']");
-      const selected = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
-
-      const res = await fetch("/persona/update_permissions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          role: currentEditing,
-          permissions: selected
-        })
-      });
-
-      const data = await res.json();
-      if (data.status === "success") {
-        alert("✅ 权限已更新");
-        closeModal();
-        loadPersonas();
-      } else {
-        alert("❌ 更新失败：" + (data.message || "未知错误"));
-      }
-    }
-
-    loadPersonas();
-  </script>
+  loadPersonas();
+</script>
 
 </body>
 </html>
