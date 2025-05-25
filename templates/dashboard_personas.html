@@ -47,175 +47,97 @@
   </style>
 </head>
 <body>
+  <h2>🧠 Persona 角色管理控制台</h2>
+  <div id="personas"></div>
+  <div class="pagination">
+    <button onclick="loadPersonas(currentPage - 1)">上一页</button>
+    <span id="page-indicator"></span>
+    <button onclick="loadPersonas(currentPage + 1)">下一页</button>
+  </div>
 
-<h2>🧑‍💼 Persona 权限管理</h2>
+  <script>
+    let currentPage = 0;
+    const pageSize = 5;
 
-<table>
-  <thead>
-    <tr>
-      <th>角色名</th>
-      <th>权限列表</th>
-      <th>操作</th>
-    </tr>
-  </thead>
-  <tbody id="personaList"></tbody>
-</table>
+    async function loadPersonas(page = 0) {
+      const res = await fetch("/persona/details");
+      const result = await res.json();
+      if (!result.data) return alert("⚠️ 获取数据失败");
 
-<div class="pagination">
-  <button onclick="prevPage()">上一页</button>
-  <span id="pageInfo"></span>
-  <button onclick="nextPage()">下一页</button>
-</div>
+      const personas = result.data;
+      const totalPages = Math.ceil(personas.length / pageSize);
+      currentPage = Math.max(0, Math.min(page, totalPages - 1));
+      const pageData = personas.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
 
-<h3>➕ 注册新角色</h3>
-<form id="registerForm">
-  <input type="text" id="newPersona" placeholder="角色名" required>
-  <input type="password" id="newSecret" placeholder="密钥" required>
-  <input type="checkbox" id="showSecret" onchange="toggleSecret()"> 显示密钥
-  <br><br>
-  <button type="submit">注册</button>
-</form>
+      document.getElementById("page-indicator").innerText = `第 ${currentPage + 1} 页 / 共 ${totalPages} 页`;
 
-<!-- 权限编辑弹窗 -->
-<div id="editModal" style="display:none; position:fixed; top:20%; left:30%; width:40%; background:white; padding:20px; box-shadow:0 0 10px rgba(0,0,0,0.2); z-index:1000;">
-  <h3>编辑权限 - <span id="editPersonaName"></span></h3>
-  <div id="permissionOptions"></div>
-  <br>
-  <button onclick="savePermissions()">保存</button>
-  <button class="danger" onclick="closeModal()">取消</button>
-</div>
+      const html = pageData.map(p => `
+        <table>
+          <tr><th colspan="2">🎭 ${p.role}</th></tr>
+          <tr>
+            <td>权限</td>
+            <td id="perm-${p.role}">
+              ${(p.permissions || []).map(perm => `
+                <label><input type="checkbox" value="${perm}" checked disabled> ${perm}</label>
+              `).join('')}
+              ${['read', 'write', 'admin', 'query', 'create'].map(perm => `
+                <label><input type="checkbox" value="${perm}" ${p.permissions.includes(perm) ? 'checked' : ''}> ${perm}</label>
+              `).join('')}
+            </td>
+          </tr>
+          <tr>
+            <td colspan="2">
+              <button onclick="updatePermissions('${p.role}')">编辑</button>
+              <button class="danger" onclick="deletePersona('${p.role}')">删除</button>
+            </td>
+          </tr>
+        </table>
+      `).join('');
 
-<script>
-  const availablePermissions = ["read", "write", "admin", "query", "report", "budget", "创建角色"];
-
-  let currentEditing = "";
-  let page = 1;
-  let per_page = 5;
-  let total = 0;
-
-  function toggleSecret() {
-    const input = document.getElementById("newSecret");
-    input.type = document.getElementById("showSecret").checked ? "text" : "password";
-  }
-
-  async function loadPersonas() {
-    const res = await fetch(`/persona/details?page=${page}&per_page=${per_page}`);
-    const data = await res.json();
-
-    const table = document.getElementById("personaList");
-    table.innerHTML = "";
-
-    (data.data || []).forEach(p => {
-      const perms = Array.isArray(p.permissions) ? p.permissions : [];
-      const row = document.createElement("tr");
-      row.innerHTML = `
-        <td>${p.role}</td>
-        <td>${perms.join(", ")}</td>
-        <td>
-          <button onclick="openModal('${p.role}', ${JSON.stringify(perms)})">编辑</button>
-          <button class="danger" onclick="deletePersona('${p.role}')">删除</button>
-        </td>
-      `;
-      table.appendChild(row);
-    });
-
-    total = data.total || 0;
-    document.getElementById("pageInfo").innerText = `第 ${page} 页 · 共 ${Math.ceil(total / per_page)} 页`;
-  }
-
-  function prevPage() {
-    if (page > 1) {
-      page--;
-      loadPersonas();
+      document.getElementById("personas").innerHTML = html;
     }
-  }
 
-  function nextPage() {
-    if (page * per_page < total) {
-      page++;
-      loadPersonas();
+    async function updatePermissions(role) {
+      const checkboxes = document.querySelectorAll(`#perm-${role} input[type=checkbox]`);
+      const permissions = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+      try {
+        const res = await fetch("/persona/update_permissions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ role, permissions })
+        });
+        const result = await res.json();
+        if (result.status === "success") {
+          alert("✅ 权限已成功更新！");
+        } else {
+          alert("❌ 更新失败：" + (result.message || "未知错误"));
+        }
+      } catch (err) {
+        alert("❌ 网络错误：" + err.message);
+      }
     }
-  }
 
-  function openModal(role, permissions) {
-    currentEditing = role;
-    document.getElementById("editPersonaName").innerText = role;
-    const container = document.getElementById("permissionOptions");
-    container.innerHTML = "";
-
-    availablePermissions.forEach(p => {
-      const checked = permissions.includes(p) ? "checked" : "";
-      container.innerHTML += `<label><input type="checkbox" value="${p}" ${checked}> ${p}</label><br>`;
-    });
-
-    document.getElementById("editModal").style.display = "block";
-  }
-
-  function closeModal() {
-    document.getElementById("editModal").style.display = "none";
-    currentEditing = "";
-  }
-
-  async function savePermissions() {
-    const checkboxes = document.querySelectorAll("#permissionOptions input[type='checkbox']");
-    const selected = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
-
-    const res = await fetch("/persona/update_permissions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        role: currentEditing,
-        permissions: selected
-      })
-    });
-
-    const result = await res.json();
-    alert(result.status === "success" ? "✅ 权限已更新" : `❌ 更新失败：${result.message || "未知错误"}`);
-    closeModal();
-    loadPersonas();
-  }
-
-  async function deletePersona(role) {
-    if (!confirm(`确定要删除角色 ${role} 吗？`)) return;
-    const res = await fetch("/delete_persona", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        persona: role,
-        operator: "将军"
-      })
-    });
-
-    const result = await res.json();
-    alert(result.result || "已提交");
-    loadPersonas();
-  }
-
-  document.getElementById("registerForm").addEventListener("submit", async function(e) {
-    e.preventDefault();
-    const persona = document.getElementById("newPersona").value.trim();
-    const secret = document.getElementById("newSecret").value.trim();
-
-    const res = await fetch("/persona/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        persona,
-        secret,
-        operator: "将军"
-      })
-    });
-
-    const data = await res.json();
-    alert(data.success ? "✅ 注册成功" : `❌ 注册失败：${data.error || "未知错误"}`);
-    if (data.success) {
-      document.getElementById("registerForm").reset();
-      loadPersonas();
+    async function deletePersona(role) {
+      if (!confirm(`确定删除角色「${role}」吗？此操作不可恢复。`)) return;
+      try {
+        const res = await fetch("/delete_persona", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ persona: role, operator: "将军" })
+        });
+        const result = await res.json();
+        if (result.result && result.result.status === "deleted") {
+          alert("✅ 角色已删除！");
+          loadPersonas(currentPage);
+        } else {
+          alert("❌ 删除失败：" + (result.error || "未知错误"));
+        }
+      } catch (err) {
+        alert("❌ 网络错误：" + err.message);
+      }
     }
-  });
 
-  loadPersonas();
-</script>
-
+    window.onload = () => loadPersonas();
+  </script>
 </body>
 </html>
