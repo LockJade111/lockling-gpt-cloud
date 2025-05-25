@@ -60,10 +60,10 @@ async def chat(request: Request):
 
         return JSONResponse(wrap_result("success", reply, intent))
     except Exception as e:
-        print("❌ 处理失败：", e)
+        print("❌ 处理失败:", e)
         return JSONResponse(wrap_result("error", f"处理失败：{str(e)}"))
 
-# ✅ 日志查看接口
+# ✅ 日志接口
 @app.get("/logs")
 async def get_logs():
     try:
@@ -72,17 +72,14 @@ async def get_logs():
     except Exception as e:
         return JSONResponse(wrap_result("error", f"日志查询失败：{str(e)}"))
 
-# ✅ 渲染角色管理界面（含 offset/limit 修复）
+# ✅ 渲染角色管理页面
 @app.get("/dashboard/personas")
 async def dashboard_personas(request: Request):
     try:
-        # 模拟数据，可接 supabase 替换
         personas = [
             {"id": 1, "name": "Lockling", "role": "智能守护者"},
             {"id": 2, "name": "军师猫", "role": "智囊门神"},
         ]
-
-        # ✅ 这些变量供模板分页使用，避免 undefined 错误
         offset = 0
         limit = 10
         page = 1
@@ -100,22 +97,30 @@ async def dashboard_personas(request: Request):
         print("❌ 页面渲染失败：", e)
         return HTMLResponse(content=f"<h1>服务器错误：{e}</h1>", status_code=500)
 
-# ✅ 注册角色
+# ✅ 注册角色接口（修复 undefined 报错）
 @app.post("/persona/register")
 async def register_new_persona(request: Request):
     try:
         data = await request.json()
+        print("📥 注册请求数据：", data)
+
         name = data.get("name")
         role = data.get("role")
         secret = data.get("secret", "")
+
+        if not name or not role:
+            raise ValueError("name 或 role 缺失")
+
         if not check_secret_permission(secret):
             raise HTTPException(status_code=403, detail="❌ 权限不足")
+
         result = register_persona(name, role)
         return JSONResponse(wrap_result("success", "角色注册成功", result))
     except Exception as e:
+        print("❌ 注册异常：", e)
         return JSONResponse(wrap_result("error", f"注册失败：{str(e)}"))
 
-# ✅ 删除角色
+# ✅ 删除角色接口
 @app.post("/persona/delete")
 async def delete_existing_persona(request: Request):
     try:
