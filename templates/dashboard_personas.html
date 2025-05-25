@@ -47,97 +47,124 @@
   </style>
 </head>
 <body>
-  <h2>🧠 Persona 角色管理控制台</h2>
-  <div id="personas"></div>
+  <h2>🧩 Persona 超智体角色列表</h2>
+  <table id="persona-table">
+    <thead>
+      <tr>
+        <th>角色</th>
+        <th>权限</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
   <div class="pagination">
-    <button onclick="loadPersonas(currentPage - 1)">上一页</button>
-    <span id="page-indicator"></span>
-    <button onclick="loadPersonas(currentPage + 1)">下一页</button>
+    <button onclick="prevPage()">上一页</button>
+    <span id="page-info">第 1 页</span>
+    <button onclick="nextPage()">下一页</button>
   </div>
 
   <script>
     let currentPage = 0;
-    const pageSize = 5;
+    const limit = 10;
+    let personas = [];
 
-    async function loadPersonas(page = 0) {
-      const res = await fetch("/persona/details");
-      const result = await res.json();
-      if (!result.data) return alert("⚠️ 获取数据失败");
-
-      const personas = result.data;
-      const totalPages = Math.ceil(personas.length / pageSize);
-      currentPage = Math.max(0, Math.min(page, totalPages - 1));
-      const pageData = personas.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
-
-      document.getElementById("page-indicator").innerText = `第 ${currentPage + 1} 页 / 共 ${totalPages} 页`;
-
-      const html = pageData.map(p => `
-        <table>
-          <tr><th colspan="2">🎭 ${p.role}</th></tr>
-          <tr>
-            <td>权限</td>
-            <td id="perm-${p.role}">
-              ${(p.permissions || []).map(perm => `
-                <label><input type="checkbox" value="${perm}" checked disabled> ${perm}</label>
-              `).join('')}
-              ${['read', 'write', 'admin', 'query', 'create'].map(perm => `
-                <label><input type="checkbox" value="${perm}" ${p.permissions.includes(perm) ? 'checked' : ''}> ${perm}</label>
-              `).join('')}
-            </td>
-          </tr>
-          <tr>
-            <td colspan="2">
-              <button onclick="updatePermissions('${p.role}')">编辑</button>
-              <button class="danger" onclick="deletePersona('${p.role}')">删除</button>
-            </td>
-          </tr>
-        </table>
-      `).join('');
-
-      document.getElementById("personas").innerHTML = html;
+    async function fetchPersonas() {
+      const response = await fetch("/persona/details");
+      const data = await response.json();
+      if (data && data.data) {
+        personas = data.data;
+        renderPage(currentPage);
+      }
     }
 
-    async function updatePermissions(role) {
-      const checkboxes = document.querySelectorAll(`#perm-${role} input[type=checkbox]`);
-      const permissions = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
-      try {
-        const res = await fetch("/persona/update_permissions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ role, permissions })
-        });
-        const result = await res.json();
-        if (result.status === "success") {
-          alert("✅ 权限已成功更新！");
-        } else {
-          alert("❌ 更新失败：" + (result.message || "未知错误"));
-        }
-      } catch (err) {
-        alert("❌ 网络错误：" + err.message);
+    function renderPage(page) {
+      const tableBody = document.querySelector("#persona-table tbody");
+      tableBody.innerHTML = "";
+      const start = page * limit;
+      const end = start + limit;
+      const current = personas.slice(start, end);
+
+      current.forEach(row => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${row.role}</td>
+          <td>
+            ${row.permissions.map(p => `<label><input type="checkbox" value="${p}" checked /> ${p}</label>`).join(" ")}
+          </td>
+          <td>
+            <button onclick="updatePermissions('${row.role}', this)">编辑</button>
+            <button class="danger" onclick="deletePersona('${row.role}')">删除</button>
+          </td>
+        `;
+        tableBody.appendChild(tr);
+      });
+
+      document.getElementById("page-info").innerText = `第 ${page + 1} 页`;
+    }
+
+    function prevPage() {
+      if (currentPage > 0) {
+        currentPage--;
+        renderPage(currentPage);
+      }
+    }
+
+    function nextPage() {
+      if ((currentPage + 1) * limit < personas.length) {
+        currentPage++;
+        renderPage(currentPage);
+      }
+    }
+
+    async function updatePermissions(role, button) {
+      const checkboxes = button.parentNode.parentNode.querySelectorAll("input[type=checkbox]");
+      const selected = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+
+      const res = await fetch("/persona/update_permissions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          role: role,
+          permissions: selected
+        })
+      });
+
+      const result = await res.json();
+      if (result.status === "success") {
+        alert("✅ 更新成功");
+      } else {
+        alert("❌ 更新失败：" + (result.message || "未知错误"));
       }
     }
 
     async function deletePersona(role) {
-      if (!confirm(`确定删除角色「${role}」吗？此操作不可恢复。`)) return;
-      try {
-        const res = await fetch("/delete_persona", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ persona: role, operator: "将军" })
-        });
-        const result = await res.json();
-        if (result.result && result.result.status === "deleted") {
-          alert("✅ 角色已删除！");
-          loadPersonas(currentPage);
-        } else {
-          alert("❌ 删除失败：" + (result.error || "未知错误"));
-        }
-      } catch (err) {
-        alert("❌ 网络错误：" + err.message);
+      const confirmDelete = confirm(`确定要删除 ${role} 吗？`);
+      if (!confirmDelete) return;
+
+      const res = await fetch("/delete_persona", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          persona: role,
+          operator: "将军"  // 可改为当前登录 persona
+        })
+      });
+
+      const result = await res.json();
+      if (result.result) {
+        alert("✅ 删除成功");
+        await fetchPersonas();
+      } else {
+        alert("❌ 删除失败：" + (result.error || "未知错误"));
       }
     }
 
-    window.onload = () => loadPersonas();
+    fetchPersonas();
   </script>
 </body>
 </html>
