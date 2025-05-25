@@ -8,7 +8,7 @@
     table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
     th, td { border: 1px solid #ccc; padding: 8px 10px; text-align: left; }
     th { background-color: #eee; }
-    button { padding: 5px 10px; border: none; border-radius: 4px; background-color: #007bff; color: white; cursor: pointer; margin-right: 5px; }
+    button { padding: 5px 10px; border: none; border-radius: 4px; background-color: #007bff; color: white; cursor: pointer; }
     button:hover { background-color: #0056b3; }
     .danger { background-color: #dc3545; }
     .danger:hover { background-color: #c82333; }
@@ -81,11 +81,30 @@
         <td>${p.role}</td>
         <td>${perms.join(", ")}</td>
         <td>
-          <button onclick="openModal('${p.role}', ${JSON.stringify(perms)})">编辑</button>
+          <button onclick='openModal("${p.role}", ${JSON.stringify(perms)})'>编辑</button>
         </td>
       `;
       table.appendChild(row);
     });
+  }
+
+  function openModal(role, permissions) {
+    currentEditing = role;
+    document.getElementById("editPersonaName").innerText = role;
+    const container = document.getElementById("permissionOptions");
+    container.innerHTML = "";
+
+    availablePermissions.forEach(p => {
+      const checked = permissions.includes(p) ? "checked" : "";
+      container.innerHTML += `<label><input type="checkbox" value="${p}" ${checked}> ${p}</label><br>`;
+    });
+
+    document.getElementById("editModal").style.display = "block";
+  }
+
+  function closeModal() {
+    document.getElementById("editModal").style.display = "none";
+    currentEditing = "";
   }
 
   async function savePermissions() {
@@ -109,25 +128,6 @@
     } else {
       alert("❌ 更新失败：" + (data.message || "未知错误"));
     }
-  }
-
-  function openModal(role, permissions) {
-    currentEditing = role;
-    document.getElementById("editPersonaName").innerText = role;
-    const container = document.getElementById("permissionOptions");
-    container.innerHTML = "";
-
-    availablePermissions.forEach(p => {
-      const checked = permissions.includes(p) ? "checked" : "";
-      container.innerHTML += `<label><input type="checkbox" value="${p}" ${checked}> ${p}</label><br>`;
-    });
-
-    document.getElementById("editModal").style.display = "block";
-  }
-
-  function closeModal() {
-    document.getElementById("editModal").style.display = "none";
-    currentEditing = "";
   }
 
   document.getElementById("registerForm").addEventListener("submit", async function (e) {
