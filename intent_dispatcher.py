@@ -10,12 +10,12 @@ from persona_keys import (
 from dotenv import load_dotenv
 import os
 from supabase import create_client
+from supabase_logger import write_log_to_supabase
 
 load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-
 
 # ✅ 密钥确认
 def handle_confirm_secret(intent):
@@ -35,7 +35,6 @@ def handle_confirm_secret(intent):
             "reply": "🚫 密钥错误，身份验证失败。",
             "intent": intent
         }
-
 
 # ✅ 注册 persona
 def handle_register_persona(intent):
@@ -60,22 +59,24 @@ def handle_register_persona(intent):
 
     try:
         result = register_persona(new_name, secret)
+        write_log_to_supabase(persona, intent, "success", f"注册新 persona：{new_name}")
         return {
             "status": "success",
             "reply": f"✅ 已注册新角色：{new_name}",
             "intent": intent
         }
     except Exception as e:
+        write_log_to_supabase(persona, intent, "fail", str(e))
         return {
             "status": "fail",
             "reply": f"❌ 注册失败：{str(e)}",
             "intent": intent
         }
 
-
 # ✅ 授权权限 intent
 def handle_authorize(intent):
     print("📥 收到意图：authorize")
+    persona = intent.get("persona", "").strip()
     target = intent.get("target", "").strip()
     permission = intent.get("permission", "").strip()
 
@@ -89,6 +90,7 @@ def handle_authorize(intent):
     try:
         res = supabase.table("roles").select("permissions").eq("role", target).execute()
         if not res.data:
+            write_log_to_supabase(persona, intent, "fail", f"目标 {target} 不存在")
             return {
                 "status": "fail",
                 "reply": f"❌ 授权失败：目标角色 {target} 不存在。",
@@ -97,6 +99,7 @@ def handle_authorize(intent):
 
         current = res.data[0].get("permissions", [])
         if permission in current:
+            write_log_to_supabase(persona, intent, "info", f"{target} 已有 {permission}")
             return {
                 "status": "info",
                 "reply": f"⚠️ {target} 已拥有 {permission} 权限。",
@@ -105,6 +108,7 @@ def handle_authorize(intent):
 
         updated = current + [permission]
         supabase.table("roles").update({"permissions": updated}).eq("role", target).execute()
+        write_log_to_supabase(persona, intent, "success", f"授权 {target} -> {permission}")
         return {
             "status": "success",
             "reply": f"✅ 已授权 {target} 拥有 {permission} 权限。",
@@ -112,16 +116,17 @@ def handle_authorize(intent):
         }
 
     except Exception as e:
+        write_log_to_supabase(persona, intent, "fail", str(e))
         return {
             "status": "fail",
             "reply": f"❌ 授权失败：{str(e)}",
             "intent": intent
         }
 
-
 # ✅ 撤销权限 intent
 def handle_revoke(intent):
     print("📥 收到意图：revoke")
+    persona = intent.get("persona", "").strip()
     target = intent.get("target", "").strip()
     permission = intent.get("permission", "").strip()
 
@@ -135,6 +140,7 @@ def handle_revoke(intent):
     try:
         res = supabase.table("roles").select("permissions").eq("role", target).execute()
         if not res.data:
+            write_log_to_supabase(persona, intent, "fail", f"目标 {target} 不存在")
             return {
                 "status": "fail",
                 "reply": f"❌ 撤销失败：目标角色 {target} 不存在。",
@@ -143,6 +149,7 @@ def handle_revoke(intent):
 
         current = res.data[0].get("permissions", [])
         if permission not in current:
+            write_log_to_supabase(persona, intent, "info", f"{target} 原本不具备 {permission}")
             return {
                 "status": "info",
                 "reply": f"⚠️ {target} 原本就不具备 {permission} 权限。",
@@ -151,6 +158,7 @@ def handle_revoke(intent):
 
         updated = [p for p in current if p != permission]
         supabase.table("roles").update({"permissions": updated}).eq("role", target).execute()
+        write_log_to_supabase(persona, intent, "success", f"撤销 {target} -> {permission}")
         return {
             "status": "success",
             "reply": f"✅ 已撤销 {target} 的 {permission} 权限。",
@@ -158,12 +166,12 @@ def handle_revoke(intent):
         }
 
     except Exception as e:
+        write_log_to_supabase(persona, intent, "fail", str(e))
         return {
             "status": "fail",
             "reply": f"❌ 撤销失败：{str(e)}",
             "intent": intent
         }
-
 
 # ✅ 主调度器
 def dispatch(intent: dict):
