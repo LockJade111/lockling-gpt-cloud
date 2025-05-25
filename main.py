@@ -73,19 +73,19 @@ async def get_logs():
     except Exception as e:
         return JSONResponse(wrap_result("error", f"日志查询失败：{str(e)}"))
 
-# ✅ 渲染角色管理页面（新增部分）
+# ✅ 渲染角色管理页面
 @app.get("/dashboard/personas")
 async def dashboard_personas(request: Request):
     try:
-        # 🧪 示例数据，如需接 Supabase 查询替换下方内容
         personas = [
             {"id": 1, "name": "Lockling", "role": "智能守护者"},
             {"id": 2, "name": "军师猫", "role": "智囊门神"},
         ]
-        print("✅ personas 渲染列表：", personas)
+        offset = 0  # 💡 如果模板里用到了 offset，这里必须定义
         return templates.TemplateResponse("dashboard_personas.html", {
             "request": request,
-            "personas": personas
+            "personas": personas,
+            "offset": offset
         })
     except Exception as e:
         print("❌ 页面渲染失败：", e)
