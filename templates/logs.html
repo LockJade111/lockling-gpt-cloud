@@ -44,7 +44,7 @@
     <option value="false">拒绝</option>
   </select>
 
-  <label>每页显示:</label>
+  <label>每页:</label>
   <select id="limitSelect">
     <option value="10">10</option>
     <option value="25" selected>25</option>
@@ -53,6 +53,7 @@
   </select>
 
   <button onclick="loadLogs(true)">筛选</button>
+  <button onclick="exportCSV()">📥 导出 CSV</button>
 </div>
 
 <table id="logTable">
@@ -73,6 +74,7 @@
 
 <script>
   let currentPage = 1;
+  let currentLogs = [];
 
   async function loadLogs(resetPage = false) {
     if (resetPage) currentPage = 1;
@@ -97,6 +99,8 @@
 
     const data = await response.json();
     const logs = data.logs || [];
+    currentLogs = logs;  // ⚠️ 储存当前页面数据以备导出
+
     const tbody = document.querySelector('#logTable tbody');
     tbody.innerHTML = "";
 
@@ -132,7 +136,33 @@
     }
   }
 
-  // 初始化加载
+  function exportCSV() {
+    if (!currentLogs.length) return alert("无数据可导出");
+    const rows = [
+      ["Persona", "Message", "Intent", "Target", "Allow", "Reason", "Reply", "Source", "Time"],
+      ...currentLogs.map(log => [
+        log.persona || '',
+        log.message || '',
+        log.intent_type || '',
+        log.target || '',
+        log.allow,
+        log.reason || '',
+        log.reply || '',
+        log.source || '',
+        log.time || ''
+      ])
+    ];
+    const csv = rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const now = new Date();
+    const filename = `logs_${now.getFullYear()}-${now.getMonth()+1}-${now.getDate()}_${now.getHours()}-${now.getMinutes()}.csv`;
+
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+  }
+
   loadLogs();
 </script>
 
