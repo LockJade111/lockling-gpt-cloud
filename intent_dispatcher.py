@@ -43,40 +43,17 @@ def handle_register(intent):
 # ✅ 授权 intent（示例）
 def handle_authorize(intent):
     print("📥 收到意图：authorize")
-    return {
-        "status": "success",
-        "reply": "✅ 授权成功（示例实现）",
-        "intent": intent
-    }
+    # 实际实现略...
 
-# ✅ 确认密钥 intent
+# ✅ 密钥确认 intent
 def handle_confirm_secret(intent):
     print("📥 收到意图：confirm_secret")
+    from check_permission import check_secret_permission
+    return check_secret_permission(intent, intent.get("persona", ""))
 
-    persona = intent.get("target", "").strip()
-    secret = intent.get("secret", "").strip()
-
-    if not persona or not secret:
-        return {
-            "status": "fail",
-            "reply": "❗ 缺少 target 或 secret",
-            "intent": intent
-        }
-
-    allow = check_persona_secret(persona, secret)
-    return {
-        "status": "success",
-        "reply": "✅ 身份确认成功" if allow else "❌ 密钥错误",
-        "intent": {
-            **intent,
-            "allow": allow,
-            "reason": "" if allow else "身份验证失败"
-        }
-    }
-
-# ✅ 主调度函数
-def dispatch(intent):
-    intent_type = intent.get("intent_type", "").strip()
+# ✅ 意图总调度器
+def dispatcher(intent):
+    intent_type = intent.get("intent_type", "")
 
     if intent_type == "register":
         return handle_register(intent)
@@ -84,10 +61,12 @@ def dispatch(intent):
         return handle_authorize(intent)
     elif intent_type == "confirm_secret":
         return handle_confirm_secret(intent)
-    
-    # 未识别指令
-    return {
-        "status": "fail",
-        "reply": f"❓ 无法识别的指令类型: {intent_type}",
-        "intent": intent
-    }
+    else:
+        return {
+            "status": "fail",
+            "reply": f"❓ 无法识别的指令类型：{intent_type}",
+            "intent": intent
+        }
+
+# ✅ 显式导出 dispatcher
+__all__ = ["dispatcher"]
