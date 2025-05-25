@@ -4,71 +4,105 @@
   <meta charset="UTF-8" />
   <title>角色管理 · Lockling 云脑</title>
   <style>
-    body { font-family: sans-serif; padding: 30px; background-color: #f8f9fa; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-    th, td { border: 1px solid #ccc; padding: 8px 10px; text-align: left; }
-    th { background-color: #eee; }
-    button { padding: 5px 10px; margin: 5px; border: none; border-radius: 4px; background-color: #007bff; color: white; cursor: pointer; }
-    button:hover { background-color: #0056b3; }
-    .danger { background-color: #dc3545; }
-    .danger:hover { background-color: #c82333; }
-    .pagination { margin-top: 20px; text-align: center; }
+    body {
+      font-family: sans-serif;
+      padding: 30px;
+      background-color: #f8f9fa;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px 10px;
+      text-align: left;
+    }
+    th {
+      background-color: #eee;
+    }
+    button {
+      padding: 5px 10px;
+      margin: 5px;
+      border: none;
+      border-radius: 4px;
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .danger {
+      background-color: #dc3545;
+    }
+    .danger:hover {
+      background-color: #c82333;
+    }
+    .pagination {
+      margin-top: 20px;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
-  <h2>🧑‍💼 Persona 权限管理</h2>
 
-  <table>
-    <thead>
-      <tr>
-        <th>角色名</th>
-        <th>权限列表</th>
-        <th>操作</th>
-      </tr>
-    </thead>
-    <tbody id="personaList"></tbody>
-  </table>
+<h2>🧑‍💼 Persona 权限管理</h2>
 
-  <div class="pagination">
-    <button onclick="prevPage()">⬅ 上一页</button>
-    <span id="pageInfo">第 1 页</span>
-    <button onclick="nextPage()">下一页 ➡</button>
-  </div>
+<table>
+  <thead>
+    <tr>
+      <th>角色名</th>
+      <th>权限列表</th>
+      <th>操作</th>
+    </tr>
+  </thead>
+  <tbody id="personaList"></tbody>
+</table>
 
-  <h3>➕ 注册新角色</h3>
-  <form id="registerForm">
-    <input type="text" id="newPersona" placeholder="角色名" required>
-    <input type="password" id="newSecret" placeholder="密钥" required>
-    <input type="checkbox" id="showSecret" onchange="toggleSecret()"> 显示密钥
-    <br><br>
-    <button type="submit">注册</button>
-  </form>
+<div class="pagination">
+  <button onclick="prevPage()">上一页</button>
+  <span id="pageInfo"></span>
+  <button onclick="nextPage()">下一页</button>
+</div>
 
-  <!-- 编辑权限弹窗 -->
-  <div id="editModal" style="display:none;position:fixed;top:20%;left:30%;width:40%;padding:20px;background:#fff;border:1px solid #ccc;box-shadow:0 0 10px rgba(0,0,0,0.3);z-index:999;">
-    <h3>编辑权限 - <span id="editPersonaName"></span></h3>
-    <div id="permissionOptions"></div>
-    <br>
-    <button onclick="savePermissions()">保存</button>
-    <button class="danger" onclick="closeModal()">取消</button>
-  </div>
+<h3>➕ 注册新角色</h3>
+<form id="registerForm">
+  <input type="text" id="newPersona" placeholder="角色名" required>
+  <input type="password" id="newSecret" placeholder="密钥" required>
+  <input type="checkbox" id="showSecret" onchange="toggleSecret()"> 显示密钥
+  <br><br>
+  <button type="submit">注册</button>
+</form>
+
+<!-- 权限编辑弹窗 -->
+<div id="editModal" style="display:none; position:fixed; top:20%; left:30%; width:40%; background:white; padding:20px; box-shadow:0 0 10px rgba(0,0,0,0.2); z-index:1000;">
+  <h3>编辑权限 - <span id="editPersonaName"></span></h3>
+  <div id="permissionOptions"></div>
+  <br>
+  <button onclick="savePermissions()">保存</button>
+  <button class="danger" onclick="closeModal()">取消</button>
+</div>
 
 <script>
-  const availablePermissions = ["read", "write", "admin", "query", "report", "budget", "创建新角色", "删除角色"];
+  const availablePermissions = ["read", "write", "admin", "query", "report", "budget", "创建角色"];
+
   let currentEditing = "";
-  let currentPage = 1;
-  const perPage = 5;
+  let page = 1;
+  let per_page = 5;
+  let total = 0;
 
   function toggleSecret() {
     const input = document.getElementById("newSecret");
     input.type = document.getElementById("showSecret").checked ? "text" : "password";
   }
 
-  async function loadPersonas(page = 1) {
-    const response = await fetch(`/persona/details?page=${page}&per_page=${perPage}`);
-    const data = await response.json();
+  async function loadPersonas() {
+    const res = await fetch(`/persona/details?page=${page}&per_page=${per_page}`);
+    const data = await res.json();
+
     const table = document.getElementById("personaList");
-    const pageInfo = document.getElementById("pageInfo");
     table.innerHTML = "";
 
     (data.data || []).forEach(p => {
@@ -77,24 +111,30 @@
       row.innerHTML = `
         <td>${p.role}</td>
         <td>${perms.join(", ")}</td>
-        <td><button onclick="openModal('${p.role}', ${JSON.stringify(perms)})">编辑</button></td>
+        <td>
+          <button onclick="openModal('${p.role}', ${JSON.stringify(perms)})">编辑</button>
+          <button class="danger" onclick="deletePersona('${p.role}')">删除</button>
+        </td>
       `;
       table.appendChild(row);
     });
 
-    pageInfo.innerText = `第 ${page} 页`;
+    total = data.total || 0;
+    document.getElementById("pageInfo").innerText = `第 ${page} 页 · 共 ${Math.ceil(total / per_page)} 页`;
   }
 
   function prevPage() {
-    if (currentPage > 1) {
-      currentPage--;
-      loadPersonas(currentPage);
+    if (page > 1) {
+      page--;
+      loadPersonas();
     }
   }
 
   function nextPage() {
-    currentPage++;
-    loadPersonas(currentPage);
+    if (page * per_page < total) {
+      page++;
+      loadPersonas();
+    }
   }
 
   function openModal(role, permissions) {
@@ -123,45 +163,59 @@
     const res = await fetch("/persona/update_permissions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role: currentEditing, permissions: selected })
+      body: JSON.stringify({
+        role: currentEditing,
+        permissions: selected
+      })
     });
 
-    const data = await res.json();
-    if (data.status === "success") {
-      alert("✅ 权限已更新");
-      closeModal();
-      loadPersonas(currentPage);
-    } else {
-      alert("❌ 更新失败：" + (data.message || "未知错误"));
-    }
+    const result = await res.json();
+    alert(result.status === "success" ? "✅ 权限已更新" : `❌ 更新失败：${result.message || "未知错误"}`);
+    closeModal();
+    loadPersonas();
   }
 
-  document.getElementById("registerForm").addEventListener("submit", async function (e) {
+  async function deletePersona(role) {
+    if (!confirm(`确定要删除角色 ${role} 吗？`)) return;
+    const res = await fetch("/delete_persona", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        persona: role,
+        operator: "将军"
+      })
+    });
+
+    const result = await res.json();
+    alert(result.result || "已提交");
+    loadPersonas();
+  }
+
+  document.getElementById("registerForm").addEventListener("submit", async function(e) {
     e.preventDefault();
-    const name = document.getElementById("newPersona").value.trim();
+    const persona = document.getElementById("newPersona").value.trim();
     const secret = document.getElementById("newSecret").value.trim();
 
     const res = await fetch("/persona/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        persona: name,
-        secret: secret,
+        persona,
+        secret,
         operator: "将军"
       })
     });
 
     const data = await res.json();
+    alert(data.success ? "✅ 注册成功" : `❌ 注册失败：${data.error || "未知错误"}`);
     if (data.success) {
-      alert("✅ 注册成功");
-      loadPersonas(currentPage);
       document.getElementById("registerForm").reset();
-    } else {
-      alert("❌ 注册失败：" + (data.error || "未知错误"));
+      loadPersonas();
     }
   });
 
-  loadPersonas(currentPage);
+  loadPersonas();
 </script>
+
 </body>
 </html>
