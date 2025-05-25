@@ -99,7 +99,7 @@
 
     const data = await response.json();
     const logs = data.logs || [];
-    currentLogs = logs;  // ⚠️ 储存当前页面数据以备导出
+    currentLogs = logs;
 
     const tbody = document.querySelector('#logTable tbody');
     tbody.innerHTML = "";
@@ -163,6 +163,12 @@
     link.click();
   }
 
+  // ✅ 修复：切换每页显示时立即刷新
+  document.getElementById("limitSelect").addEventListener("change", function () {
+    loadLogs(true);
+  });
+
+  // 初始加载
   loadLogs();
 </script>
 
