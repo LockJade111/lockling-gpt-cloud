@@ -20,7 +20,7 @@ def register_persona(persona: str, secret: str, created_by="系统", role="user"
 
     try:
         hashed = bcrypt.hashpw(secret.encode(), bcrypt.gensalt()).decode()
-        result = supabase.table(TABLE).insert({
+        supabase.table(TABLE).insert({
             "persona": persona,
             "secret_hash": hashed,
             "created_by": created_by,
@@ -33,7 +33,6 @@ def register_persona(persona: str, secret: str, created_by="系统", role="user"
     except Exception as e:
         return False, f"❌ 注册失败: {str(e)}"
 
-
 # ✅ 验证 persona 密钥（带失败计数与锁定机制）
 def check_persona_secret(persona: str, input_secret: str) -> bool:
     try:
@@ -45,21 +44,28 @@ def check_persona_secret(persona: str, input_secret: str) -> bool:
         if row.get("locked"):
             return False
 
-        stored_hash = row.get("secret_hash", "")
-        if bcrypt.checkpw(input_secret.encode(), stored_hash.encode()):
-            # 如果验证通过，重置失败次数
-            supabase.table(TABLE).update({
-                "failed_attempts": 0
-            }).eq("persona", persona).execute()
+        if bcrypt.checkpw(input_secret.encode(), row["secret_hash"].encode()):
+            # 成功：重置失败次数
+            supabase.table(TABLE).update({"failed_attempts": 0}).eq("persona", persona).execute()
             return True
         else:
-            # 验证失败，失败次数 +1
-            failed = row.get("failed_attempts", 0) + 1
-            update_data = {"failed_attempts": failed}
-            if failed >= 5:
-                update_data["locked"] = True  # 超过5次锁定
-
-            supabase.table(TABLE).update(update_data).eq("persona", persona).execute()
+            # 失败：增加失败计数
+            attempts = row.get("failed_attempts", 0) + 1
+            updates = {"failed_attempts": attempts}
+            if attempts >= 5:
+                updates["locked"] = True
+            supabase.table(TABLE).update(updates).eq("persona", persona).execute()
             return False
-    except Exception:
+    except:
         return False
+
+# ✅ 删除 persona（用于后台管理）
+def delete_persona(persona: str) -> dict:
+    try:
+        result = supabase.table(TABLE).delete().eq("persona", persona).execute()
+        return result
+    except Exception as e:
+        return {"error": str(e)}
+
+# ✅ 导出函数
+__all__ = ["register_persona", "check_persona_secret", "delete_persona"]
