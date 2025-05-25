@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SUPER_SECRET_KEY = os.getenv("SUPER_SECRET_KEY")  # ✅ 新增密钥字段
 
 # ✅ 导入自定义模块
 from parse_intent_with_gpt import parse_intent
@@ -72,7 +73,7 @@ async def get_logs():
     except Exception as e:
         return JSONResponse(wrap_result("error", f"日志查询失败：{str(e)}"))
 
-# ✅ 渲染角色管理页面
+# ✅ 渲染角色页面
 @app.get("/dashboard/personas")
 async def dashboard_personas(request: Request):
     try:
@@ -97,7 +98,7 @@ async def dashboard_personas(request: Request):
         print("❌ 页面渲染失败：", e)
         return HTMLResponse(content=f"<h1>服务器错误：{e}</h1>", status_code=500)
 
-# ✅ 注册角色接口（修复 undefined 报错）
+# ✅ 注册角色接口
 @app.post("/persona/register")
 async def register_new_persona(request: Request):
     try:
@@ -127,9 +128,21 @@ async def delete_existing_persona(request: Request):
         data = await request.json()
         persona_id = data.get("id")
         secret = data.get("secret", "")
+
         if not check_secret_permission(secret):
             raise HTTPException(status_code=403, detail="❌ 权限不足")
+
         result = delete_persona(persona_id)
         return JSONResponse(wrap_result("success", "角色删除成功", result))
     except Exception as e:
         return JSONResponse(wrap_result("error", f"删除失败：{str(e)}"))
+
+# ✅ 编辑接口（预留）
+@app.post("/persona/update")
+async def update_persona(request: Request):
+    try:
+        data = await request.json()
+        print("🛠️ 更新角色数据：", data)
+        return JSONResponse(wrap_result("info", "编辑功能尚未实现"))
+    except Exception as e:
+        return JSONResponse(wrap_result("error", f"编辑失败：{str(e)}"))
