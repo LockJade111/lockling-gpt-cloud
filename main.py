@@ -53,13 +53,11 @@ async def chat(request: Request):
         else:
             intent = data.get("intent", {})
 
-        # 权限校验
         permission_passed = check_secret_permission(intent, persona)
         if not permission_passed:
             write_log_to_supabase(persona, intent, "denied", "权限验证失败")
             return JSONResponse(content={"error": "权限不足"}, status_code=403)
 
-        # 意图派发
         result = intent_dispatcher.dispatch(intent)
         write_log_to_supabase(persona, intent, "success", result)
 
