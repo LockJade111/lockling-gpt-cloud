@@ -45,26 +45,49 @@ def handle_authorize(intent):
     print("📥 收到意图：authorize")
     return {
         "status": "success",
-        "reply": "✅ 授权请求已接收（示例）",
+        "reply": "✅ 授权成功（示例实现）",
         "intent": intent
     }
 
-# ✅ 默认处理函数
-def handle_unknown(intent):
-    print("⚠️ 收到未知意图")
+# ✅ 确认密钥 intent
+def handle_confirm_secret(intent):
+    print("📥 收到意图：confirm_secret")
+
+    persona = intent.get("target", "").strip()
+    secret = intent.get("secret", "").strip()
+
+    if not persona or not secret:
+        return {
+            "status": "fail",
+            "reply": "❗ 缺少 target 或 secret",
+            "intent": intent
+        }
+
+    allow = check_persona_secret(persona, secret)
     return {
-        "status": "fail",
-        "reply": f"❓ 无法识别的指令类型：{intent.get('intent_type')}",
-        "intent": intent
+        "status": "success",
+        "reply": "✅ 身份确认成功" if allow else "❌ 密钥错误",
+        "intent": {
+            **intent,
+            "allow": allow,
+            "reason": "" if allow else "身份验证失败"
+        }
     }
 
-# ✅ 意图分发器
-def dispatcher(intent: dict):
-    intent_type = intent.get("intent_type", "").strip().lower()
+# ✅ 主调度函数
+def dispatch(intent):
+    intent_type = intent.get("intent_type", "").strip()
 
-    if intent_type == "register_persona":
+    if intent_type == "register":
         return handle_register(intent)
     elif intent_type == "authorize":
         return handle_authorize(intent)
-    else:
-        return handle_unknown(intent)
+    elif intent_type == "confirm_secret":
+        return handle_confirm_secret(intent)
+    
+    # 未识别指令
+    return {
+        "status": "fail",
+        "reply": f"❓ 无法识别的指令类型: {intent_type}",
+        "intent": intent
+    }
