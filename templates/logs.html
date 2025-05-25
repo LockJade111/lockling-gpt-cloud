@@ -1,12 +1,50 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh">
 <head>
-  <meta charset="utf-8">
-  <title>操作日志</title>
+  <meta charset="UTF-8">
+  <title>📜 操作日志</title>
+  <style>
+    body {
+      font-family: "Helvetica Neue", sans-serif;
+      padding: 20px;
+    }
+    h2 {
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+    th, td {
+      border: 1px solid #aaa;
+      padding: 6px 10px;
+      text-align: center;
+      font-size: 14px;
+    }
+    th {
+      background-color: #f4f4f4;
+    }
+    tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+    .denied {
+      background-color: #ffd6d6;
+    }
+    .success {
+      background-color: #d6ffd6;
+    }
+    .error {
+      background-color: #fff0c2;
+    }
+  </style>
 </head>
 <body>
+
   <h2>📜 操作日志（仅显示最近 50 条）</h2>
-  <table border="1" cellpadding="6">
+
+  <table id="logTable">
     <thead>
       <tr>
         <th>Persona</th>
@@ -21,38 +59,42 @@
       </tr>
     </thead>
     <tbody>
-      {% for log in logs %}
-      <tr>
-        <td>
-          {{ log.persona }}
-          <button onclick="showLog('{{ log.persona }}')">🧠</button>
-          <form method="post" action="/delete_persona" style="display:inline;">
-              <input type="hidden" name="persona" value="{{ log.persona }}">
-              <button type="submit" style="color:red;">❌</button>
-          </form>
-        </td>
-        <td>{{ log.message }}</td>
-        <td>{{ log.intent_type }}</td>
-        <td>{{ log.target }}</td>
-        <td>{{ log.allow }}</td>
-        <td>{{ log.reason }}</td>
-        <td>{{ log.reply }}</td>
-        <td>{{ log.source }}</td>
-        <td>{{ log.timestamp }}</td>
-      </tr>
-      {% endfor %}
+      <!-- JS 填充数据 -->
     </tbody>
   </table>
 
-  <hr>
-  <iframe id="logIframe" style="width:100%;height:300px;display:none;border:1px solid #ccc;"></iframe>
-
   <script>
-    function showLog(persona) {
-      const iframe = document.getElementById("logIframe");
-      iframe.src = "/logs?persona=" + persona;
-      iframe.style.display = "block";
+    async function loadLogs() {
+      const response = await fetch('/log/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+      const data = await response.json();
+      const logs = data.logs || [];
+      const tbody = document.querySelector('#logTable tbody');
+      tbody.innerHTML = "";
+
+      logs.slice(0, 50).forEach(log => {
+        const row = document.createElement('tr');
+        row.className = log.allow === false ? 'denied' : (log.allow === true ? 'success' : 'error');
+        row.innerHTML = `
+          <td>${log.persona || ''}</td>
+          <td>${log.message || ''}</td>
+          <td>${log.intent_type || ''}</td>
+          <td>${log.target || ''}</td>
+          <td>${log.allow}</td>
+          <td>${log.reason || ''}</td>
+          <td>${log.reply || ''}</td>
+          <td>${log.source || ''}</td>
+          <td>${log.time || ''}</td>
+        `;
+        tbody.appendChild(row);
+      });
     }
+
+    loadLogs();
   </script>
+
 </body>
 </html>
