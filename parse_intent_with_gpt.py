@@ -23,119 +23,59 @@ def parse_intent(message: str, persona: str):
 4. revoke_identity      → 取消授权，如 “我要取消 司铃 的注册权限”
 5. delete_persona       → 删除角色，如 “我要删除角色 小助手”
 6. authorize            → 授权他人权限（简略指令，如 “授权小艾只读”）
-7. unknown              → 其他无法识别或无权限的内容
+7. unknown              → 无法识别或不属于以上类型的内容
 
----
+【输入】用户自然语言
+【输出】格式必须为 JSON，无注释，字段包括：
+
+{
+  "intent_type": "intent 类型（如 confirm_secret）",
+  "target": "目标对象，如某个角色名",
+  "permissions": ["权限列表，若无则为空数组"],
+  "secret": "口令/密钥，若无则为空字符串",
+  "allow": true 或 false,
+  "reason": "若拒绝或失败，请写明原因"
+}
 
 【示例】：
-
-- “口令是玉衡在手” → confirm_secret
-- “我要注册角色 小助手，口令是玉衡在手” → register_persona
-- “我要授权 司铃 注册权限” → confirm_identity
-- “授权小艾只读” → authorize
-- “你好” → unknown
-
----
-
-【输出格式要求（仅 JSON，无注释）】：
-
+- “口令是玉衡在手” →
 {
-  "intent_type": "...",
-  "target": "...",
-  "permissions": [...],
-  "secret": "...",
-  "allow": true/false,
-  "reason": "..."
+  "intent_type": "confirm_secret",
+  "target": "将军",
+  "permissions": [],
+  "secret": "玉衡在手",
+  "allow": true,
+  "reason": ""
 }
 
----
-
-【用户输入】：
-""" + message.strip()
-
-    response = client.chat.completions.create(
-        model="gpt-4",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.2,
-    )
-
-    result = response.choices[0].message.content.strip()
+- “我要注册角色 小助手，口令是玉衡在手” →
+{
+  "intent_type": "register_persona",
+  "target": "小助手",
+  "permissions": [],
+  "secret": "玉衡在手",
+  "allow": true,
+  "reason": ""
+}
+"""
 
     try:
-        return json.loads(result)
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": message}
+            ],
+            temperature=0.2
+        )
+        output = response.choices[0].message.content.strip()
+        return json.loads(output)
     except Exception as e:
         return {
-            "intent_type": "parse_error",
-            "message": message,
-            "raw": result,
-            "error": str(e)
+            "intent_type": "unknown",
+            "target": "",
+            "permissions": [],
+            "secret": "",
+            "allow": False,
+            "reason": f"解析失败: {str(e)}"
         }
-你是一个智能意图识别系统，需从用户输入中提取以下字段：
-
-- intent_type（指令类型）
-- persona（操作者）
-- target（目标角色）
-- secret（密钥）
-- permissions（权限列表）
-
-支持的 intent_type 有：
-- confirm_secret：确认密钥，如“我是将军，密钥是玉衡在手”
-- confirm_identity：确认身份，如“我是司铃”
-- create_persona：创建新角色，如“我要一个叫小美的角色”
-- delete_persona：删除角色，如“删掉李雷”
-- update_permission：授权角色某项权限
-- query_logs：查询日志
-- unknown：无法判断
-
----
-
-以下是示例（Few-shot）：
-
-用户输入：
-> 我是将军，口令是玉衡在手，我要创建一个叫小美的角色
-
-输出结构：
-{
-  "intent_type": "create_persona",
-  "persona": "将军",
-  "secret": "玉衡在手",
-  "target": "小美"
-}
-
----
-
-用户输入：
-> 玉衡能不能查预算？
-
-输出结构：
-{
-  "intent_type": "update_permission",
-  "persona": "将军",
-  "target": "玉衡",
-  "permissions": ["预算查询"]
-}
-
----
-
-用户输入：
-> 司铃 删除李雷
-
-输出结构：
-{
-  "intent_type": "delete_persona",
-  "persona": "司铃",
-  "target": "李雷"
-}
-
----
-
-用户输入：
-> 谁能查日志？
-
-输出结构：
-{
-  "intent_type": "query_logs",
-  "persona": "",
-  "target": "",
-  "permissions": []
-}
