@@ -4,139 +4,137 @@
   <meta charset="UTF-8">
   <title>📜 操作日志</title>
   <style>
-    body {
-      font-family: "Helvetica Neue", sans-serif;
-      padding: 20px;
-    }
-    h2 {
-      font-size: 24px;
-      margin-bottom: 10px;
-    }
-    select, button {
-      margin-right: 10px;
-      padding: 5px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 15px;
-    }
-    th, td {
-      border: 1px solid #aaa;
-      padding: 6px 10px;
-      text-align: center;
-      font-size: 14px;
-    }
-    th {
-      background-color: #f4f4f4;
-    }
-    tr:nth-child(even) {
-      background-color: #f9f9f9;
-    }
-    .denied {
-      background-color: #ffd6d6;
-    }
-    .success {
-      background-color: #d6ffd6;
-    }
-    .error {
-      background-color: #fff0c2;
-    }
+    body { font-family: sans-serif; padding: 20px; }
+    select, button { margin: 5px 10px 10px 0; padding: 5px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    th, td { border: 1px solid #aaa; padding: 6px 10px; text-align: center; font-size: 14px; }
+    th { background-color: #f4f4f4; }
+    tr:nth-child(even) { background-color: #f9f9f9; }
+    .denied { background-color: #ffd6d6; }
+    .success { background-color: #d6ffd6; }
+    .error { background-color: #fff0c2; }
   </style>
 </head>
 <body>
 
-  <h2>📜 操作日志（仅显示最近 50 条）</h2>
+<h2>📜 操作日志</h2>
 
-  <div>
-    <label>Persona:</label>
-    <select id="personaSelect">
-      <option value="">全部</option>
-      <option value="将军">将军</option>
-      <option value="司铃">司铃</option>
-      <option value="Lockling 锁灵">Lockling 锁灵</option>
-      <option value="小助手">小助手</option>
-    </select>
+<div>
+  <label>Persona:</label>
+  <select id="personaSelect">
+    <option value="">全部</option>
+    <option value="将军">将军</option>
+    <option value="司铃">司铃</option>
+    <option value="Lockling 锁灵">Lockling 锁灵</option>
+    <option value="小助手">小助手</option>
+  </select>
 
-    <label>Intent:</label>
-    <select id="intentSelect">
-      <option value="">全部</option>
-      <option value="delete_persona">delete_persona</option>
-      <option value="authorize">authorize</option>
-      <option value="revoke">revoke</option>
-    </select>
+  <label>Intent:</label>
+  <select id="intentSelect">
+    <option value="">全部</option>
+    <option value="delete_persona">delete_persona</option>
+    <option value="authorize">authorize</option>
+    <option value="revoke">revoke</option>
+  </select>
 
-    <label>Allow:</label>
-    <select id="allowSelect">
-      <option value="">全部</option>
-      <option value="true">允许</option>
-      <option value="false">拒绝</option>
-    </select>
+  <label>Allow:</label>
+  <select id="allowSelect">
+    <option value="">全部</option>
+    <option value="true">允许</option>
+    <option value="false">拒绝</option>
+  </select>
 
-    <button onclick="loadLogs()">筛选</button>
-  </div>
+  <label>每页显示:</label>
+  <select id="limitSelect">
+    <option value="10">10</option>
+    <option value="25" selected>25</option>
+    <option value="50">50</option>
+    <option value="100">100</option>
+  </select>
 
-  <table id="logTable">
-    <thead>
-      <tr>
-        <th>Persona</th>
-        <th>Message</th>
-        <th>Intent</th>
-        <th>Target</th>
-        <th>Allow</th>
-        <th>Reason</th>
-        <th>Reply</th>
-        <th>Source</th>
-        <th>Time</th>
-      </tr>
-    </thead>
-    <tbody>
-      <!-- JS 动态填充 -->
-    </tbody>
-  </table>
+  <button onclick="loadLogs(true)">筛选</button>
+</div>
 
-  <script>
-    async function loadLogs() {
-      const persona = document.getElementById('personaSelect').value;
-      const intent = document.getElementById('intentSelect').value;
-      const allow = document.getElementById('allowSelect').value;
+<table id="logTable">
+  <thead>
+    <tr>
+      <th>Persona</th><th>Message</th><th>Intent</th><th>Target</th>
+      <th>Allow</th><th>Reason</th><th>Reply</th><th>Source</th><th>Time</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
 
-      const response = await fetch('/log/query', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          persona: persona || null,
-          intent_type: intent || null,
-          allow: allow === "" ? null : (allow === "true")
-        })
-      });
+<div style="margin-top:10px;">
+  <button onclick="prevPage()">上一页</button>
+  <span id="pageInfo">第 1 页</span>
+  <button onclick="nextPage()">下一页</button>
+</div>
 
-      const data = await response.json();
-      const logs = data.logs || [];
-      const tbody = document.querySelector('#logTable tbody');
-      tbody.innerHTML = "";
+<script>
+  let currentPage = 1;
 
-      logs.slice(0, 50).forEach(log => {
-        const row = document.createElement('tr');
-        row.className = log.allow === false ? 'denied' : (log.allow === true ? 'success' : 'error');
-        row.innerHTML = `
-          <td>${log.persona || ''}</td>
-          <td>${log.message || ''}</td>
-          <td>${log.intent_type || ''}</td>
-          <td>${log.target || ''}</td>
-          <td>${log.allow}</td>
-          <td>${log.reason || ''}</td>
-          <td>${log.reply || ''}</td>
-          <td>${log.source || ''}</td>
-          <td>${log.time || ''}</td>
-        `;
-        tbody.appendChild(row);
-      });
-    }
+  async function loadLogs(resetPage = false) {
+    if (resetPage) currentPage = 1;
 
-    // 页面加载默认加载全部日志
+    const persona = document.getElementById('personaSelect').value;
+    const intent = document.getElementById('intentSelect').value;
+    const allow = document.getElementById('allowSelect').value;
+    const limit = parseInt(document.getElementById('limitSelect').value);
+    const offset = (currentPage - 1) * limit;
+
+    const response = await fetch('/log/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        persona: persona || null,
+        intent_type: intent || null,
+        allow: allow === "" ? null : (allow === "true"),
+        limit: limit,
+        offset: offset
+      })
+    });
+
+    const data = await response.json();
+    const logs = data.logs || [];
+    const tbody = document.querySelector('#logTable tbody');
+    tbody.innerHTML = "";
+
+    logs.forEach(log => {
+      const row = document.createElement('tr');
+      row.className = log.allow === false ? 'denied' : (log.allow === true ? 'success' : 'error');
+      row.innerHTML = `
+        <td>${log.persona || ''}</td>
+        <td>${log.message || ''}</td>
+        <td>${log.intent_type || ''}</td>
+        <td>${log.target || ''}</td>
+        <td>${log.allow}</td>
+        <td>${log.reason || ''}</td>
+        <td>${log.reply || ''}</td>
+        <td>${log.source || ''}</td>
+        <td>${log.time || ''}</td>
+      `;
+      tbody.appendChild(row);
+    });
+
+    document.getElementById('pageInfo').innerText = `第 ${currentPage} 页`;
+  }
+
+  function nextPage() {
+    currentPage += 1;
     loadLogs();
-  </script>
+  }
+
+  function prevPage() {
+    if (currentPage > 1) {
+      currentPage -= 1;
+      loadLogs();
+    }
+  }
+
+  // 初始化加载
+  loadLogs();
+</script>
 
 </body>
 </html>
