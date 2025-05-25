@@ -7,13 +7,23 @@ from persona_keys import (
     unlock_persona
 )
 
-# ✅ 密钥验证
+from dotenv import load_dotenv
+import os
+from supabase import create_client
+
+load_dotenv()
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+
+# ✅ 密钥确认
 def handle_confirm_secret(intent):
     print("📥 收到意图：confirm_secret")
     persona = intent.get("persona", "").strip()
     secret = intent.get("secret", "").strip()
 
-    if check_secret_permission(persona, secret):
+    if check_persona_secret(persona, secret):
         return {
             "status": "success",
             "reply": "✅ 密钥验证通过，身份已确认。",
@@ -26,7 +36,7 @@ def handle_confirm_secret(intent):
             "intent": intent
         }
 
-# ✅ 注册 persona（支持传入角色）
+# ✅ 注册 persona（支持角色）
 def handle_register_persona(intent):
     print("📥 收到意图：register_persona")
     persona = intent.get("persona", "").strip()
@@ -44,126 +54,83 @@ def handle_register_persona(intent):
     if not check_persona_secret(persona, secret):
         return {
             "status": "fail",
-            "reply": "🚫 身份验证失败，无法注册新 persona。",
+            "reply": "❌ 注册失败：操作者密钥错误。",
             "intent": intent
         }
 
-    register_persona(new_name, secret, created_by=persona, role=role)
-    return {
-        "status": "success",
-        "reply": f"✅ 注册成功：{persona} 成功创建了新角色 {new_name}（角色等级：{role}）",
-        "intent": intent
-    }
-
-# ✅ 撤销权限（仅将军可执行）
-def handle_revoke_identity(intent):
-    print("🗑️ 收到意图：revoke_identity")
-    persona = intent.get("persona", "").strip()
-    target = intent.get("target", "").strip()
-    secret = intent.get("secret", "").strip()
-
-    if persona != "将军":
-        return {
-            "status": "fail",
-            "reply": "🚫 权限不足，只有将军可以撤销授权。",
-            "intent": intent
-        }
-
-    if not check_persona_secret(persona, secret):
-        return {
-            "status": "fail",
-            "reply": "🚫 身份验证失败，撤销失败。",
-            "intent": intent
-        }
-
-    revoke_persona(target)
-    return {
-        "status": "success",
-        "reply": f"✅ 授权已撤销：{target} 现在无权再注册新角色。",
-        "intent": intent
-    }
-
-# ✅ 删除 persona（仅将军可执行）
-def handle_delete_persona(intent):
-    print("🗑️ 收到意图：delete_persona")
-    persona = intent.get("persona", "").strip()
-    target = intent.get("target", "").strip()
-    secret = intent.get("secret", "").strip()
-
-    if persona != "将军":
-        return {
-            "status": "fail",
-            "reply": "🚫 权限不足，只有将军可以删除角色。",
-            "intent": intent
-        }
-
-    if not check_persona_secret(persona, secret):
-        return {
-            "status": "fail",
-            "reply": "🚫 身份验证失败，删除失败。",
-            "intent": intent
-        }
-
-    delete_persona(target)
-    return {
-        "status": "success",
-        "reply": f"✅ 角色已删除：{target} 已从系统中注销。",
-        "intent": intent
-    }
-
-# ✅ 解锁 persona（仅将军可执行）
-def handle_unlock_persona(intent):
-    print("🔓 收到意图：unlock_persona")
-    persona = intent.get("persona", "").strip()
-    secret = intent.get("secret", "").strip()
-    target = intent.get("target", "").strip()
-
-    if persona != "将军":
-        return {
-            "status": "fail",
-            "reply": "🚫 权限不足，只有将军可以解锁账号。",
-            "intent": intent
-        }
-
-    if not check_persona_secret(persona, secret):
-        return {
-            "status": "fail",
-            "reply": "🚫 身份验证失败，解锁失败。",
-            "intent": intent
-        }
-
-    success = unlock_persona(target)
-    if success:
+    try:
+        result = register_persona(new_name, secret)
         return {
             "status": "success",
-            "reply": f"✅ 解锁成功：{target} 已恢复访问权限。",
+            "reply": f"✅ 已注册新角色：{new_name}",
             "intent": intent
         }
-    else:
+    except Exception as e:
         return {
             "status": "fail",
-            "reply": f"❌ 解锁失败：{target} 不存在或数据库异常。",
+            "reply": f"❌ 注册失败：{str(e)}",
             "intent": intent
         }
 
-# ✅ 主调度函数
-def dispatch_intents(intent):
-    intent_type = intent.get("intent_type", "unknown")
+# ✅ 授权权限（口头授权）
+def handle_authorize(intent):
+    print("📥 收到意图：authorize")
+    persona = intent.get("persona", "").strip()
+    target = intent.get("target", "").strip()
+    permission = intent.get("permission", "").strip()
 
+    if not target or not permission:
+        return {
+            "status": "fail",
+            "reply": "❌ 授权失败：缺少目标或权限类型。",
+            "intent": intent
+        }
+
+    try:
+        res = supabase.table("roles").select("permissions").eq("role", target).execute()
+        if not res.data:
+            return {
+                "status": "fail",
+                "reply": f"❌ 授权失败：目标角色 {target} 不存在。",
+                "intent": intent
+            }
+
+        current = res.data[0].get("permissions", [])
+        if permission in current:
+            return {
+                "status": "info",
+                "reply": f"⚠️ {target} 已拥有 {permission} 权限。",
+                "intent": intent
+            }
+
+        updated = current + [permission]
+        supabase.table("roles").update({"permissions": updated}).eq("role", target).execute()
+        return {
+            "status": "success",
+            "reply": f"✅ 已授权 {target} 拥有 {permission} 权限。",
+            "intent": intent
+        }
+
+    except Exception as e:
+        return {
+            "status": "fail",
+            "reply": f"❌ 授权失败：{str(e)}",
+            "intent": intent
+        }
+
+
+# ✅ 主调度函数
+def dispatch(intent: dict):
+    intent_type = intent.get("intent_type", "")
     if intent_type == "confirm_secret":
         return handle_confirm_secret(intent)
     elif intent_type == "register_persona":
         return handle_register_persona(intent)
-    elif intent_type == "revoke_identity":
-        return handle_revoke_identity(intent)
-    elif intent_type == "delete_persona":
-        return handle_delete_persona(intent)
-    elif intent_type == "unlock_persona":
-        return handle_unlock_persona(intent)
+    elif intent_type == "authorize":
+        return handle_authorize(intent)
     else:
         return {
-            "status": "fail",
-            "reply": f"❌ 无法识别意图类型：{intent_type}",
+            "status": "info",
+            "reply": f"🤖 尚未支持的意图类型：{intent_type}",
             "intent": intent
         }
-
