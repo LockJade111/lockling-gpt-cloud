@@ -9,7 +9,7 @@
     table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
     th, td { border: 1px solid #ccc; padding: 8px 10px; text-align: left; }
     th { background-color: #eee; }
-    button { padding: 5px 10px; border: none; border-radius: 4px; background-color: #dc3545; color: white; cursor: pointer; }
+    button { padding: 5px 10px; border: none; border-radius: 4px; background-color: #dc3545; color: white; cursor: pointer; margin-right: 5px; }
     button:hover { background-color: #c82333; }
     input[type="text"], input[type="password"] {
       padding: 6px;
@@ -38,9 +38,7 @@
         <th>操作</th>
       </tr>
     </thead>
-    <tbody id="personaList">
-      <!-- JS 渲染角色列表 -->
-    </tbody>
+    <tbody id="personaList"></tbody>
   </table>
 
   <hr>
@@ -55,7 +53,18 @@
     <button type="submit">注册</button>
   </form>
 
+  <!-- 权限编辑弹窗 -->
+  <div id="editModal" style="display:none; position:fixed; top:20%; left:30%; width:40%; padding:20px; background:white; border:1px solid #ccc; box-shadow:0 0 10px rgba(0,0,0,0.3); z-index:999;">
+    <h3>编辑权限 - <span id="editPersonaName"></span></h3>
+    <div id="permissionOptions"></div>
+    <button onclick="savePermissions()">保存</button>
+    <button onclick="closeModal()">取消</button>
+  </div>
+
   <script>
+    const availablePermissions = ["read", "write", "admin", "query", "report", "budget"];
+    let currentEditing = "";
+
     function toggleSecret() {
       const input = document.getElementById("newSecret");
       input.type = document.getElementById("showSecret").checked ? "text" : "password";
@@ -72,11 +81,15 @@
       personas.forEach(p => {
         const role = p.role;
         const perms = Array.isArray(p.permissions) ? p.permissions.join(", ") : "";
+        const permsRaw = JSON.stringify(p.permissions || []);
         const row = document.createElement("tr");
         row.innerHTML = `
           <td>${role}</td>
           <td>${perms}</td>
-          <td><button onclick="deletePersona('${role}')">删除</button></td>
+          <td>
+            <button onclick="deletePersona('${role}')">删除</button>
+            <button onclick="openModal('${role}', ${permsRaw})">编辑</button>
+          </td>
         `;
         list.appendChild(row);
       });
@@ -119,6 +132,50 @@
         alert("❌ 注册失败：" + (data.error || "未知错误"));
       }
     });
+
+    function openModal(role, existingPermissions) {
+      currentEditing = role;
+      document.getElementById("editPersonaName").innerText = role;
+
+      const container = document.getElementById("permissionOptions");
+      container.innerHTML = "";
+
+      availablePermissions.forEach(perm => {
+        const checked = existingPermissions.includes(perm) ? "checked" : "";
+        container.innerHTML += `<label><input type="checkbox" value="${perm}" ${checked}> ${perm}</label><br>`;
+      });
+
+      document.getElementById("editModal").style.display = "block";
+    }
+
+    function closeModal() {
+      document.getElementById("editModal").style.display = "none";
+      currentEditing = "";
+    }
+
+    async function savePermissions() {
+      const checkboxes = document.querySelectorAll("#permissionOptions input[type='checkbox']");
+      const selected = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+
+      const res = await fetch("/persona/update_permissions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          persona: currentEditing,
+          permissions: selected,
+          operator: "将军"
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        alert("✅ 权限已更新");
+        closeModal();
+        loadPersonas();
+      } else {
+        alert("❌ 更新失败：" + (data.error || "未知错误"));
+      }
+    }
 
     loadPersonas();
   </script>
