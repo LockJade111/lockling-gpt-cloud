@@ -40,162 +40,84 @@
     .danger:hover {
       background-color: #c82333;
     }
-    .pagination {
-      margin-top: 20px;
-      text-align: center;
-    }
-    .disabled {
-      color: #999;
-    }
   </style>
 </head>
 <body>
-  <h2>🌌 Persona 超智体角色列表</h2>
-
-  <button onclick="showRegisterModal()">➕ 注册新角色</button>
+  <h1>🔐 Persona 超智体角色列表</h1>
 
   <table>
     <thead>
       <tr>
+        <th>ID</th>
+        <th>名称</th>
         <th>角色</th>
-        <th>权限</th>
         <th>操作</th>
       </tr>
     </thead>
     <tbody>
-      {% for r in roles %}
+      {% for persona in personas %}
       <tr>
-        <td>{{ r.role }}</td>
+        <td>{{ persona.id }}</td>
+        <td>{{ persona.name }}</td>
+        <td>{{ persona.role }}</td>
         <td>
-          {% if r.permissions %}
-            {{ r.permissions | join(', ') }}
-          {% else %}
-            <span class="disabled">(无权限)</span>
-          {% endif %}
-        </td>
-        <td>
-          <button onclick="editPermissions('{{ r.role }}', {{ r.permissions | tojson | safe }})">编辑</button>
-          <button class="danger" onclick="deletePersona('{{ r.role }}')">删除</button>
+          <button onclick="editPersona({{ persona.id }})">编辑</button>
+          <button class="danger" onclick="deletePersona({{ persona.id }})">删除</button>
         </td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
 
-  <div class="pagination">
-    {% if offset >= limit %}
-    <a href="?offset={{ offset - limit }}">上一页</a>
-    {% endif %}
-    第 {{ (offset // limit) + 1 }} 页
-    {% if roles|length == limit %}
-    <a href="?offset={{ offset + limit }}">下一页</a>
-    {% endif %}
-  </div>
+  <h2>🆕 注册新角色</h2>
+  <form id="register-form" onsubmit="registerPersona(event)">
+    <label>名称：<input type="text" id="name"></label><br>
+    <label>角色：<input type="text" id="role"></label><br>
+    <label>权限密钥：<input type="password" id="secret"></label><br><br>
+    <button type="submit">提交注册</button>
+  </form>
 
-<script>
-function showRegisterModal() {
-  const modal = document.createElement("div");
-  modal.innerHTML = `
-    <div style="background:#fff; padding:20px; border-radius:8px; width:300px;">
-      <h3>注册新角色</h3>
-      <input id="personaInput" placeholder="请输入新角色名" style="width:100%; margin-bottom:10px;"><br>
-      <input id="secretInput" placeholder="请输入将军口令" style="width:100%;"><br><br>
-      <button onclick="submitRegister()">提交</button>
-      <button onclick="this.parentNode.remove()">取消</button>
-    </div>
-  `;
-  Object.assign(modal.style, {
-    position: "fixed", top: "30%", left: "30%", background: "#0005",
-    padding: "30px", zIndex: "9999", display: "flex", justifyContent: "center"
-  });
-  document.body.appendChild(modal);
-}
-
-function submitRegister() {
-  const persona = document.getElementById("personaInput").value.trim();
-  const secret = document.getElementById("secretInput").value.trim();
-  fetch('/persona/register', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ persona, secret, operator: "将军" })
-  })
-  .then(res => res.json())
-  .then(result => {
-    if (result.success) {
-      alert("✅ 注册成功");
-      location.reload();
-    } else {
-      alert("❌ 注册失败：" + result.error);
+  <script>
+    function registerPersona(event) {
+      event.preventDefault();
+      fetch("/persona/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: document.getElementById("name").value,
+          role: document.getElementById("role").value,
+          secret: document.getElementById("secret").value
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        alert(data.reply);
+        if (data.status === "success") {
+          window.location.reload();
+        }
+      });
     }
-  });
-}
 
-function deletePersona(role) {
-  if (!confirm("确认要删除角色：" + role + "？")) return;
-  fetch('/delete_persona', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ persona: role, operator: "将军" })
-  })
-  .then(res => res.json())
-  .then(result => {
-    if (result.result && result.result.status === "success") {
-      alert("✅ 删除成功");
-      location.reload();
-    } else {
-      alert("❌ 删除失败：" + JSON.stringify(result));
+    function deletePersona(id) {
+      const secret = prompt("请输入权限密钥以确认删除：");
+      if (!secret) return;
+      fetch("/persona/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: id, secret: secret })
+      })
+      .then(res => res.json())
+      .then(data => {
+        alert(data.reply);
+        if (data.status === "success") {
+          window.location.reload();
+        }
+      });
     }
-  });
-}
 
-function editPermissions(role, currentPermissions = []) {
-  const allPermissions = ["read", "write", "admin", "query", "report", "budget", "schedule", "创建角色"];
-  const checkboxHtml = allPermissions.map(p => {
-    const checked = currentPermissions.includes(p) ? 'checked' : '';
-    return `<label><input type="checkbox" value="${p}" ${checked}> ${p}</label>`;
-  }).join('<br>');
-
-  const modal = document.createElement("div");
-  modal.innerHTML = `
-    <div style="background:#fff; padding:20px; border-radius:8px; width:300px;">
-      <p>编辑权限：<b>${role}</b></p>
-      <form id="editForm">${checkboxHtml}</form>
-      <br>
-      <button onclick="submitEdit('${role}', this)">保存</button>
-      <button onclick="this.parentNode.remove()">取消</button>
-    </div>
-  `;
-  Object.assign(modal.style, {
-    position: "fixed", top: "30%", left: "30%", background: "#0005",
-    padding: "30px", zIndex: "9999", display: "flex", justifyContent: "center"
-  });
-  document.body.appendChild(modal);
-}
-
-function submitEdit(role, button) {
-  const modal = button.parentNode;
-  const checkboxes = modal.querySelectorAll("input[type='checkbox']:checked");
-  const permissions = Array.from(checkboxes).map(cb => cb.value);
-
-  fetch('/persona/update_permissions', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ role, permissions })
-  })
-  .then(response => response.json())
-  .then(result => {
-    if (result.status === "success") {
-      alert("✅ 权限更新成功");
-      location.reload();
-    } else {
-      alert("❌ 更新失败: " + result.message);
+    function editPersona(id) {
+      alert("🚧 编辑功能尚未接入（即将开发）");
     }
-  })
-  .catch(error => {
-    alert("❌ 请求错误: " + error);
-  })
-  .finally(() => modal.remove());
-}
-</script>
+  </script>
 </body>
 </html>
