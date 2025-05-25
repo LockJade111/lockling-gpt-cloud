@@ -46,10 +46,17 @@
     <input type="text" id="newPersona" required>
     <label>密钥：</label>
     <input type="password" id="newSecret" required>
+    <input type="checkbox" id="showSecret" onchange="toggleSecret()"> 显示密钥
+    <br>
     <button type="submit">注册</button>
   </form>
 
   <script>
+    function toggleSecret() {
+      const input = document.getElementById("newSecret");
+      input.type = document.getElementById("showSecret").checked ? "text" : "password";
+    }
+
     async function loadPersonas() {
       const response = await fetch("/persona/list", { method: "GET" });
       const data = await response.json();
