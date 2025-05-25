@@ -44,11 +44,15 @@
       margin-top: 20px;
       text-align: center;
     }
+    .disabled {
+      color: #999;
+    }
   </style>
 </head>
 <body>
-  <h1>🌌 Persona 超智体角色列表</h1>
-  <button onclick="registerPersona()">➕ 注册新角色</button>
+  <h2>🌌 Persona 超智体角色列表</h2>
+
+  <button onclick="showRegisterModal()">➕ 注册新角色</button>
 
   <table>
     <thead>
@@ -58,135 +62,140 @@
         <th>操作</th>
       </tr>
     </thead>
-    <tbody id="table-body">
-      <!-- 动态填充 -->
+    <tbody>
+      {% for r in roles %}
+      <tr>
+        <td>{{ r.role }}</td>
+        <td>
+          {% if r.permissions %}
+            {{ r.permissions | join(', ') }}
+          {% else %}
+            <span class="disabled">(无权限)</span>
+          {% endif %}
+        </td>
+        <td>
+          <button onclick="editPermissions('{{ r.role }}', {{ r.permissions | tojson | safe }})">编辑</button>
+          <button class="danger" onclick="deletePersona('{{ r.role }}')">删除</button>
+        </td>
+      </tr>
+      {% endfor %}
     </tbody>
   </table>
 
   <div class="pagination">
-    <button onclick="previousPage()">上一页</button>
-    第 <span id="current-page">1</span> 页
-    <button onclick="nextPage()">下一页</button>
+    {% if offset >= limit %}
+    <a href="?offset={{ offset - limit }}">上一页</a>
+    {% endif %}
+    第 {{ (offset // limit) + 1 }} 页
+    {% if roles|length == limit %}
+    <a href="?offset={{ offset + limit }}">下一页</a>
+    {% endif %}
   </div>
 
-  <script>
-    let currentPage = 1;
-    const limit = 5;
+<script>
+function showRegisterModal() {
+  const modal = document.createElement("div");
+  modal.innerHTML = `
+    <div style="background:#fff; padding:20px; border-radius:8px; width:300px;">
+      <h3>注册新角色</h3>
+      <input id="personaInput" placeholder="请输入新角色名" style="width:100%; margin-bottom:10px;"><br>
+      <input id="secretInput" placeholder="请输入将军口令" style="width:100%;"><br><br>
+      <button onclick="submitRegister()">提交</button>
+      <button onclick="this.parentNode.remove()">取消</button>
+    </div>
+  `;
+  Object.assign(modal.style, {
+    position: "fixed", top: "30%", left: "30%", background: "#0005",
+    padding: "30px", zIndex: "9999", display: "flex", justifyContent: "center"
+  });
+  document.body.appendChild(modal);
+}
 
-    async function fetchPersonas() {
-      try {
-        const res = await fetch(`/persona/details`);
-        const data = await res.json();
-        const table = document.getElementById("table-body");
-        table.innerHTML = "";
-
-        const personas = data.data || [];
-        const start = (currentPage - 1) * limit;
-        const pageData = personas.slice(start, start + limit);
-
-        pageData.forEach(item => {
-          const row = document.createElement("tr");
-
-          const roleCell = document.createElement("td");
-          roleCell.innerText = item.role;
-          row.appendChild(roleCell);
-
-          const permCell = document.createElement("td");
-          permCell.innerText = item.permissions?.length ? item.permissions.join(", ") : "(无权限)";
-          row.appendChild(permCell);
-
-          const actionsCell = document.createElement("td");
-
-          const editBtn = document.createElement("button");
-          editBtn.innerText = "编辑";
-          editBtn.onclick = () => editPermissions(item.role);
-          actionsCell.appendChild(editBtn);
-
-          const deleteBtn = document.createElement("button");
-          deleteBtn.innerText = "删除";
-          deleteBtn.classList.add("danger");
-          deleteBtn.onclick = () => deletePersona(item.role);
-          actionsCell.appendChild(deleteBtn);
-
-          row.appendChild(actionsCell);
-          table.appendChild(row);
-        });
-
-        document.getElementById("current-page").innerText = currentPage;
-      } catch (e) {
-        alert("❌ 加载失败：" + e.message);
-      }
+function submitRegister() {
+  const persona = document.getElementById("personaInput").value.trim();
+  const secret = document.getElementById("secretInput").value.trim();
+  fetch('/persona/register', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ persona, secret, operator: "将军" })
+  })
+  .then(res => res.json())
+  .then(result => {
+    if (result.success) {
+      alert("✅ 注册成功");
+      location.reload();
+    } else {
+      alert("❌ 注册失败：" + result.error);
     }
+  });
+}
 
-    function previousPage() {
-      if (currentPage > 1) {
-        currentPage--;
-        fetchPersonas();
-      }
+function deletePersona(role) {
+  if (!confirm("确认要删除角色：" + role + "？")) return;
+  fetch('/delete_persona', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ persona: role, operator: "将军" })
+  })
+  .then(res => res.json())
+  .then(result => {
+    if (result.result && result.result.status === "success") {
+      alert("✅ 删除成功");
+      location.reload();
+    } else {
+      alert("❌ 删除失败：" + JSON.stringify(result));
     }
+  });
+}
 
-    function nextPage() {
-      currentPage++;
-      fetchPersonas();
+function editPermissions(role, currentPermissions = []) {
+  const allPermissions = ["read", "write", "admin", "query", "report", "budget", "schedule", "创建角色"];
+  const checkboxHtml = allPermissions.map(p => {
+    const checked = currentPermissions.includes(p) ? 'checked' : '';
+    return `<label><input type="checkbox" value="${p}" ${checked}> ${p}</label>`;
+  }).join('<br>');
+
+  const modal = document.createElement("div");
+  modal.innerHTML = `
+    <div style="background:#fff; padding:20px; border-radius:8px; width:300px;">
+      <p>编辑权限：<b>${role}</b></p>
+      <form id="editForm">${checkboxHtml}</form>
+      <br>
+      <button onclick="submitEdit('${role}', this)">保存</button>
+      <button onclick="this.parentNode.remove()">取消</button>
+    </div>
+  `;
+  Object.assign(modal.style, {
+    position: "fixed", top: "30%", left: "30%", background: "#0005",
+    padding: "30px", zIndex: "9999", display: "flex", justifyContent: "center"
+  });
+  document.body.appendChild(modal);
+}
+
+function submitEdit(role, button) {
+  const modal = button.parentNode;
+  const checkboxes = modal.querySelectorAll("input[type='checkbox']:checked");
+  const permissions = Array.from(checkboxes).map(cb => cb.value);
+
+  fetch('/persona/update_permissions', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ role, permissions })
+  })
+  .then(response => response.json())
+  .then(result => {
+    if (result.status === "success") {
+      alert("✅ 权限更新成功");
+      location.reload();
+    } else {
+      alert("❌ 更新失败: " + result.message);
     }
-
-    function editPermissions(role) {
-      const newPerms = prompt(`编辑功能尚未接入：role=${role}\n(未来将在此弹窗内可视化编辑权限)`);
-
-      // 未来接入 POST /persona/update_permissions 调用接口
-      if (newPerms) {
-        alert(`尚未接入权限更新：${newPerms}`);
-      }
-    }
-
-    function deletePersona(role) {
-      if (!confirm(`确定要删除角色 "${role}" 吗？此操作不可恢复`)) return;
-
-      fetch("/delete_persona", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ persona: role, operator: "将军" })
-      })
-      .then(res => res.json())
-      .then(json => {
-        if (json.result) {
-          alert("✅ 删除成功");
-          fetchPersonas();
-        } else {
-          alert("❌ 删除失败：" + (json.error || "未知错误"));
-        }
-      })
-      .catch(err => {
-        alert("❌ 删除请求失败：" + err.message);
-      });
-    }
-
-    function registerPersona() {
-      const newRole = prompt("请输入新角色名称：");
-      const secret = prompt("请输入授权口令：");
-
-      if (newRole && secret) {
-        fetch("/persona/register", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ persona: newRole, secret: secret, operator: "将军" })
-        })
-        .then(res => res.json())
-        .then(json => {
-          if (json.success) {
-            alert("✅ 注册成功");
-            fetchPersonas();
-          } else {
-            alert("❌ 注册失败：" + (json.error || "未知错误"));
-          }
-        })
-        .catch(err => {
-          alert("❌ 注册请求失败：" + err.message);
-        });
-      }
-    }
-
-    window.onload = fetchPersonas;
-  </script>
+  })
+  .catch(error => {
+    alert("❌ 请求错误: " + error);
+  })
+  .finally(() => modal.remove());
+}
+</script>
 </body>
 </html>
