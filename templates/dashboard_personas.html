@@ -82,6 +82,7 @@
         <td>${perms.join(", ")}</td>
         <td>
           <button onclick='openModal("${p.role}", ${JSON.stringify(perms)})'>编辑</button>
+          <button class="danger" onclick='deletePersona("${p.role}")'>删除</button>
         </td>
       `;
       table.appendChild(row);
@@ -127,6 +128,27 @@
       loadPersonas();
     } else {
       alert("❌ 更新失败：" + (data.message || "未知错误"));
+    }
+  }
+
+  async function deletePersona(role) {
+    if (!confirm(`⚠️ 确认删除角色 "${role}"？操作不可逆！`)) return;
+
+    const res = await fetch("/delete_persona", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        persona: role,
+        operator: "将军"
+      })
+    });
+
+    const data = await res.json();
+    if (data.result && data.result.success) {
+      alert("✅ 删除成功");
+      loadPersonas();
+    } else {
+      alert("❌ 删除失败：" + (data.result?.error || "未知错误"));
     }
   }
 
