@@ -64,3 +64,24 @@ def check_persona_secret(persona: str, input_secret: str) -> bool:
             return False
     except Exception:
         return False
+# 软删除 persona：仅清空权限
+def delete_persona(persona: str) -> str:
+    try:
+        result = supabase.table("roles").update({"permissions": []}).eq("role", persona).execute()
+        if result.data:
+            return f"🟡 角色 {persona} 的权限已清空（软删除）"
+        else:
+            return f"⚠️ 未找到角色 {persona}，未执行任何修改"
+    except Exception as e:
+        return f"❌ 删除失败：{str(e)}"
+
+# 彻底删除 persona：从数据库中移除记录
+def delete_persona_completely(persona: str) -> str:
+    try:
+        result = supabase.table("roles").delete().eq("role", persona).execute()
+        if result.data:
+            return f"🟥 角色 {persona} 已彻底删除（包含权限记录）"
+        else:
+            return f"⚠️ 未找到角色 {persona}，无删除动作"
+    except Exception as e:
+        return f"❌ 彻底删除失败：{str(e)}"
