@@ -48,18 +48,15 @@ async def chat(request: Request):
         if not message:
             return JSONResponse(content={"error": "空消息"}, status_code=400)
 
-        # 意图解析
         if not skip_parsing:
             intent = parse_intent(message, persona)
         else:
             intent = data.get("intent", {})
 
-        # 权限校验
         if not check_secret_permission(intent, persona):
             write_log_to_supabase(persona, intent, "denied", "权限不足")
             return JSONResponse(content={"error": "权限不足"}, status_code=403)
 
-        # 指令执行
         result = intent_dispatcher.dispatch(intent)
         write_log_to_supabase(persona, intent, "success", result)
 
@@ -83,7 +80,7 @@ async def delete_persona_api(request: Request):
     write_log_to_supabase(operator, {"intent_type": "delete_persona", "target": persona}, "success", result)
     return JSONResponse(content={"result": result})
 
-# ✅ 日志查询接口（支持分页 + 筛选）
+# ✅ 日志查询接口（分页 + 筛选）
 @app.post("/log/query")
 async def query_logs_api(request: Request):
     data = await request.json()
@@ -98,7 +95,7 @@ async def query_logs_api(request: Request):
     logs = query_logs(filters, limit=limit, offset=offset)
     return JSONResponse(content={"logs": logs})
 
-# ✅ logs 页面（将军权限控制）
+# ✅ logs 页面（将军专属访问）
 @app.get("/logs", response_class=HTMLResponse)
 async def logs_page(request: Request):
     persona = request.query_params.get("persona", "")
@@ -107,7 +104,25 @@ async def logs_page(request: Request):
         return HTMLResponse(content="<h3>❌ 权限不足：仅将军可访问此页面。</h3>", status_code=403)
     return templates.TemplateResponse("logs.html", {"request": request})
 
-# ✅ 控制台首页 dashboard 页面
+# ✅ dashboard 控制台首页
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
     return templates.TemplateResponse("dashboard.html", {"request": request})
+
+# ✅ 角色管理页面（仅将军）
+@app.get("/dashboard/personas", response_class=HTMLResponse)
+async def dashboard_personas(request: Request):
+    persona = request.query_params.get("persona", "")
+    if not check_secret_permission({"intent_type": "view_personas"}, persona):
+        return HTMLResponse(content="<h3>❌ 权限不足：仅将军可管理角色。</h3>", status_code=403)
+    return templates.TemplateResponse("dashboard_personas.html", {"request": request})
+
+# ✅ 获取已注册 persona 名单（前端用）
+@app.get("/persona/list")
+async def get_personas():
+    try:
+        result = supabase.table("personas").select("name").execute()
+        names = [item["name"] for item in result.data]
+        return {"personas": names}
+    except Exception as e:
+        return {"error": str(e), "personas": []}

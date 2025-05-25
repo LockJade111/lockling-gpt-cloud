@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>角色管理 · Lockling 云脑</title>
+  <style>
+    body { font-family: sans-serif; padding: 30px; background-color: #f8f9fa; }
+    h2 { margin-bottom: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px 10px; text-align: left; }
+    th { background-color: #eee; }
+    button { padding: 5px 10px; border: none; border-radius: 4px; background-color: #dc3545; color: white; cursor: pointer; }
+    button:hover { background-color: #c82333; }
+    #personaList { margin-top: 20px; }
+  </style>
+</head>
+<body>
+
+  <h2>🧑‍💼 当前注册角色</h2>
+
+  <table id="personaTable">
+    <thead>
+      <tr><th>Persona</th><th>操作</th></tr>
+    </thead>
+    <tbody id="personaList">
+      <!-- JS 渲染角色列表 -->
+    </tbody>
+  </table>
+
+  <script>
+    async function loadPersonas() {
+      const response = await fetch("/persona/list", { method: "GET" });
+      const data = await response.json();
+      const personas = data.personas || [];
+
+      const list = document.getElementById("personaList");
+      list.innerHTML = "";
+
+      personas.forEach(name => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${name}</td>
+          <td><button onclick="deletePersona('${name}')">删除</button></td>
+        `;
+        list.appendChild(row);
+      });
+    }
+
+    async function deletePersona(name) {
+      if (!confirm(`确认要删除 ${name} 吗？`)) return;
+      await fetch("/delete_persona", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ persona: name, operator: "将军" })
+      });
+      loadPersonas();
+    }
+
+    loadPersonas();
+  </script>
+
+</body>
+</html>
