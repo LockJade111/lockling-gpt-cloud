@@ -12,6 +12,10 @@
       font-size: 24px;
       margin-bottom: 10px;
     }
+    select, button {
+      margin-right: 10px;
+      padding: 5px;
+    }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -44,6 +48,34 @@
 
   <h2>📜 操作日志（仅显示最近 50 条）</h2>
 
+  <div>
+    <label>Persona:</label>
+    <select id="personaSelect">
+      <option value="">全部</option>
+      <option value="将军">将军</option>
+      <option value="司铃">司铃</option>
+      <option value="Lockling 锁灵">Lockling 锁灵</option>
+      <option value="小助手">小助手</option>
+    </select>
+
+    <label>Intent:</label>
+    <select id="intentSelect">
+      <option value="">全部</option>
+      <option value="delete_persona">delete_persona</option>
+      <option value="authorize">authorize</option>
+      <option value="revoke">revoke</option>
+    </select>
+
+    <label>Allow:</label>
+    <select id="allowSelect">
+      <option value="">全部</option>
+      <option value="true">允许</option>
+      <option value="false">拒绝</option>
+    </select>
+
+    <button onclick="loadLogs()">筛选</button>
+  </div>
+
   <table id="logTable">
     <thead>
       <tr>
@@ -59,17 +91,26 @@
       </tr>
     </thead>
     <tbody>
-      <!-- JS 填充数据 -->
+      <!-- JS 动态填充 -->
     </tbody>
   </table>
 
   <script>
     async function loadLogs() {
+      const persona = document.getElementById('personaSelect').value;
+      const intent = document.getElementById('intentSelect').value;
+      const allow = document.getElementById('allowSelect').value;
+
       const response = await fetch('/log/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({})
+        body: JSON.stringify({
+          persona: persona || null,
+          intent_type: intent || null,
+          allow: allow === "" ? null : (allow === "true")
+        })
       });
+
       const data = await response.json();
       const logs = data.logs || [];
       const tbody = document.querySelector('#logTable tbody');
@@ -93,6 +134,7 @@
       });
     }
 
+    // 页面加载默认加载全部日志
     loadLogs();
   </script>
 
