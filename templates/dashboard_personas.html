@@ -44,91 +44,44 @@
 </head>
 <body>
 
-  <h1>🌌 Persona 超智体角色列表</h1>
+<h2>🌌 Persona 超智体角色列表</h2>
 
-  <table>
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>名称</th>
-        <th>角色</th>
-        <th>操作</th>
-      </tr>
-    </thead>
-    <tbody id="personaTableBody">
-      <!-- 人物行通过 JS 插入 -->
-    </tbody>
-  </table>
+<table>
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>名称</th>
+      <th>角色</th>
+      <th>操作</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in personas %}
+    <tr>
+      <td>{{ item.id }}</td>
+      <td>{{ item.name }}</td>
+      <td>{{ item.persona }}</td>
+      <td>
+        <!-- 删除按钮 -->
+        <form method="post" action="/persona/delete" style="display:inline;">
+          <input type="hidden" name="id" value="{{ item.id }}">
+          <input type="text" name="secret" placeholder="权限密钥" required>
+          <button type="submit" class="danger">删除</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
 
-  <h3>🆕 注册新角色</h3>
-  <form id="registerForm">
-    名称：<input type="text" name="name" required>
-    角色：<input type="text" name="persona" required>
-    权限密钥：<input type="text" name="secret" required>
-    <button type="submit">提交注册</button>
-  </form>
+<!-- 注册新角色 -->
+<h3>🆕 注册新角色</h3>
+<form method="post" action="/persona/register">
+  名称：<input type="text" name="name" required>
+  角色：<input type="text" name="persona" required>
+  权限密钥：<input type="text" name="secret" required>
+  <button type="submit">提交注册</button>
+</form>
 
-  <script>
-    async function loadPersonas() {
-      const res = await fetch('/persona/details');
-      const data = await res.json();
-      const tbody = document.getElementById('personaTableBody');
-      tbody.innerHTML = '';
-      if (data.data) {
-        data.data.forEach((item, index) => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${index + 1}</td>
-            <td>${item.name || '-'}</td>
-            <td>${item.role}</td>
-            <td>
-              <button onclick="editPersona('${item.role}')">编辑</button>
-              <button class="danger" onclick="deletePersona('${item.role}')">删除</button>
-            </td>
-          `;
-          tbody.appendChild(tr);
-        });
-      }
-    }
-
-    async function deletePersona(role) {
-      const confirmDelete = confirm(`确定要删除角色：${role} 吗？`);
-      if (!confirmDelete) return;
-      const res = await fetch('/delete_persona', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ persona: role, operator: "将军" })
-      });
-      const result = await res.json();
-      alert(result.result || result.error);
-      loadPersonas();
-    }
-
-    function editPersona(role) {
-      const newName = prompt(`编辑功能尚未接入：role=${role}\n（未来将在此弹窗内可视化编辑权限）`);
-      console.log(`模拟编辑角色 ${role} 为 ${newName}`);
-    }
-
-    document.getElementById('registerForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const form = e.target;
-      const name = form.name.value.trim();
-      const persona = form.persona.value.trim();
-      const secret = form.secret.value.trim();
-
-      const res = await fetch('/persona/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ persona, secret, name, operator: "将军" })
-      });
-
-      const result = await res.json();
-      alert(result.result || result.error);
-      loadPersonas();
-      form.reset();
-    });
-
-    loadPersonas();
-  </script>
 </body>
 </html>
