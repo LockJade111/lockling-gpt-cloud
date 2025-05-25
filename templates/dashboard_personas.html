@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8" />
-  <title>Persona 超智体角色列表</title>
+  <title>🌌 Persona 超智体角色列表</title>
   <style>
     body {
       font-family: sans-serif;
@@ -47,13 +47,8 @@
   </style>
 </head>
 <body>
-
-  <h2>🧬 Persona 超智体角色列表</h2>
-
-  <div style="margin-bottom: 10px;">
-    <button onclick="openRegisterModal()">➕ 注册新角色</button>
-  </div>
-
+  <h2>🌿 Persona 超智体角色列表</h2>
+  <button onclick="registerPersona()">➕ 注册新角色</button>
   <table>
     <thead>
       <tr>
@@ -62,94 +57,89 @@
         <th>操作</th>
       </tr>
     </thead>
-    <tbody id="persona-table-body">
-      <!-- 数据通过 JS 渲染 -->
-    </tbody>
+    <tbody id="personaTableBody"></tbody>
   </table>
-
   <div class="pagination">
     <button onclick="prevPage()">上一页</button>
-    第 <span id="current-page">1</span> 页
+    <span>第 <span id="currentPage">1</span> 页</span>
     <button onclick="nextPage()">下一页</button>
   </div>
 
-  <!-- 注册模态框 -->
-  <div id="register-modal" style="display:none;">
-    <!-- 你的模态内容 -->
-  </div>
-
   <script>
-    let currentPage = 1;
+    let page = 0;
+    const limit = 5;
 
-    function fetchPersonas() {
-      fetch(`/persona/details?page=${currentPage}`)
-        .then(res => res.json())
+    function loadPersonas() {
+      fetch('/persona/details')
+        .then(response => response.json())
         .then(data => {
-          const tbody = document.getElementById("persona-table-body");
-          tbody.innerHTML = "";
-          data.data.forEach(p => {
-            const tr = document.createElement("tr");
-            const perms = p.permissions && p.permissions.length
-              ? p.permissions.join("、")
-              : '<i style="color:#aaa;">（无权限）</i>';
-            tr.innerHTML = `
+          const tbody = document.getElementById('personaTableBody');
+          tbody.innerHTML = '';
+          const personas = data.data || [];
+          const pagePersonas = personas.slice(page * limit, (page + 1) * limit);
+
+          pagePersonas.forEach(p => {
+            const row = document.createElement('tr');
+            const permissions = p.permissions?.length
+              ? p.permissions.join(', ')
+              : '<em>(无权限)</em>';
+
+            row.innerHTML = `
               <td>${p.role}</td>
-              <td>${perms}</td>
+              <td>${permissions}</td>
               <td>
-                <button onclick="editRole('${p.role}')">编辑</button>
-                <button class="danger" onclick="deleteRole('${p.role}')">删除</button>
+                <button onclick="editPermissions('${p.role}')">编辑</button>
+                <button class="danger" onclick="deletePersona('${p.role}')">删除</button>
               </td>
             `;
-            tbody.appendChild(tr);
+            tbody.appendChild(row);
           });
-        });
-    }
 
-    function editRole(role) {
-      alert("⚠️ 编辑功能尚未接入：role=" + role);
-    }
-
-    function deleteRole(role) {
-      fetch('/delete_persona', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ persona: role, operator: '将军' })
-      })
-      .then(res => res.json())
-      .then(result => {
-        if (result.result) {
-          alert("✅ 删除成功！");
-          fetchPersonas();
-        } else {
-          alert("❌ 删除失败：" + (result.error || "未知错误"));
-        }
-      })
-      .catch(err => {
-        console.error("删除请求失败", err);
-        alert("❌ 删除失败：请求异常");
-      });
+          document.getElementById('currentPage').textContent = page + 1;
+        })
+        .catch(err => alert("加载失败：" + err.message));
     }
 
     function prevPage() {
-      if (currentPage > 1) {
-        currentPage--;
-        document.getElementById("current-page").textContent = currentPage;
-        fetchPersonas();
+      if (page > 0) {
+        page--;
+        loadPersonas();
       }
     }
 
     function nextPage() {
-      currentPage++;
-      document.getElementById("current-page").textContent = currentPage;
-      fetchPersonas();
+      page++;
+      loadPersonas();
     }
 
-    function openRegisterModal() {
-      alert("⚠️ 注册功能尚未接入");
+    function editPermissions(role) {
+      const raw = prompt(`编辑功能尚未接入：role=${role}`);
     }
 
-    fetchPersonas();
+    function registerPersona() {
+      const raw = prompt('注册功能尚未接入');
+    }
+
+    function deletePersona(role) {
+      if (!confirm(`确定要删除角色「${role}」吗？`)) return;
+      fetch('/delete_persona', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ persona: role, operator: "将军" })
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data?.result?.status === 'fail') {
+            alert("删除失败：" + (data.result.error || "未知错误"));
+          } else {
+            alert("✅ 删除成功");
+            loadPersonas();
+          }
+        })
+        .catch(err => alert("删除失败：" + err.message));
+    }
+
+    window.onload = loadPersonas;
   </script>
-
 </body>
 </html>
