@@ -1,4 +1,5 @@
 import os
+import re
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse
@@ -59,7 +60,6 @@ async def chat(request: Request):
 
         result = intent_dispatcher.dispatch(intent)
         write_log_to_supabase(persona, intent, "success", result)
-
         return JSONResponse(content={"result": result})
 
     except Exception as e:
@@ -141,8 +141,12 @@ async def register_persona_api(request: Request):
     if not persona or not secret:
         return JSONResponse(content={"success": False, "error": "名称和密钥不能为空"}, status_code=400)
 
+    # ✅ 可选：限制密钥格式（如仅限英文）
+    # if not re.fullmatch(r"[A-Za-z]+", secret):
+    #     return JSONResponse(content={"success": False, "error": "密钥格式无效，仅限字母"}, status_code=400)
+
     try:
         result = register_persona(persona, secret)
-        return JSONResponse(content={"success": True, "result": result})
+        return JSONResponse(content={"success": True, "result": result.data if hasattr(result, 'data') else str(result)})
     except Exception as e:
         return JSONResponse(content={"success": False, "error": str(e)})
