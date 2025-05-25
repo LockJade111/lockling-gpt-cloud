@@ -86,7 +86,7 @@
     }
 
     document.getElementById("registerForm").addEventListener("submit", async function(event) {
-      event.preventDefault(); // 阻止表单刷新
+      event.preventDefault(); // 阻止默认提交
       const name = document.getElementById("newPersona").value.trim();
       const secret = document.getElementById("newSecret").value.trim();
       if (!name || !secret) return alert("名称与密钥不能为空");
@@ -96,11 +96,18 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ persona: name, secret: secret, operator: "将军" })
       });
+
       const data = await response.json();
+
+      if (data.error && data.error.includes("已存在")) {
+        alert("❌ 注册失败：该角色已存在！");
+        return;
+      }
+
       if (data.success) {
         alert("✅ 注册成功！");
-        loadPersonas();
         document.getElementById("registerForm").reset();
+        loadPersonas();
       } else {
         alert("❌ 注册失败：" + (data.error || "未知错误"));
       }

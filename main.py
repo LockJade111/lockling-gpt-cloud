@@ -15,20 +15,18 @@ from supabase_logger import write_log_to_supabase, query_logs
 from supabase import create_client, Client
 from persona_keys import delete_persona, register_persona
 
-# ✅ 加载 .env
+# ✅ 加载环境变量
 load_dotenv(dotenv_path=".env", override=True)
-
-# ✅ Supabase 客户端初始化
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# ✅ FastAPI 实例
+# ✅ FastAPI 初始化
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# ✅ CORS 配置
+# ✅ CORS 设置
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -37,7 +35,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ /chat 主接口
+# ✅ /chat 核心入口
 @app.post("/chat")
 async def chat(request: Request):
     try:
@@ -80,7 +78,7 @@ async def delete_persona_api(request: Request):
     write_log_to_supabase(operator, {"intent_type": "delete_persona", "target": persona}, "success", result)
     return JSONResponse(content={"result": result})
 
-# ✅ 日志查询接口
+# ✅ 日志分页查询
 @app.post("/log/query")
 async def query_logs_api(request: Request):
     data = await request.json()
@@ -95,12 +93,11 @@ async def query_logs_api(request: Request):
     logs = query_logs(filters, limit=limit, offset=offset)
     return JSONResponse(content={"logs": logs})
 
-# ✅ /logs 页面（将军权限）
+# ✅ 可视化日志页
 @app.get("/logs", response_class=HTMLResponse)
 async def logs_page(request: Request):
     persona = request.query_params.get("persona", "")
-    intent = {"intent_type": "view_logs"}
-    if not check_secret_permission(intent, persona):
+    if not check_secret_permission({"intent_type": "view_logs"}, persona):
         return HTMLResponse(content="<h3>❌ 权限不足：仅将军可访问此页面。</h3>", status_code=403)
     return templates.TemplateResponse("logs.html", {"request": request})
 
@@ -109,7 +106,7 @@ async def logs_page(request: Request):
 async def dashboard(request: Request):
     return templates.TemplateResponse("dashboard.html", {"request": request})
 
-# ✅ 角色管理页
+# ✅ persona 注册页（将军专属）
 @app.get("/dashboard/personas", response_class=HTMLResponse)
 async def dashboard_personas(request: Request):
     persona = request.query_params.get("persona", "")
@@ -141,12 +138,10 @@ async def register_persona_api(request: Request):
     if not persona or not secret:
         return JSONResponse(content={"success": False, "error": "名称和密钥不能为空"}, status_code=400)
 
-    # ✅ 可选：限制密钥格式（如仅限英文）
-    # if not re.fullmatch(r"[A-Za-z]+", secret):
-    #     return JSONResponse(content={"success": False, "error": "密钥格式无效，仅限字母"}, status_code=400)
-
     try:
         result = register_persona(persona, secret)
         return JSONResponse(content={"success": True, "result": result.data if hasattr(result, 'data') else str(result)})
     except Exception as e:
+        if "already exists" in str(e):
+            return JSONResponse(content={"success": False, "error": "该角色已存在"}, status_code=400)
         return JSONResponse(content={"success": False, "error": str(e)})
