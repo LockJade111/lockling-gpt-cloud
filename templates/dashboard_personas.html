@@ -11,7 +11,19 @@
     th { background-color: #eee; }
     button { padding: 5px 10px; border: none; border-radius: 4px; background-color: #dc3545; color: white; cursor: pointer; }
     button:hover { background-color: #c82333; }
-    #personaList { margin-top: 20px; }
+    input[type="text"], input[type="password"] {
+      padding: 6px;
+      margin: 5px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+    form button {
+      background-color: #007bff;
+      margin-top: 10px;
+    }
+    form button:hover {
+      background-color: #0056b3;
+    }
   </style>
 </head>
 <body>
@@ -26,6 +38,16 @@
       <!-- JS 渲染角色列表 -->
     </tbody>
   </table>
+
+  <hr>
+  <h3>🆕 注册新角色</h3>
+  <form id="registerForm" onsubmit="return registerPersona();">
+    <label>名称：</label>
+    <input type="text" id="newPersona" required>
+    <label>密钥：</label>
+    <input type="password" id="newSecret" required>
+    <button type="submit">注册</button>
+  </form>
 
   <script>
     async function loadPersonas() {
@@ -54,6 +76,27 @@
         body: JSON.stringify({ persona: name, operator: "将军" })
       });
       loadPersonas();
+    }
+
+    async function registerPersona() {
+      const name = document.getElementById("newPersona").value.trim();
+      const secret = document.getElementById("newSecret").value.trim();
+      if (!name || !secret) return alert("名称与密钥不能为空");
+
+      const response = await fetch("/persona/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ persona: name, secret: secret, operator: "将军" })
+      });
+      const data = await response.json();
+      if (data.success) {
+        alert("注册成功");
+        loadPersonas();
+        document.getElementById("registerForm").reset();
+      } else {
+        alert("注册失败：" + (data.error || "未知错误"));
+      }
+      return false;
     }
 
     loadPersonas();
