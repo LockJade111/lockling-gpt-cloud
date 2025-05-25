@@ -11,7 +11,7 @@ load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-# ✅ 自定义模块导入
+# ✅ 导入自定义模块
 from parse_intent_with_gpt import parse_intent
 from check_permission import check_secret_permission
 from intent_dispatcher import dispatcher as intent_dispatcher
@@ -19,7 +19,7 @@ from supabase_logger import write_log_to_supabase, query_logs
 from supabase import create_client, Client
 from persona_keys import delete_persona, register_persona
 
-# ✅ 初始化 Supabase
+# ✅ 初始化 Supabase 客户端
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ✅ 初始化 FastAPI 与模板
@@ -27,7 +27,7 @@ app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# ✅ CORS 配置
+# ✅ 跨域设置
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -59,12 +59,11 @@ async def chat(request: Request):
         write_log_to_supabase(query, reply, intent)
 
         return JSONResponse(wrap_result("success", reply, intent))
-
     except Exception as e:
-        print("❌ 处理失败:", e)
+        print("❌ 处理失败：", e)
         return JSONResponse(wrap_result("error", f"处理失败：{str(e)}"))
 
-# ✅ 查询日志接口
+# ✅ 日志查看接口
 @app.get("/logs")
 async def get_logs():
     try:
@@ -73,25 +72,35 @@ async def get_logs():
     except Exception as e:
         return JSONResponse(wrap_result("error", f"日志查询失败：{str(e)}"))
 
-# ✅ 渲染角色管理页面
+# ✅ 渲染角色管理界面（含 offset/limit 修复）
 @app.get("/dashboard/personas")
 async def dashboard_personas(request: Request):
     try:
+        # 模拟数据，可接 supabase 替换
         personas = [
             {"id": 1, "name": "Lockling", "role": "智能守护者"},
             {"id": 2, "name": "军师猫", "role": "智囊门神"},
         ]
-        offset = 0  # 💡 如果模板里用到了 offset，这里必须定义
+
+        # ✅ 这些变量供模板分页使用，避免 undefined 错误
+        offset = 0
+        limit = 10
+        page = 1
+        total = len(personas)
+
         return templates.TemplateResponse("dashboard_personas.html", {
             "request": request,
             "personas": personas,
-            "offset": offset
+            "offset": offset,
+            "limit": limit,
+            "page": page,
+            "total": total
         })
     except Exception as e:
         print("❌ 页面渲染失败：", e)
         return HTMLResponse(content=f"<h1>服务器错误：{e}</h1>", status_code=500)
 
-# ✅ 注册新角色
+# ✅ 注册角色
 @app.post("/persona/register")
 async def register_new_persona(request: Request):
     try:
