@@ -6,7 +6,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 
-# 自定义模块导入
+# 模块导入
 import intent_dispatcher
 from parse_intent_with_gpt import parse_intent
 from check_permission import check_secret_permission
@@ -14,20 +14,20 @@ from supabase_logger import write_log_to_supabase, query_logs
 from supabase import create_client, Client
 from persona_keys import delete_persona
 
-# ✅ 加载 .env 环境变量
+# ✅ 加载 .env
 load_dotenv(dotenv_path=".env", override=True)
 
-# ✅ 初始化 Supabase 客户端
+# ✅ Supabase 客户端初始化
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# ✅ FastAPI 初始化
+# ✅ FastAPI 实例
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# ✅ CORS 支持
+# ✅ CORS 配置
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -36,7 +36,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ /chat 语义入口
+# ✅ /chat 主接口
 @app.post("/chat")
 async def chat(request: Request):
     try:
@@ -54,15 +54,15 @@ async def chat(request: Request):
         else:
             intent = data.get("intent", {})
 
-        # 权限验证
-        permission = check_secret_permission(intent, persona)
-        if not permission:
+        # 权限校验
+        if not check_secret_permission(intent, persona):
             write_log_to_supabase(persona, intent, "denied", "权限不足")
             return JSONResponse(content={"error": "权限不足"}, status_code=403)
 
-        # 执行意图
+        # 指令执行
         result = intent_dispatcher.dispatch(intent)
         write_log_to_supabase(persona, intent, "success", result)
+
         return JSONResponse(content={"result": result})
 
     except Exception as e:
@@ -83,7 +83,7 @@ async def delete_persona_api(request: Request):
     write_log_to_supabase(operator, {"intent_type": "delete_persona", "target": persona}, "success", result)
     return JSONResponse(content={"result": result})
 
-# ✅ 日志查询接口（带分页）
+# ✅ 日志查询接口（支持分页 + 筛选）
 @app.post("/log/query")
 async def query_logs_api(request: Request):
     data = await request.json()
@@ -98,7 +98,16 @@ async def query_logs_api(request: Request):
     logs = query_logs(filters, limit=limit, offset=offset)
     return JSONResponse(content={"logs": logs})
 
-# ✅ logs 页面
+# ✅ logs 页面（将军权限控制）
 @app.get("/logs", response_class=HTMLResponse)
 async def logs_page(request: Request):
+    persona = request.query_params.get("persona", "")
+    intent = {"intent_type": "view_logs"}
+    if not check_secret_permission(intent, persona):
+        return HTMLResponse(content="<h3>❌ 权限不足：仅将军可访问此页面。</h3>", status_code=403)
     return templates.TemplateResponse("logs.html", {"request": request})
+
+# ✅ 控制台首页 dashboard 页面
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard(request: Request):
+    return templates.TemplateResponse("dashboard.html", {"request": request})
