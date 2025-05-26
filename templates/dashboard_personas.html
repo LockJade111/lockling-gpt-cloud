@@ -5,7 +5,6 @@
   <title>🔐 Persona 超智体管理</title>
   <style>
     body { font-family: sans-serif; padding: 30px; background-color: #f8f9fa; }
-    h2, h3 { margin-top: 30px; }
     table { width: 100%; border-collapse: collapse; margin-top: 20px; }
     th, td { border: 1px solid #ccc; padding: 8px 10px; text-align: left; }
     th { background-color: #eee; }
@@ -16,7 +15,6 @@
     button:hover { background-color: #0056b3; }
     .danger { background-color: #dc3545; }
     .danger:hover { background-color: #c82333; }
-    .hidden { display: none; }
     input[type="text"], input[type="password"] {
       padding: 5px; margin: 5px; width: 200px;
     }
@@ -26,10 +24,8 @@
 
 <h2>🔐 Persona 超智体管理</h2>
 
-<!-- 🔍 搜索 -->
-<input type="text" id="searchInput" placeholder="🔍 输入关键词过滤角色..." oninput="filterTable()"/>
+<input type="text" id="searchInput" placeholder="🔍 输入关键词过滤角色..." oninput="filterTable()" />
 
-<!-- 📋 角色列表 -->
 <table id="personaTable">
   <thead>
     <tr>
@@ -43,42 +39,44 @@
   </tbody>
 </table>
 
-<!-- ➕ 注册新角色 -->
 <h3>🆕 注册新角色</h3>
 <form id="registerForm" onsubmit="registerPersona(event)">
   <div>
-    <label for="persona">角色ID（persona）：</label>
+    <label>角色ID（persona）：</label>
     <input type="text" id="persona" required />
   </div>
   <div>
-    <label for="name">显示名（name）：</label>
+    <label>显示名（name）：</label>
     <input type="text" id="name" required />
   </div>
   <div>
-    <label for="secret">密钥（secret）：</label>
+    <label>密钥（secret）：</label>
     <input type="password" id="secret" required />
+    <button type="button" onclick="toggleSecret()">👁️</button><br/>
+    <small style="color: #666;">支持中文、6位以上安全密钥，建议妥善保管</small>
   </div>
   <div>
-    <label for="intro">简介（intro）：</label>
+    <label>简介（intro）：</label>
     <input type="text" id="intro" />
-  </div> 
-  <div>   
-    <label for="authorize">授权给（可留空）：</label>
+  </div>
+  <div>
+    <label>授权给（可留空）：</label>
     <input type="text" id="authorize" />
-  </div>  
-  <div> 
+  </div>
+  <div>
     <button type="submit">📝 提交注册</button>
   </div>
 </form>
 
 <script>
-  // ✅ 注册新角色
+  function toggleSecret() {
+    const input = document.getElementById("secret");
+    input.type = input.type === "password" ? "text" : "password";
+  }
+
   function registerPersona(event) {
     event.preventDefault();
-
-    const form = document.getElementById("registerForm");
-    const formData = new FormData(form);
-
+    const formData = new FormData(document.getElementById("registerForm"));
     fetch("/persona/register", {
       method: "POST",
       body: formData
@@ -87,24 +85,18 @@
     .then(data => {
       if (data.status === "success") {
         alert("✅ 注册成功");
-        form.reset(); // 清空表单
+        document.getElementById("registerForm").reset();
         loadPersonas();
       } else {
-        alert("❌ 注册失败：" + (data.message || "未知错误"));
+        alert("❌ 注册失败：" + data.message);
       }
-    })
-    .catch(err => {
-      alert("网络错误：" + err.message);
     });
   }
 
-  // ✅ 删除角色
   function deletePersona(persona) {
     const secret = prompt("请输入权限密钥以删除角色：" + persona);
     if (!secret) return;
-
     const payload = { persona, operator: persona, secret };
-
     fetch("/persona/delete", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -113,28 +105,28 @@
     .then(res => res.json())
     .then(data => {
       alert(data.message || "操作完成");
-      if (data.success) {
-        loadPersonas();
-      }
-    })
-    .catch(err => {
-      alert("❌ 删除失败：" + err.message);
+      if (data.success) loadPersonas();
     });
   }
 
-  // ✅ 加载角色列表
   function loadPersonas() {
     const tbody = document.getElementById("personaList");
     tbody.innerHTML = "<tr><td colspan='3'>⏳ 加载中...</td></tr>";
-
     fetch("/logs")
       .then(res => res.json())
       .then(res => {
         const logs = res.data || [];
         const personas = [...new Set(
-          logs
-            .map(log => log.intent_result?.persona || log.intent?.persona || null)
-            .filter(Boolean)
+          logs.map(log => {
+            try {
+              const intent = typeof log.intent_result === "string"
+                ? JSON.parse(log.intent_result)
+                : log.intent_result || {};
+              return intent.persona || null;
+            } catch (e) {
+              return null;
+            }
+          }).filter(Boolean)
         )];
 
         if (personas.length === 0) {
@@ -149,10 +141,9 @@
               <td>${p}</td>
               <td>—</td>
               <td>
-                <button onclick="deletePersona('${p}')" class="danger">删除</button>
+                <button class="danger" onclick="deletePersona('${p}')">删除</button>
               </td>
-            </tr>
-          `;
+            </tr>`;
         });
       })
       .catch(err => {
@@ -160,16 +151,13 @@
       });
   }
 
-  // ✅ 搜索过滤表格
   function filterTable() {
     const keyword = document.getElementById("searchInput").value.toLowerCase();
     document.querySelectorAll("#personaTable tbody tr").forEach(row => {
-      const text = row.innerText.toLowerCase();
-      row.style.display = text.includes(keyword) ? "" : "none";
+      row.style.display = row.innerText.toLowerCase().includes(keyword) ? "" : "none";
     });
   }
 
-  // ✅ 页面加载时初始化
   window.onload = loadPersonas;
 </script>
 

@@ -34,6 +34,17 @@ def write_log_to_supabase(query, reply, intent_result=None, status="success", so
         except:
             pass
 
+    # ✅ 格式保障：intent_result 一定是 dict
+    if not isinstance(intent_result, dict):
+        intent_result = {}
+
+    # ✅ 若 reply 是对象，强制转为 JSON 字符串
+    if isinstance(reply, (dict, list)):
+        try:
+            reply = json.dumps(reply, ensure_ascii=False)
+        except:
+            reply = str(reply)
+
     try:
         supabase.table("logs").insert({
             "query": query,
