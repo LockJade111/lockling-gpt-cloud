@@ -26,192 +26,123 @@
 
 <h2>🔐 Persona 超智体管理</h2>
 
-<!-- 搜索 -->
+<!-- 🔍 搜索 -->
 <input type="text" id="searchInput" placeholder="🔍 输入关键词过滤角色..." oninput="filterTable()"/>
 
-<!-- 角色列表 -->
+<!-- 📋 角色列表 -->
 <table id="personaTable">
   <thead>
     <tr>
       <th>角色名</th>
-      <th>权限列表</th>
+      <th>权限说明</th>
       <th>操作</th>
     </tr>
   </thead>
-  <tbody id="personaList"></tbody>
+  <tbody id="personaList">
+    <tr><td colspan="3">正在加载角色...</td></tr>
+  </tbody>
 </table>
 
-<!-- 分页控件 -->
-<div style="margin-top: 10px;">
-  <button onclick="prevPage()">上一页</button>
-  <span id="pageIndicator">第 1 页</span>
-  <button onclick="nextPage()">下一页</button>
-</div>
-
-<!-- 注册 -->
+<!-- ➕ 注册新角色 -->
 <h3>🆕 注册新角色</h3>
-<form id="registerForm">
-  <input type="text" id="newPersona" placeholder="角色名（支持中文）" required>
-  <input type="password" id="newSecret" placeholder="密钥" required>
-  <input type="checkbox" id="showSecret" onchange="toggleSecret()"> 显示密钥
-  <br><br>
-  <button type="submit">注册</button>
+<form id="registerForm" onsubmit="registerPersona(event)">
+  <label>角色名（persona）：<input type="text" id="persona" /></label><br>
+  <label>显示名（name）：<input type="text" id="name" /></label><br>
+  <label>密钥（secret）：<input type="password" id="secret" /></label><br>
+  <button type="submit">提交注册</button>
 </form>
 
-<!-- 权限编辑弹窗 -->
-<div id="editModal" class="hidden" style="position: fixed; top: 20%; left: 30%; width: 40%; padding: 20px; background: white; border: 1px solid #ccc; box-shadow: 0 0 10px rgba(0,0,0,0.3); z-index: 999;">
-  <h3>编辑权限 - <span id="editPersonaName"></span></h3>
-  <div id="permissionOptions"></div>
-  <br>
-  <button onclick="savePermissions()">保存</button>
-  <button class="danger" onclick="closeModal()">取消</button>
-</div>
-
 <script>
-const availablePermissions = ["read", "write", "admin", "query", "report", "budget"];
-let currentEditing = "";
-let personas = [];
-let currentPage = 1;
-const itemsPerPage = 5;
+  // ✅ 注册逻辑：使用 FormData
+  function registerPersona(event) {
+    event.preventDefault();
 
-function toggleSecret() {
-  const input = document.getElementById("newSecret");
-  input.type = document.getElementById("showSecret").checked ? "text" : "password";
-}
+    const formData = new FormData();
+    formData.append("name", document.getElementById("name").value);
+    formData.append("persona", document.getElementById("persona").value);
+    formData.append("secret", document.getElementById("secret").value);
 
-function openModal(role, permissions) {
-  currentEditing = role;
-  document.getElementById("editPersonaName").innerText = role;
-  const container = document.getElementById("permissionOptions");
-  container.innerHTML = "";
-  availablePermissions.forEach(p => {
-    const checked = permissions.includes(p) ? "checked" : "";
-    container.innerHTML += `<label><input type="checkbox" value="${p}" ${checked}> ${p}</label><br>`;
-  });
-  document.getElementById("editModal").classList.remove("hidden");
-}
-
-function closeModal() {
-  document.getElementById("editModal").classList.add("hidden");
-  currentEditing = "";
-}
-
-async function loadPersonas() {
-  const res = await fetch("/persona/details");
-  const data = await res.json();
-  personas = data.data || [];
-  renderTable();
-}
-
-function renderTable() {
-  const table = document.getElementById("personaList");
-  table.innerHTML = "";
-  const start = (currentPage - 1) * itemsPerPage;
-  const end = start + itemsPerPage;
-  const filtered = filterPersonas();
-  const pageItems = filtered.slice(start, end);
-
-  pageItems.forEach(p => {
-    const perms = Array.isArray(p.permissions) ? p.permissions : [];
-    const row = document.createElement("tr");
-    row.innerHTML = `
-      <td>${p.role}</td>
-      <td>${perms.join(", ")}</td>
-      <td>
-        <button onclick="openModal('${p.role}', ${JSON.stringify(perms)})">编辑</button>
-        <button class="danger" onclick="deletePersona('${p.role}')">删除</button>
-      </td>
-    `;
-    table.appendChild(row);
-  });
-
-  document.getElementById("pageIndicator").innerText = `第 ${currentPage} 页`;
-}
-
-function prevPage() {
-  if (currentPage > 1) {
-    currentPage--;
-    renderTable();
-  }
-}
-
-function nextPage() {
-  const totalPages = Math.ceil(filterPersonas().length / itemsPerPage);
-  if (currentPage < totalPages) {
-    currentPage++;
-    renderTable();
-  }
-}
-
-function filterPersonas() {
-  const keyword = document.getElementById("searchInput").value.toLowerCase();
-  return personas.filter(p => p.role.toLowerCase().includes(keyword));
-}
-
-async function savePermissions() {
-  const checkboxes = document.querySelectorAll("#permissionOptions input[type='checkbox']");
-  const selected = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
-
-  const res = await fetch("/persona/update_permissions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      role: currentEditing,
-      permissions: selected
+    fetch("/persona/register", {
+      method: "POST",
+      body: formData
     })
-  });
-
-  const data = await res.json();
-  if (data.status === "success") {
-    alert("✅ 权限已更新");
-    closeModal();
-    loadPersonas();
-  } else {
-    alert("❌ 更新失败：" + (data.message || "未知错误"));
+    .then(res => res.json())
+    .then(data => {
+      alert(data.message || "注册完成");
+      if (data.status === "success") {
+        loadPersonas(); // ✅ 刷新角色列表
+      }
+    })
+    .catch(err => alert("请求失败：" + err.message));
   }
-}
 
-async function deletePersona(role) {
-  const secret = prompt(`请输入密钥以删除角色「${role}」：`);
-  if (!secret) return;
+  // ✅ 删除角色
+  function deletePersona(persona) {
+    const secret = prompt("请输入权限密钥以删除角色：" + persona);
+    if (!secret) return;
 
-  const res = await fetch("/persona/delete", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ persona: role, secret })
-  });
+    const formData = new FormData();
+    formData.append("persona", persona);
+    formData.append("secret", secret);
 
-  const data = await res.json();
-  if (data.result) {
-    alert("✅ 删除成功");
-    loadPersonas();
-  } else {
-    alert("❌ 删除失败：" + (data.error || "未知错误"));
+    fetch("/persona/delete", {
+      method: "POST",
+      body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+      alert(data.message || "操作完成");
+      if (data.status === "success") {
+        loadPersonas();
+      }
+    });
   }
-}
 
-document.getElementById("registerForm").addEventListener("submit", async function (e) {
-  e.preventDefault();
-  const name = document.getElementById("newPersona").value.trim();
-  const secret = document.getElementById("newSecret").value.trim();
+  // ✅ 加载角色列表
+  function loadPersonas() {
+    const tbody = document.getElementById("personaList");
+    tbody.innerHTML = "<tr><td colspan='3'>⏳ 加载中...</td></tr>";
 
-  const res = await fetch("/persona/register", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ persona: name, secret, operator: "将军" })
-  });
+    fetch("/logs")
+      .then(res => res.json())
+      .then(res => {
+        const logs = res.data || [];
+        const personas = [...new Set(logs.map(log => log.persona).filter(Boolean))];
+        if (personas.length === 0) {
+          tbody.innerHTML = "<tr><td colspan='3'>⚠️ 当前暂无角色，请注册。</td></tr>";
+          return;
+        }
 
-  const data = await res.json();
-  if (data.success) {
-    alert("✅ 注册成功");
-    loadPersonas();
-    document.getElementById("registerForm").reset();
-  } else {
-    alert("❌ 注册失败：" + (data.error || "未知错误"));
+        tbody.innerHTML = "";
+        personas.forEach(p => {
+          tbody.innerHTML += `
+            <tr>
+              <td>${p}</td>
+              <td>—</td>
+              <td>
+                <button onclick="deletePersona('${p}')" class="danger">删除</button>
+              </td>
+            </tr>
+          `;
+        });
+      })
+      .catch(err => {
+        tbody.innerHTML = "<tr><td colspan='3'>❌ 加载失败：" + err.message + "</td></tr>";
+      });
   }
-});
 
-loadPersonas();
+  // ✅ 搜索过滤表格
+  function filterTable() {
+    const keyword = document.getElementById("searchInput").value.toLowerCase();
+    document.querySelectorAll("#personaTable tbody tr").forEach(row => {
+      const text = row.innerText.toLowerCase();
+      row.style.display = text.includes(keyword) ? "" : "none";
+    });
+  }
+
+  // ✅ 页面加载时初始化
+  window.onload = loadPersonas;
 </script>
+
 </body>
 </html>
