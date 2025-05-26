@@ -39,10 +39,15 @@ app.add_middleware(
 def wrap_result(status: str, reply: str, intent: dict = {}):
     return JSONResponse(content={"status": status, "reply": reply, "intent": intent})
 
+from supabase_logger import query_logs
+
 @app.get("/logs")
 def get_logs(persona: str = ""):
     try:
-        logs = query_logs(persona=persona)
+        filters = {}
+        if persona:
+            filters["persona"] = persona
+        logs = query_logs(filters=filters)
         return {"status": "success", "data": logs}
     except Exception as e:
         return {"status": "error", "message": str(e), "data": []}
@@ -122,26 +127,24 @@ def get_persona_details_alias(id: str):
 from fastapi import Form
 
 # ✅ 注册新角色接口（使用 Form 提交 + 三表写入函数调用）
+from fastapi import Form
 from src.register_new_persona import register_new_persona
 
 @app.post("/persona/register")
 def register_persona(
     name: str = Form(...),
     persona: str = Form(...),
-    secret: str = Form(...)
+    secret: str = Form(...),
+    intro: str = Form(""),
+    authorize: str = Form("")
 ):
     try:
-        print("📥 注册入参:", {"name": name, "persona": persona, "secret": secret})
-
-        result = register_new_persona(name=name, persona=persona, secret=secret)
-        
-        print("✅ 注册成功:", result)
-        return {"status": "success", "message": result}
-    
+        result = register_new_persona(name=name, persona=persona, secret=secret, intro=intro, authorize=authorize)
+        return result
     except Exception as e:
-        print("❌ 注册异常:", e)
+        import traceback
+        traceback.print_exc()
         return {"status": "error", "message": f"注册失败：{str(e)}"}
-
     import traceback
     traceback.print_exc()
 
