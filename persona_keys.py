@@ -3,16 +3,16 @@ import os
 from dotenv import load_dotenv
 from supabase import create_client, Client
 
-# 加载环境变量
+# ✅ 加载环境变量
 load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 TABLE = "persona_keys"
 
-# 初始化 Supabase
+# ✅ 初始化 Supabase
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# ✅ 注册 persona
+# ✅ 注册 persona（旧接口，写入 persona_keys）
 def register_persona(persona: str, secret: str, created_by="系统", role="user"):
     existing = supabase.table(TABLE).select("persona").eq("persona", persona).execute()
     if existing.data:
@@ -33,7 +33,7 @@ def register_persona(persona: str, secret: str, created_by="系统", role="user"
     except Exception as e:
         return False, f"❌ 注册失败: {str(e)}"
 
-# ✅ 验证 persona 密钥（带失败计数与锁定机制）
+# ✅ 密钥验证函数（带失败次数与锁定机制）
 def check_persona_secret(persona: str, input_secret: str) -> bool:
     try:
         result = supabase.table(TABLE).select("*").eq("persona", persona).execute()
@@ -45,27 +45,68 @@ def check_persona_secret(persona: str, input_secret: str) -> bool:
             return False
 
         if bcrypt.checkpw(input_secret.encode(), row["secret_hash"].encode()):
-            # 成功：重置失败次数
+            # 成功后清零失败次数
             supabase.table(TABLE).update({"failed_attempts": 0}).eq("persona", persona).execute()
             return True
         else:
-            # 失败：增加失败计数
+            # 密码错误，增加失败次数
             attempts = row.get("failed_attempts", 0) + 1
-            updates = {"failed_attempts": attempts}
-            if attempts >= 5:
-                updates["locked"] = True
-            supabase.table(TABLE).update(updates).eq("persona", persona).execute()
+            locked = attempts >= 5
+            supabase.table(TABLE).update({
+                "failed_attempts": attempts,
+                "locked": locked
+            }).eq("persona", persona).execute()
             return False
-    except:
+    except Exception as e:
+        print(f"验证错误: {e}")
         return False
 
-# ✅ 删除 persona（用于后台管理）
-def delete_persona(persona: str) -> dict:
+# ✅ 多表写入注册函数（注册 + 授权 + 日志）
+def register_new_persona(persona: str, secret: str, operator="系统", permissions=[]):
     try:
-        result = supabase.table(TABLE).delete().eq("persona", persona).execute()
-        return result
-    except Exception as e:
-        return {"error": str(e)}
+        existing = supabase.table(TABLE).select("persona").eq("persona", persona).execute()
+        if existing.data:
+            return {"status": "fail", "message": f"角色 {persona} 已存在"}
 
-# ✅ 导出函数
-__all__ = ["register_persona", "check_persona_secret", "delete_persona"]
+        hashed = bcrypt.hashpw(secret.encode(), bcrypt.gensalt()).decode()
+
+        # 1. persona_keys
+        supabase.table("persona_keys").insert({
+            "persona": persona,
+            "secret_hash": hashed,
+            "created_by": operator,
+            "role": "user",
+            "active": True,
+            "failed_attempts": 0,
+            "locked": False
+        }).execute()
+
+        # 2. personas
+        supabase.table("personas").insert({
+            "persona": persona,
+            "title": "",
+            "desc": "",
+            "active": True
+        }).execute()
+
+        # 3. roles（仅当权限不为空）
+        if permissions:
+            supabase.table("roles").insert({
+                "role": persona,
+                "permissions": permissions,
+                "active": True
+            }).execute()
+
+        # 4. logs
+        supabase.table("logs").insert({
+            "persona": operator,
+            "intent_type": "register_persona",
+            "target": persona,
+            "allow": True,
+            "result": f"注册成功，权限：{permissions}"
+        }).execute()
+
+        return {"status": "success", "message": "✅ 多表注册成功"}
+    
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
