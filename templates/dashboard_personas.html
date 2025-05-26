@@ -138,7 +138,13 @@
       .then(res => res.json())
       .then(res => {
         const logs = res.data || [];
-        const personas = [...new Set(logs.map(log => log.persona).filter(Boolean))];
+        const personas = [
+          ...new Set(
+            logs
+              .map(log => log.intent_result?.persona || log.intent?.persona || null)
+              .filter(Boolean)
+  )
+];        
         if (personas.length === 0) {
           tbody.innerHTML = "<tr><td colspan='3'>⚠️ 当前暂无角色，请注册。</td></tr>";
           return;
