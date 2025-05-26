@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>💬 Lockling 对话测试</title>
+  <style>
+    body { font-family: sans-serif; padding: 30px; background-color: #f0f0f0; }
+    textarea, input { width: 100%; padding: 10px; margin-bottom: 10px; }
+    button { padding: 10px 20px; }
+    #reply { white-space: pre-wrap; background: #fff; padding: 15px; border: 1px solid #ccc; }
+  </style>
+</head>
+<body>
+
+  <h2>🧪 GPT 聊天测试接口</h2>
+  <input id="persona" placeholder="角色名（如：将军）" value="将军">
+  <input id="secret" placeholder="密钥（如：玉衡在手）" value="玉衡在手">
+  <textarea id="message" rows="5" placeholder="请输入内容..."></textarea>
+  <button onclick="send()">发送</button>
+
+  <h3>💬 回复内容：</h3>
+  <div id="reply"></div>
+
+  <script>
+    async function send() {
+      const message = document.getElementById("message").value;
+      const persona = document.getElementById("persona").value;
+      const secret = document.getElementById("secret").value;
+
+      const res = await fetch("/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message, persona, secret })
+      });
+
+      const result = await res.json();
+      document.getElementById("reply").innerText = result.reply || "无回复";
+    }
+  </script>
+
+</body>
+</html>

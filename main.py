@@ -99,6 +99,12 @@ async def query_logs_api(request: Request):
 async def dashboard_personas(request: Request):
     return templates.TemplateResponse("dashboard_personas.html", {"request": request})
 
+from fastapi.responses import HTMLResponse
+
+@app.get("/chat-ui", response_class=HTMLResponse)
+async def chat_ui(request: Request):
+    return templates.TemplateResponse("chat_ui.html", {"request": request})
+
 # ✅ 注册新角色接口
 @app.post("/persona/register")
 async def register_api(request: Request):
