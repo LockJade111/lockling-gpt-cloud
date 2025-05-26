@@ -24,8 +24,10 @@
 
 <h2>🔐 Persona 超智体管理</h2>
 
+<!-- 🔍 搜索 -->
 <input type="text" id="searchInput" placeholder="🔍 输入关键词过滤角色..." oninput="filterTable()" />
 
+<!-- 📋 角色列表 -->
 <table id="personaTable">
   <thead>
     <tr>
@@ -39,28 +41,29 @@
   </tbody>
 </table>
 
+<!-- ➕ 注册新角色 -->
 <h3>🆕 注册新角色</h3>
 <form id="registerForm" onsubmit="registerPersona(event)">
   <div>
     <label>角色ID（persona）：</label>
-    <input type="text" id="persona" required />
+    <input type="text" id="persona" name="persona" required />
   </div>
   <div>
     <label>显示名（name）：</label>
-    <input type="text" id="name" required />
+    <input type="text" id="name" name="name" required />
   </div>
   <div>
     <label>密钥（secret）：</label>
-    <input type="password" id="secret" required />
-    <button type="button" onclick="toggleSecret()">👁️</button><br/>
-    <small style="color: #666;">支持中文、6位以上安全密钥，建议妥善保管</small>
+    <input type="password" id="secret" name="secret" required />
+    <button type="button" onclick="toggleSecret()">👁️</button>
+    <br /><small style="color: #666;">支持中文密钥，建议妥善保管</small>
   </div>
   <div>
     <label>简介（intro）：</label>
     <input type="text" id="intro" name="intro" />
   </div>
   <div>
-    <label>授权给（可留空）：</label>
+    <label>授权给（authorize，可留空）：</label>
     <input type="text" id="authorize" name="authorize" />
   </div>
   <div>
@@ -101,6 +104,7 @@
   function deletePersona(persona) {
     const secret = prompt("请输入权限密钥以删除角色：" + persona);
     if (!secret) return;
+
     const payload = { persona, operator: persona, secret };
     fetch("/persona/delete", {
       method: "POST",
@@ -117,6 +121,7 @@
   function loadPersonas() {
     const tbody = document.getElementById("personaList");
     tbody.innerHTML = "<tr><td colspan='3'>⏳ 加载中...</td></tr>";
+
     fetch("/logs")
       .then(res => res.json())
       .then(res => {
