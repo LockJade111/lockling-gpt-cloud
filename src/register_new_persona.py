@@ -1,6 +1,9 @@
 import os
 import requests
 import bcrypt
+from dotenv import load_dotenv
+
+load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
@@ -19,7 +22,6 @@ def register_new_persona(persona: str, secret: str, name: str = "", role: str = 
     向三张表写入新角色信息（persona_keys, personas, roles）
     仅当 authorize 不为空时才写入 roles
     """
-
     if not SUPABASE_URL or not SUPABASE_KEY:
         return {"status": "error", "message": "未配置 Supabase 环境变量"}
 
@@ -49,20 +51,20 @@ def register_new_persona(persona: str, secret: str, name: str = "", role: str = 
         r2 = requests.post(f"{SUPABASE_URL}/rest/v1/personas", headers=headers, json=personas_payload)
         if not r2.ok:
             return {"status": "error", "step": "personas", "message": r2.text}
-
+        
         # Step 3: roles（授权权限，仅当指定了授权对象时写入）
-        if authorize:
-            roles_payload = {
+        if authorize:   
+            roles_payload = {  
                 "source": persona,
                 "target": authorize,
                 "granted_by": "系统"
             }
-            r3 = requests.post(f"{SUPABASE_URL}/rest/v1/roles", headers=headers, json=roles_payload)
+            r3 = requests.post(f"{SUPABASE_URL}/rest/v1/roles", headers=headers, json=roles_payload)  
             if not r3.ok:
                 return {"status": "error", "step": "roles", "message": r3.text}
-
+        
         # Step 4: 返回成功
         return {"status": "success", "message": f"角色 {persona} 注册成功"}
-
-    except Exception as e:
+        
+    except Exception as e:  
         return {"status": "error", "message": str(e)}
