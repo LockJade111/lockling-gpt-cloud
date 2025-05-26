@@ -61,71 +61,64 @@
   <div>
     <label for="intro">简介（intro）：</label>
     <input type="text" id="intro" />
-  </div>
-  <div>
+  </div> 
+  <div>   
     <label for="authorize">授权给（可留空）：</label>
     <input type="text" id="authorize" />
-  </div>
-  <div>
+  </div>  
+  <div> 
     <button type="submit">📝 提交注册</button>
   </div>
 </form>
 
 <script>
-  // ✅ 注册逻辑：使用 FormData
-<script>
+  // ✅ 注册新角色
   function registerPersona(event) {
     event.preventDefault();
 
-    const payload = {
-      intent: { intent_type: "register" },
-      operator: "将军",
-      persona: document.getElementById("persona").value,
-      name: document.getElementById("name").value,
-      secret: document.getElementById("secret").value,
-      intro: document.getElementById("intro").value,
-      authorize: document.getElementById("authorize").value
-    };
+    const form = document.getElementById("registerForm");
+    const formData = new FormData(form);
 
     fetch("/persona/register", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+      body: formData
     })
     .then(res => res.json())
     .then(data => {
-      if (data.success) {
+      if (data.status === "success") {
         alert("✅ 注册成功");
-        loadPersonas(); // 可选刷新列表
+        form.reset(); // 清空表单
+        loadPersonas();
       } else {
-        alert("❌ 注册失败：" + data.error);
+        alert("❌ 注册失败：" + (data.message || "未知错误"));
       }
     })
     .catch(err => {
       alert("网络错误：" + err.message);
     });
   }
-</script>
 
   // ✅ 删除角色
   function deletePersona(persona) {
     const secret = prompt("请输入权限密钥以删除角色：" + persona);
     if (!secret) return;
 
-    const formData = new FormData();
-    formData.append("persona", persona);
-    formData.append("secret", secret);
+    const payload = { persona, operator: persona, secret };
 
     fetch("/persona/delete", {
       method: "POST",
-      body: formData
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
     })
     .then(res => res.json())
     .then(data => {
       alert(data.message || "操作完成");
-      if (data.status === "success") {
+      if (data.success) {
         loadPersonas();
       }
+    })
+    .catch(err => {
+      alert("❌ 删除失败：" + err.message);
     });
   }
 
@@ -138,13 +131,12 @@
       .then(res => res.json())
       .then(res => {
         const logs = res.data || [];
-        const personas = [
-          ...new Set(
-            logs
-              .map(log => log.intent_result?.persona || log.intent?.persona || null)
-              .filter(Boolean)
-  )
-];        
+        const personas = [...new Set(
+          logs
+            .map(log => log.intent_result?.persona || log.intent?.persona || null)
+            .filter(Boolean)
+        )];
+
         if (personas.length === 0) {
           tbody.innerHTML = "<tr><td colspan='3'>⚠️ 当前暂无角色，请注册。</td></tr>";
           return;
