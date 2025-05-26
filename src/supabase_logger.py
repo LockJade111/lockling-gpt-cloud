@@ -8,6 +8,10 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def write_log_to_supabase(query, reply, intent_result=None, status="success", source="cloud", raw_intent=None):
     try:
+    print("👉 type(query):", type(query))
+    print("👉 type(reply):", type(reply))
+    print("👉 type(intent_result):", type(intent_result))
+    print("👉 type(raw_intent):", type(raw_intent))
         supabase.table("logs").insert({
             "query": query,
             "reply": reply,
