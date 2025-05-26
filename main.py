@@ -106,20 +106,15 @@ async def chat_ui(request: Request):
     return templates.TemplateResponse("chat_ui.html", {"request": request})
 
 # ✅ 注册新角色接口
-@app.post("/persona/register")
-async def register_persona_handler(request: Request):
-    form = await request.form()
-    name = form.get("name")
-    persona = form.get("persona")
-    secret = form.get("secret")
+from src.register_new_persona import register_new_persona  # 新增导入
 
-    # 权限校验
-    if not check_secret_permission("register", persona, secret):
-        return templates.TemplateResponse("popup.html", {
-            "request": request,
-            "status": "fail",
-            "message": "❌ 注册失败：权限不足"
-        })
+@app.post("/persona/register")
+def register_persona(name: str = Form(...), persona: str = Form(...), secret: str = Form(...)):
+    try:
+        result = register_new_persona(name, persona, secret)
+        return {"status": "success", "message": result}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
     try:
         # ✅ 写入 persona_keys
