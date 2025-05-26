@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
-  <meta charset="UTF-8">
-  <title>📜 Lockling 云脑 操作日志</title>
+  <meta charset="UTF-8" />
+  <title>操作日志 · Lockling 云脑</title>
   <style>
     body { font-family: sans-serif; padding: 30px; background-color: #f4f6f8; }
     table { width: 100%; border-collapse: collapse; background: #fff; box-shadow: 0 0 5px rgba(0,0,0,0.1); }
@@ -16,7 +16,6 @@
   </style>
 </head>
 <body>
-
   <h2>📜 Lockling 云脑 操作日志</h2>
 
   <table id="logTable">
@@ -42,9 +41,8 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({})
         });
-        const data = await response.json();
-        console.log("✅ 获取日志成功：", data);
 
+        const data = await response.json();
         const logs = data.logs || [];
         const tbody = document.getElementById("logBody");
         tbody.innerHTML = "";
@@ -57,23 +55,23 @@
         logs.forEach(log => {
           const tr = document.createElement("tr");
 
-          const tdPersona = `<td>${log.persona || ''}</td>`;
-          const tdIntent = `<td>${log.intent?.intent_type || ''}</td>`;
-          const tdResult = `<td><span class="${log.status === 'success' ? 'success' : 'fail'}">${log.status}</span></td>`;
-          const tdDetail = `<td><pre>${JSON.stringify(log.reply || {}, null, 2)}</pre></td>`;
+          const tdPersona = `<td>${log.persona || ""}</td>`;
+          const tdIntent = `<td>${log.intent?.intent_type || ""}</td>`;
+          const tdResult = `<td><span class="${log.status === "success" ? "success" : "fail"}">${log.status}</span></td>`;
+          const tdDetail = `<td><pre>${JSON.stringify(log.reply, null, 2)}</pre></td>`;
           const tdTime = `<td>${new Date(log.timestamp).toLocaleString()}</td>`;
 
           tr.innerHTML = tdPersona + tdIntent + tdResult + tdDetail + tdTime;
           tbody.appendChild(tr);
         });
+
       } catch (e) {
-        document.getElementById("logBody").innerHTML = `<tr><td colspan="5">❌ 加载失败：${e.message}</td></tr>`;
-        console.error("❌ 日志加载失败：", e);
+        const tbody = document.getElementById("logBody");
+        tbody.innerHTML = `<tr><td colspan="5">❌ 加载失败：${e.message}</td></tr>`;
       }
     }
 
     window.onload = loadLogs;
   </script>
-
 </body>
 </html>
