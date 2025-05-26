@@ -13,21 +13,18 @@ from supabase_logger import write_log_to_supabase, query_logs
 from supabase import create_client, Client
 from persona_keys import delete_persona, register_persona
 
-# ✅ 加载 .env 配置
+# ✅ 加载环境变量
 load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 SUPER_SECRET_KEY = os.getenv("SUPER_SECRET_KEY")
 
-# ✅ 初始化 supabase
+# ✅ 初始化
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-# ✅ 初始化 FastAPI 应用
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# ✅ 设置跨域
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -36,52 +33,80 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ 统一输出结构
 def wrap_result(status: str, reply: str, intent: dict = {}):
     return JSONResponse(content={"status": status, "reply": reply, "intent": intent})
 
-# ✅ 控制台首页重定向
+# ✅ 控制台入口
 @app.get("/", include_in_schema=False)
 def root():
     return RedirectResponse(url="/dashboard/personas")
 
-# ✅ 控制台页面
-@app.get("/dashboard/personas", response_class=HTMLResponse)
-def dashboard_personas(request: Request):
-    data = supabase.table("personas").select("*").execute()
-    personas = data.data if data.data else []
-    return templates.TemplateResponse("dashboard_personas.html", {"request": request, "personas": personas})
+# ✅ 聊天接口
+@app.post("/chat")
+async def chat(request: Request):
+    form = await request.form()
+    persona = form.get("persona")
+    message = form.get("message")
+    secret = form.get("secret", "")
+
+    if not persona or not message:
+        return wrap_result("error", "请输入 persona 和 message")
+
+    if not check_secret_permission(persona, secret, "chat"):
+        return wrap_result("error", "权限不足。")
+
+    reply, parsed = parse_intent(persona, message)
+    write_log_to_supabase(persona, message, reply)
+    return wrap_result("success", reply, parsed)
 
 # ✅ 注册新角色
 @app.post("/persona/register")
-def register_persona_api(name: str = Form(...), persona: str = Form(...), permissions: str = Form(...)):
-    try:
-        register_persona(name, persona, permissions)
-        return RedirectResponse(url="/dashboard/personas", status_code=303)
-    except Exception as e:
-        return wrap_result("error", f"注册异常：{e}")
+async def register_persona_route(request: Request):
+    form = await request.form()
+    name = form.get("name")
+    persona = form.get("persona")
+    secret = form.get("secret", "")
+    return register_persona(supabase, name, persona, secret)
 
 # ✅ 删除角色
 @app.post("/persona/delete")
-def delete_persona_api(persona: str = Form(...), secret: str = Form(...)):
-    try:
-        if not check_secret_permission(secret):
-            return wrap_result("error", "权限不足，拒绝删除")
-        delete_persona(persona)
-        return RedirectResponse(url="/dashboard/personas", status_code=303)
-    except Exception as e:
-        return wrap_result("error", f"删除异常：{e}")
+async def delete_persona_route(request: Request):
+    form = await request.form()
+    persona = form.get("persona")
+    secret = form.get("secret", "")
+    return delete_persona(supabase, persona, secret)
 
-# ✅ GPT 对话口（可选）
-@app.post("/chat")
-def chat_api(prompt: str = Form(...), role: str = Form(...), secret: str = Form(...)):
-    try:
-        if not check_secret_permission(secret):
-            return wrap_result("error", "权限不足，拒绝访问")
+# ✅ 管理界面
+@app.get("/dashboard/personas", response_class=HTMLResponse)
+async def dashboard(request: Request):
+    result = supabase.table("roles").select("*").execute()
+    return templates.TemplateResponse("dashboard_personas.html", {"request": request, "roles": result.data})
 
-        intent = parse_intent(prompt, role)
-        reply = intent_dispatcher(intent, supabase)
-        write_log_to_supabase(prompt, role, reply, intent)
-        return wrap_result("success", reply, intent)
-    except Exception as e:
-        return wrap_result("error", f"系统异常：{e}")
+# ✅ Chat UI
+@app.get("/chat-ui", response_class=HTMLResponse)
+async def chat_ui():
+    return """
+    <html><head><title>Chat 测试界面</title></head>
+    <body>
+        <h2>💬 Chat UI</h2>
+        <form method="post" action="/chat">
+            Persona: <input name="persona"><br>
+            Message: <input name="message"><br>
+            Secret: <input name="secret"><br>
+            <button type="submit">发送</button>
+        </form>
+    </body>
+    </html>
+    """
+
+# ✅ 日志界面
+@app.get("/logs")
+async def view_logs(request: Request):
+    persona = request.query_params.get("persona")
+    secret = request.query_params.get("secret", "")
+
+    if not check_secret_permission(persona, secret, "view_logs"):
+        return wrap_result("error", "无权查看日志。")
+
+    logs = query_logs(supabase, persona)
+    return logs
