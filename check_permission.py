@@ -18,7 +18,6 @@ def check_secret_permission(intent_or_persona, maybe_secret=None) -> bool:
     1. check_secret_permission(intent: dict, persona: str)
     2. check_secret_permission(persona: str, secret: str)
     """
-
     # === 模式 1：意图 + 角色身份验证（用于 GPT 推理阶段） ===
     if isinstance(intent_or_persona, dict):
         intent = intent_or_persona
@@ -35,7 +34,7 @@ def check_secret_permission(intent_or_persona, maybe_secret=None) -> bool:
 
         return True  # 默认放行
 
-    # === 模式 2：角色 + 密钥验证（用于注册/删除） ===
+    # === 模式 2：角色 + 密钥验证（用于注册 / 删除 / 授权） ===
     else:
         persona = intent_or_persona or ""
         secret = maybe_secret or ""
@@ -47,8 +46,8 @@ def check_secret_permission(intent_or_persona, maybe_secret=None) -> bool:
             if expected_secret and secret == expected_secret:
                 return True
 
-        # 2. 回退到数据库 bcrypt 密钥校验
-        try:
-            return check_persona_secret(supabase=None, persona=persona, secret=secret)
-        except Exception:
-            return False
+        # 2. 回退：尝试在 Supabase 数据库中查找对应密钥 hash 校验
+        if check_persona_secret(persona, secret):
+            return True
+
+        return False
