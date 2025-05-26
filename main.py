@@ -57,7 +57,7 @@ async def chat(request: Request):
 
         intent = parse_intent(message, persona)
 
-        if not check_secret_permission(persona, secret):
+        if not check_secret_permission(intent, persona, secret):
             write_log_to_supabase(persona, intent, "denied", "权限不足")
             return wrap_result("fail", "⛔️ 权限不足", intent)
 
