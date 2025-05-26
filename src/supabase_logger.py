@@ -1,48 +1,34 @@
-import os
 import json
 from datetime import datetime
-from dotenv import load_dotenv
-from supabase import create_client, Client
+from supabase import create_client
+import os
 
-# ✅ 加载环境变量
-load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-SUPABASE_TABLE = os.getenv("SUPABASE_TABLE", "logs")
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-def safe_json(obj):
-    try:
-        return json.dumps(obj, ensure_ascii=False)
-    except:
-        return str(obj)
-
-# ✅ 写入日志
 def write_log_to_supabase(query, reply, intent_result=None, status="success", source="cloud", raw_intent=None):
     try:
-        if isinstance(intent_result, str):
+        if isinstance(reply, str):
             try:
-                intent_result = json.loads(intent_result)
-            except:
-                intent_result = {}
+                reply = json.loads(reply)
+            except Exception:
+                reply = {"text": reply}
 
-        log = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+        supabase.table("logs").insert({
             "query": query,
-            "reply": safe_json(reply),
-            "intent_result": safe_json(intent_result),
+            "reply": json.dumps(reply, ensure_ascii=False),
+            "intent_result": intent_result,
             "status": status,
             "source": source,
-            "persona": intent_result.get("persona", "未知"),
-            "intent_type": intent_result.get("intent_type", "unknown"),
-            "raw_intent": safe_json(raw_intent or intent_result)
-        }
-
-        supabase.table(SUPABASE_TABLE).insert(log).execute()
-        print("✅ 日志写入成功")
+            "persona": intent_result.get("persona") if isinstance(intent_result, dict) else "未知",
+            "intent_type": intent_result.get("intent_type") if isinstance(intent_result, dict) else "unknown",
+            "message": intent_result.get("message") if isinstance(intent_result, dict) else "(无内容)",
+            "raw_intent": raw_intent or json.dumps(intent_result, ensure_ascii=False),
+            "timestamp": datetime.utcnow().isoformat() + "Z"
+        }).execute()
     except Exception as e:
         print("❌ 日志写入失败：", e)
-
 # ✅ 查询日志
 def query_logs(filters=None):
     try:
