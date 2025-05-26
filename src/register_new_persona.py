@@ -1,5 +1,6 @@
 import os
 import requests
+import bcrypt
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
@@ -10,51 +11,58 @@ headers = {
     "Content-Type": "application/json"
 }
 
-def register_new_persona(persona: str, secret: str, name: str = "", role: str = "", tone: str = "", prompt: str = ""):
+def hash_secret(secret: str) -> str:
+    return bcrypt.hashpw(secret.encode(), bcrypt.gensalt()).decode()
+
+def register_new_persona(persona: str, secret: str, name: str = "", role: str = "", tone: str = "", intro: str = "", authorize: str = ""):
     """
-    向三张表写入新角色信息（persona_keys, roles, personas）
+    向三张表写入新角色信息（persona_keys, personas, roles）
+    仅当 authorize 不为空时才写入 roles
     """
+
     if not SUPABASE_URL or not SUPABASE_KEY:
         return {"status": "error", "message": "未配置 Supabase 环境变量"}
 
     try:
-        # 👁‍🗨 1. 添加 persona_keys（身份验证用）
+        # Step 1: persona_keys（身份与密钥）
+        secret_hash = hash_secret(secret)
         keys_payload = {
             "persona": persona,
-            "secret_hash": secret,
-            "role": "user",
+            "secret_hash": secret_hash,
+            "role": role or "user",
             "active": True,
-            "created_by": "系统"
+            "created_by": "系统",
+            "intro": intro or f"{name or persona} 的智能体"
         }
-        r1 = requests.post(f"{SUPABASE_URL}/persona_keys", headers=headers, json=keys_payload)
+        r1 = requests.post(f"{SUPABASE_URL}/rest/v1/persona_keys", headers=headers, json=keys_payload)
         if not r1.ok:
             return {"status": "error", "step": "persona_keys", "message": r1.text}
 
-        # 🛡 2. 添加 roles（授权权限用）
-        roles_payload = {
-            "persona": persona,
-            "permissions": [],  # 后续再授权
-            "granted_by": "系统"
-        }
-        r2 = requests.post(f"{SUPABASE_URL}/roles", headers=headers, json=roles_payload)
-        if not r2.ok:
-            return {"status": "error", "step": "roles", "message": r2.text}
-
-        # 🎭 3. 添加 personas（角色定义与个性描述）
+        # Step 2: personas（角色描述）
         personas_payload = {
             "persona": persona,
-            "name": name,
-            "role": role,
-            "tone": tone,
-            "prompt": prompt,
-            "age": None,
-            "gender": None
+            "name": name or persona,
+            "role": role or "智能角色",
+            "tone": tone or "稳重",
+            "intro": intro or f"{name or persona} 的智能角色"
         }
-        r3 = requests.post(f"{SUPABASE_URL}/personas", headers=headers, json=personas_payload)
-        if not r3.ok:
-            return {"status": "error", "step": "personas", "message": r3.text}
+        r2 = requests.post(f"{SUPABASE_URL}/rest/v1/personas", headers=headers, json=personas_payload)
+        if not r2.ok:
+            return {"status": "error", "step": "personas", "message": r2.text}
 
-        return {"status": "success", "message": "注册成功"}
+        # Step 3: roles（授权权限，仅当指定了授权对象时写入）
+        if authorize:
+            roles_payload = {
+                "source": persona,
+                "target": authorize,
+                "granted_by": "系统"
+            }
+            r3 = requests.post(f"{SUPABASE_URL}/rest/v1/roles", headers=headers, json=roles_payload)
+            if not r3.ok:
+                return {"status": "error", "step": "roles", "message": r3.text}
+
+        # Step 4: 返回成功
+        return {"status": "success", "message": f"角色 {persona} 注册成功"}
 
     except Exception as e:
         return {"status": "error", "message": str(e)}
