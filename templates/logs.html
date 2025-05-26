@@ -42,46 +42,45 @@
       });
     }
 
-    async function loadLogs() {
-      try {
-        const response = await fetch("/log/query", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ limit: 50 })
-        });
+<script>
+  async function loadLogs() {
+    try {
+      const response = await fetch("/log/query", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ limit: 50 }) // ✅ 添加请求体
+      });
 
-        const data = await response.json();
-        const logs = data.logs || [];
-        const tbody = document.getElementById("logBody");
-        tbody.innerHTML = "";
+      const data = await response.json();
+      const logs = data.logs || [];
+      const tbody = document.getElementById("logBody");
+      tbody.innerHTML = "";
 
-        logs.forEach(log => {
-          const tr = document.createElement("tr");
-
-          const tdPersona = `<td>${log.persona || ''}</td>`;
-          const tdIntent = `<td>${log.intent_type || ''}</td>`;
-          const tdResult = `<td><span class="${log.status === 'success' ? 'success' : 'fail'}">${log.status || '未知'}</span></td>`;
-
-          let detailText = '';
-          if (typeof log.reply === 'object') {
-            detailText = JSON.stringify(log.reply, null, 2);
-          } else if (typeof log.reply === 'string') {
-            detailText = decodeUnicode(log.reply);
-          }
-
-          const tdDetail = `<td><pre>${detailText}</pre></td>`;
-          const tdTime = `<td>${new Date(log.timestamp).toLocaleString()}</td>`;
-
-          tr.innerHTML = tdPersona + tdIntent + tdResult + tdDetail + tdTime;
-          tbody.appendChild(tr);
-        });
-      } catch (e) {
-        document.getElementById("logBody").innerHTML = `<tr><td colspan="5">⚠️ 日志加载失败：${e.message}</td></tr>`;
+      if (logs.length === 0) {
+        tbody.innerHTML = "<tr><td colspan='5'>⚠️ 暂无日志记录</td></tr>";
+        return;
       }
-    }
 
-    window.onload = loadLogs;
-  </script>
+      logs.forEach(log => {
+        const tr = document.createElement("tr");
+
+        const tdPersona = `<td>${log.persona || ''}</td>`;
+        const tdIntent = `<td>${log.intent_type || ''}</td>`;
+        const tdResult = `<td><span class="${log.status === 'success' ? 'success' : 'fail'}">${log.status}</span></td>`;
+        const tdDetail = `<td><pre>${JSON.stringify(log.reply || {}, null, 2)}</pre></td>`;
+        const tdTime = `<td>${new Date(log.timestamp).toLocaleString()}</td>`;
+
+        tr.innerHTML = tdPersona + tdIntent + tdResult + tdDetail + tdTime;
+        tbody.appendChild(tr);
+      });
+    } catch (e) {
+      const tbody = document.getElementById("logBody");
+      tbody.innerHTML = `<tr><td colspan="5">❌ 加载失败：${e.message}</td></tr>`;
+    }
+  }
+
+  window.onload = loadLogs;
+</script>
 
 </body>
 </html>
