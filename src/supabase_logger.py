@@ -32,7 +32,8 @@ def write_log_to_supabase(query, reply, intent_result=None, status="success", so
 # ✅ 查询日志
 def query_logs(filters=None):
     try:
-        q = supabase.table(SUPABASE_TABLE).select("*").order("timestamp", desc=True).limit(100)
+        SUPABASE_LOG_TABLE = os.getenv("SUPABASE_LOG_TABLE")  # ✅ 加载日志表名
+        q = supabase.table(SUPABASE_LOG_TABLE).select("*").order("timestamp", desc=True).limit(100)
         if filters:
             for key, value in filters.items():
                 q = q.eq(key, value)
