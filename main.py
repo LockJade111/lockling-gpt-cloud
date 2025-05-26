@@ -160,3 +160,21 @@ async def delete_api(request: Request):
     except Exception as e:
         traceback.print_exc()
         return JSONResponse(content={"success": False, "error": str(e)})
+
+
+@app.get("/log/test-write")
+def test_write_log():
+    from datetime import datetime
+    from src.supabase_logger import write_log_to_supabase
+
+    try:
+        write_log_to_supabase(
+            query="测试日志",
+            reply={"测试内容": "一切正常"},
+            intent_result={"persona": "测试者", "intent_type": "test", "message": "这是测试日志"},
+            status="success",
+            source="test-route"
+        )
+        return {"status": "success", "message": "✅ 测试日志已写入 Supabase"}
+    except Exception as e:
+        return {"status": "fail", "message": str(e)}
