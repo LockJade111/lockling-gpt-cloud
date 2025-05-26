@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8">
-  <title>操作日志 · Lockling 云脑</title>
+  <title>📜 Lockling 云脑 操作日志</title>
   <style>
     body { font-family: sans-serif; padding: 30px; background-color: #f4f6f8; }
     table { width: 100%; border-collapse: collapse; background: #fff; box-shadow: 0 0 5px rgba(0,0,0,0.1); }
@@ -30,66 +30,50 @@
       </tr>
     </thead>
     <tbody id="logBody">
-      <!-- JS 填充日志 -->
+      <tr><td colspan="5">⏳ 正在加载日志...</td></tr>
     </tbody>
   </table>
 
   <script>
-    function decodeUnicode(str) {
-      if (typeof str !== "string") return str;
-      return str.replace(/\\u[\dA-F]{4}/gi, function (match) {
-        return String.fromCharCode(parseInt(match.replace(/\\u/g, ""), 16));
-      });
-    }
+    async function loadLogs() {
+      try {
+        const response = await fetch("/log/query", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({})
+        });
+        const data = await response.json();
+        console.log("✅ 获取日志成功：", data);
 
-<script>
-  async function loadLogs() {
-    try {
-      const response = await fetch("/log/query", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ limit: 50 }) // ✅ 添加请求体
-      });
+        const logs = data.logs || [];
+        const tbody = document.getElementById("logBody");
+        tbody.innerHTML = "";
 
-      const data = await response.json();
-      const logs = data.logs || [];
-      const tbody = document.getElementById("logBody");
-      tbody.innerHTML = "";
+        if (logs.length === 0) {
+          tbody.innerHTML = "<tr><td colspan='5'>⚠️ 暂无日志记录</td></tr>";
+          return;
+        }
 
-      if (logs.length === 0) {
-        tbody.innerHTML = "<tr><td colspan='5'>⚠️ 暂无日志记录</td></tr>";
-        return;
+        logs.forEach(log => {
+          const tr = document.createElement("tr");
+
+          const tdPersona = `<td>${log.persona || ''}</td>`;
+          const tdIntent = `<td>${log.intent?.intent_type || ''}</td>`;
+          const tdResult = `<td><span class="${log.status === 'success' ? 'success' : 'fail'}">${log.status}</span></td>`;
+          const tdDetail = `<td><pre>${JSON.stringify(log.reply || {}, null, 2)}</pre></td>`;
+          const tdTime = `<td>${new Date(log.timestamp).toLocaleString()}</td>`;
+
+          tr.innerHTML = tdPersona + tdIntent + tdResult + tdDetail + tdTime;
+          tbody.appendChild(tr);
+        });
+      } catch (e) {
+        document.getElementById("logBody").innerHTML = `<tr><td colspan="5">❌ 加载失败：${e.message}</td></tr>`;
+        console.error("❌ 日志加载失败：", e);
       }
-
-      logs.forEach(log => {
-        const tr = document.createElement("tr");
-
-        const tdPersona = `<td>${log.persona || ''}</td>`;
-        const tdIntent = `<td>${log.intent_type || ''}</td>`;
-        const tdResult = `<td><span class="${log.status === 'success' ? 'success' : 'fail'}">${log.status}</span></td>`;
-        const tdDetail = `<td><pre>${JSON.stringify(log.reply || {}, null, 2)}</pre></td>`;
-        const tdTime = `<td>${new Date(log.timestamp).toLocaleString()}</td>`;
-
-        tr.innerHTML = tdPersona + tdIntent + tdResult + tdDetail + tdTime;
-        tbody.appendChild(tr);
-      });
-    } catch (e) {
-      const tbody = document.getElementById("logBody");
-      tbody.innerHTML = `<tr><td colspan="5">❌ 加载失败：${e.message}</td></tr>`;
     }
-  }
 
-  window.onload = loadLogs;
-.then(data => {
-  console.log("🚀 日志返回数据：", data); // ✅ 增加这行
-  const logs = data.logs || [];
-  ...
-})
-.catch(err => {
-  console.error("❌ 日志加载失败：", err); // ✅ 可视化错误
-  ...
-});
-</script>
+    window.onload = loadLogs;
+  </script>
 
 </body>
 </html>
