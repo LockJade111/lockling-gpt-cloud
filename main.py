@@ -76,9 +76,16 @@ async def chat_ui(request: Request):
     return templates.TemplateResponse("chat_ui.html", {"request": request})
 
 # ✅ 日志查看页面
-@app.get("/logs", response_class=HTMLResponse)
-async def logs_page(request: Request):
-    return templates.TemplateResponse("logs.html", {"request": request})
+@app.get("/logs")
+def get_logs(persona: str = ""):
+    try:
+        filters = {}
+        if persona:
+            filters["persona"] = persona
+        logs = query_logs(filters=filters)
+        return {"logs": logs}  # ✅ 必须是 logs，不要写成 data
+    except Exception as e:
+        return {"logs": [], "error": str(e)}  # ✅ logs key 是前端依赖
 
 # ✅ 日志查询接口（权限判断）
 @app.post("/log/query")
