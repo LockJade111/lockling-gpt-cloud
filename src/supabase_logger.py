@@ -48,12 +48,15 @@ def write_log_to_supabase(query, reply, intent_result=None, status="success", so
     try:
         supabase.table("logs").insert({
             "query": query,
-            "reply": reply,
+            "reply": json.dumps(reply, ensure_ascii=False) if isinstance(reply, dict) else str(reply),
             "intent_result": intent_result,
             "status": status,
             "source": source,
-            "timestamp": datetime.utcnow().isoformat() + "Z",
-            "raw_intent": raw_intent
+            "persona": intent_result.get("persona", "未知"),
+            "intent_type": intent_result.get("intent_type", "unknown"),
+            "message": intent_result.get("message", "（无内容）"),
+            "raw_intent": raw_intent or json.dumps(intent_result, ensure_ascii=False),
+            "timestamp": datetime.utcnow().isoformat() + "Z"
         }).execute()
     except Exception as e:
         print("❌ 日志写入失败：", e)
