@@ -1,6 +1,13 @@
+import os
 from check_permission import check_secret_permission
 from persona_keys import register_persona
 from supabase_logger import write_log_to_supabase
+from supabase import create_client
+import os
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ✅ 注册 persona intent
 def handle_register(intent):
@@ -37,6 +44,41 @@ def handle_register(intent):
         return {
             "status": "fail",
             "reply": f"❌ 注册失败：{str(e)}",
+            "intent": intent
+        }
+
+# ✅ 授权 intent：将 source → target 写入 roles 表
+def handle_authorize(intent):
+    print("📥 收到意图：authorize")
+
+    source = intent.get("persona", "").strip()
+    target = intent.get("target", "").strip()
+
+    if not source or not target:
+        return {
+            "status": "fail",
+            "reply": "❌ 授权失败：缺少 source 或 target",
+            "intent": intent
+        }
+
+    try:
+        supabase.table("roles").insert({
+            "source": source,
+            "target": target,
+            "granted_by": "系统"
+        }).execute()
+
+        write_log_to_supabase(source, intent, "success", f"授权 {target} 成功")
+        return {
+            "status": "success",
+            "reply": f"✅ 已授权 {target} 使用",
+            "intent": intent
+        }
+    except Exception as e:
+        write_log_to_supabase(source, intent, "fail", str(e))
+        return {
+            "status": "fail",
+            "reply": f"❌ 授权失败：{str(e)}",
             "intent": intent
         }
 
