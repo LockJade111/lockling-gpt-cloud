@@ -1,27 +1,25 @@
 import os
-from src.supabase_logger import write_log_to_supabase, query_logs
+import traceback
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Form
 from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
-# ✅ 模块导入
-from fastapi import Form
+# ✅ 内部模块导入
 from parse_intent_with_gpt import parse_intent
 from check_permission import check_secret_permission
 from intent_dispatcher import dispatcher as intent_dispatcher
-from supabase_logger import write_log_to_supabase, query_logs
-from supabase import create_client, Client
-from persona_keys import delete_persona, register_persona
+from persona_keys import delete_persona
+from src.register_new_persona import register_new_persona
+from src.supabase_logger import write_log_to_supabase, query_logs
 
 # ✅ 加载环境变量
 load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 SUPER_SECRET_KEY = os.getenv("SUPER_SECRET_KEY")
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ✅ FastAPI 初始化
 app = FastAPI()
@@ -37,21 +35,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ✅ 包装统一格式返回结果
 def wrap_result(status: str, reply: str, intent: dict = {}):
     return JSONResponse(content={"status": status, "reply": reply, "intent": intent})
-
-from supabase_logger import query_logs
-
-@app.get("/logs")
-def get_logs(persona: str = ""):
-    try:
-        filters = {}
-        if persona:
-            filters["persona"] = persona
-        logs = query_logs(filters=filters)
-        return {"status": "success", "data": logs}
-    except Exception as e:
-        return {"status": "error", "message": str(e), "data": []}
 
 # ✅ 首页重定向
 @app.get("/", include_in_schema=False)
@@ -81,6 +67,7 @@ async def chat(request: Request):
         return wrap_result("success", result, intent)
 
     except Exception as e:
+        traceback.print_exc()
         return wrap_result("fail", f"❌ 系统错误：{str(e)}")
 
 # ✅ 可视化聊天测试页面
@@ -93,7 +80,7 @@ async def chat_ui(request: Request):
 async def logs_page(request: Request):
     return templates.TemplateResponse("logs.html", {"request": request})
 
-# ✅ 日志查询接口
+# ✅ 日志查询接口（权限判断）
 @app.post("/log/query")
 async def query_logs_api(request: Request):
     try:
@@ -104,33 +91,18 @@ async def query_logs_api(request: Request):
         if not check_secret_permission({"intent_type": "view_logs"}, persona, secret):
             return JSONResponse(content={"logs": [], "error": "权限不足"}, status_code=403)
 
-        logs = query_logs(persona=persona)
+        logs = query_logs({"persona": persona})
         return JSONResponse(content={"logs": logs})
     except Exception as e:
+        traceback.print_exc()
         return JSONResponse(content={"logs": [], "error": str(e)})
 
-# ✅ 管理界面 UI
+# ✅ 管理界面
 @app.get("/dashboard/personas", response_class=HTMLResponse)
 async def dashboard_personas(request: Request):
     return templates.TemplateResponse("dashboard_personas.html", {"request": request})
 
-from fastapi.responses import HTMLResponse
-
-@app.get("/chat-ui", response_class=HTMLResponse)
-async def chat_ui(request: Request):
-    return templates.TemplateResponse("chat_ui.html", {"request": request})
-
-@app.get("/persona/details")
-def get_persona_details_alias(id: str):
-    return get_persona_detail(id)
-
-# ✅ 注册新角色接口
-from fastapi import Form
-
-# ✅ 注册新角色接口（使用 Form 提交 + 三表写入函数调用）
-from fastapi import Form
-from src.register_new_persona import register_new_persona
-
+# ✅ 注册角色接口（三表联动）
 @app.post("/persona/register")
 def register_persona(
     name: str = Form(...),
@@ -140,14 +112,17 @@ def register_persona(
     authorize: str = Form("")
 ):
     try:
-        result = register_new_persona(name=name, persona=persona, secret=secret, intro=intro, authorize=authorize)
+        result = register_new_persona(
+            name=name,
+            persona=persona,
+            secret=secret,
+            intro=intro,
+            authorize=authorize
+        )
         return result
     except Exception as e:
-        import traceback
         traceback.print_exc()
         return {"status": "error", "message": f"注册失败：{str(e)}"}
-    import traceback
-    traceback.print_exc()
 
 # ✅ 删除角色接口
 @app.post("/persona/delete")
@@ -163,4 +138,5 @@ async def delete_api(request: Request):
         result = delete_persona(persona)
         return JSONResponse(content={"success": True, "result": result})
     except Exception as e:
+        traceback.print_exc()
         return JSONResponse(content={"success": False, "error": str(e)})
