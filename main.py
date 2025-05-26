@@ -107,20 +107,53 @@ async def chat_ui(request: Request):
 
 # ✅ 注册新角色接口
 @app.post("/persona/register")
-async def register_api(request: Request):
-    data = await request.json()
-    persona = data.get("persona", "").strip()
-    secret = data.get("secret", "").strip()
-    operator = data.get("operator", "").strip()
+async def register_persona_handler(request: Request):
+    form = await request.form()
+    name = form.get("name")
+    persona = form.get("persona")
+    secret = form.get("secret")
 
-    if not check_secret_permission({"intent_type": "register"}, operator, SUPER_SECRET_KEY):
-        return JSONResponse(content={"success": False, "error": "权限不足"})
+    # 权限校验
+    if not check_secret_permission("register", persona, secret):
+        return templates.TemplateResponse("popup.html", {
+            "request": request,
+            "status": "fail",
+            "message": "❌ 注册失败：权限不足"
+        })
 
     try:
-        result = register_persona(persona, secret)
-        return JSONResponse(content={"success": True, "result": result})
+        # ✅ 写入 persona_keys
+        register_persona(name, persona, secret)
+
+        # ✅ 写入 roles
+        supabase.table("roles").insert({
+            "name": name,
+            "role": "新注册角色",
+            "tone": "待定义",
+            "prompt": "",
+            "persona": persona
+        }).execute()
+
+        # ✅ 写入 personas
+        supabase.table("personas").insert({
+            "persona": persona,
+            "active": True,
+            "role": "user",
+            "secret_hash": "系统创建",
+            "created_by": "系统",
+        }).execute()
+
+        return templates.TemplateResponse("popup.html", {
+            "request": request,
+            "status": "success",
+            "message": f"✅ 注册成功：{persona}"
+        })
     except Exception as e:
-        return JSONResponse(content={"success": False, "error": str(e)})
+        return templates.TemplateResponse("popup.html", {
+            "request": request,
+            "status": "fail",
+            "message": f"❌ 注册失败：{str(e)}"
+        })
 
 # ✅ 删除角色接口
 @app.post("/persona/delete")
