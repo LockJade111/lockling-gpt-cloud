@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
 # ✅ 模块导入
+from fastapi import Form
 from parse_intent_with_gpt import parse_intent
 from check_permission import check_secret_permission
 from intent_dispatcher import dispatcher as intent_dispatcher
