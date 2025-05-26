@@ -39,6 +39,14 @@ app.add_middleware(
 def wrap_result(status: str, reply: str, intent: dict = {}):
     return JSONResponse(content={"status": status, "reply": reply, "intent": intent})
 
+@app.get("/logs")
+def get_logs(persona: str = ""):
+    try:
+        logs = query_logs(persona=persona)
+        return {"status": "success", "data": logs}
+    except Exception as e:
+        return {"status": "error", "message": str(e), "data": []}
+
 # ✅ 首页重定向
 @app.get("/", include_in_schema=False)
 def root():
