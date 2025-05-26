@@ -80,6 +80,15 @@
   }
 
   window.onload = loadLogs;
+.then(data => {
+  console.log("🚀 日志返回数据：", data); // ✅ 增加这行
+  const logs = data.logs || [];
+  ...
+})
+.catch(err => {
+  console.error("❌ 日志加载失败：", err); // ✅ 可视化错误
+  ...
+});
 </script>
 
 </body>
