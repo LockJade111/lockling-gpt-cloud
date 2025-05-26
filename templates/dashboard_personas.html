@@ -57,11 +57,11 @@
   </div>
   <div>
     <label>简介（intro）：</label>
-    <input type="text" id="intro" />
+    <input type="text" id="intro" name="intro" />
   </div>
   <div>
     <label>授权给（可留空）：</label>
-    <input type="text" id="authorize" />
+    <input type="text" id="authorize" name="authorize" />
   </div>
   <div>
     <button type="submit">📝 提交注册</button>
@@ -76,7 +76,9 @@
 
   function registerPersona(event) {
     event.preventDefault();
-    const formData = new FormData(document.getElementById("registerForm"));
+    const form = document.getElementById("registerForm");
+    const formData = new FormData(form);
+
     fetch("/persona/register", {
       method: "POST",
       body: formData
@@ -85,11 +87,14 @@
     .then(data => {
       if (data.status === "success") {
         alert("✅ 注册成功");
-        document.getElementById("registerForm").reset();
+        form.reset();
         loadPersonas();
       } else {
-        alert("❌ 注册失败：" + data.message);
+        alert("❌ 注册失败：" + (data.message || "未知错误"));
       }
+    })
+    .catch(err => {
+      alert("网络错误：" + err.message);
     });
   }
 
