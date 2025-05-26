@@ -46,35 +46,66 @@
 <!-- ➕ 注册新角色 -->
 <h3>🆕 注册新角色</h3>
 <form id="registerForm" onsubmit="registerPersona(event)">
-  <label>角色名（persona）：<input type="text" id="persona" /></label><br>
-  <label>显示名（name）：<input type="text" id="name" /></label><br>
-  <label>密钥（secret）：<input type="password" id="secret" /></label><br>
-  <button type="submit">提交注册</button>
+  <div>
+    <label for="persona">角色ID（persona）：</label>
+    <input type="text" id="persona" required />
+  </div>
+  <div>
+    <label for="name">显示名（name）：</label>
+    <input type="text" id="name" required />
+  </div>
+  <div>
+    <label for="secret">密钥（secret）：</label>
+    <input type="password" id="secret" required />
+  </div>
+  <div>
+    <label for="intro">简介（intro）：</label>
+    <input type="text" id="intro" />
+  </div>
+  <div>
+    <label for="authorize">授权给（可留空）：</label>
+    <input type="text" id="authorize" />
+  </div>
+  <div>
+    <button type="submit">📝 提交注册</button>
+  </div>
 </form>
 
 <script>
   // ✅ 注册逻辑：使用 FormData
+<script>
   function registerPersona(event) {
     event.preventDefault();
 
-    const formData = new FormData();
-    formData.append("name", document.getElementById("name").value);
-    formData.append("persona", document.getElementById("persona").value);
-    formData.append("secret", document.getElementById("secret").value);
+    const payload = {
+      intent: { intent_type: "register" },
+      operator: "将军",
+      persona: document.getElementById("persona").value,
+      name: document.getElementById("name").value,
+      secret: document.getElementById("secret").value,
+      intro: document.getElementById("intro").value,
+      authorize: document.getElementById("authorize").value
+    };
 
     fetch("/persona/register", {
       method: "POST",
-      body: formData
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
     })
     .then(res => res.json())
     .then(data => {
-      alert(data.message || "注册完成");
-      if (data.status === "success") {
-        loadPersonas(); // ✅ 刷新角色列表
+      if (data.success) {
+        alert("✅ 注册成功");
+        loadPersonas(); // 可选刷新列表
+      } else {
+        alert("❌ 注册失败：" + data.error);
       }
     })
-    .catch(err => alert("请求失败：" + err.message));
+    .catch(err => {
+      alert("网络错误：" + err.message);
+    });
   }
+</script>
 
   // ✅ 删除角色
   function deletePersona(persona) {
