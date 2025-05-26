@@ -1,77 +1,75 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
-  <meta charset="UTF-8" />
-  <title>操作日志 · Lockling 云脑</title>
+  <meta charset="UTF-8">
+  <title>📜 操作日志 · Lockling 云脑</title>
   <style>
     body { font-family: sans-serif; padding: 30px; background-color: #f4f6f8; }
-    table { width: 100%; border-collapse: collapse; background: #fff; box-shadow: 0 0 5px rgba(0,0,0,0.1); }
-    th, td { padding: 10px 12px; border: 1px solid #ccc; text-align: left; vertical-align: top; }
+    table { width: 100%; border-collapse: collapse; background: #fff; }
+    th, td { padding: 10px 12px; border: 1px solid #ccc; text-align: left; }
     th { background-color: #eee; }
     tr:nth-child(even) { background-color: #f9f9f9; }
+    pre { white-space: pre-wrap; font-size: 13px; }
     .success { color: green; }
     .fail { color: red; }
-    .info { color: #555; }
-    pre { margin: 0; white-space: pre-wrap; word-wrap: break-word; font-size: 13px; }
   </style>
 </head>
 <body>
-  <h2>📜 Lockling 云脑 操作日志</h2>
 
-  <table id="logTable">
-    <thead>
-      <tr>
-        <th>Persona</th>
-        <th>Intent</th>
-        <th>Result</th>
-        <th>Detail</th>
-        <th>时间</th>
-      </tr>
-    </thead>
-    <tbody id="logBody">
-      <tr><td colspan="5">⏳ 正在加载日志...</td></tr>
-    </tbody>
-  </table>
+<h2>📜 Lockling 云脑 操作日志</h2>
 
-  <script>
-    async function loadLogs() {
-      try {
-        const response = await fetch("/log/query", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({})
-        });
+<table>
+  <thead>
+    <tr>
+      <th>Persona</th>
+      <th>Intent</th>
+      <th>Status</th>
+      <th>Detail</th>
+      <th>Time</th>
+    </tr>
+  </thead>
+  <tbody id="logBody">
+    <tr><td colspan="5">⏳ 加载中...</td></tr>
+  </tbody>
+</table>
 
-        const data = await response.json();
-        const logs = data.logs || [];
-        const tbody = document.getElementById("logBody");
-        tbody.innerHTML = "";
+<script>
+  async function loadLogs() {
+    const tbody = document.getElementById("logBody");
+    try {
+      const res = await fetch("/log/query", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({})
+      });
+      const data = await res.json();
+      const logs = data.logs || [];
+      tbody.innerHTML = "";
 
-        if (logs.length === 0) {
-          tbody.innerHTML = "<tr><td colspan='5'>⚠️ 暂无日志记录</td></tr>";
-          return;
-        }
-
-        logs.forEach(log => {
-          const tr = document.createElement("tr");
-
-          const tdPersona = `<td>${log.persona || ""}</td>`;
-          const tdIntent = `<td>${log.intent?.intent_type || ""}</td>`;
-          const tdResult = `<td><span class="${log.status === "success" ? "success" : "fail"}">${log.status}</span></td>`;
-          const tdDetail = `<td><pre>${JSON.stringify(log.reply, null, 2)}</pre></td>`;
-          const tdTime = `<td>${new Date(log.timestamp).toLocaleString()}</td>`;
-
-          tr.innerHTML = tdPersona + tdIntent + tdResult + tdDetail + tdTime;
-          tbody.appendChild(tr);
-        });
-
-      } catch (e) {
-        const tbody = document.getElementById("logBody");
-        tbody.innerHTML = `<tr><td colspan="5">❌ 加载失败：${e.message}</td></tr>`;
+      if (logs.length === 0) {
+        tbody.innerHTML = "<tr><td colspan='5'>⚠️ 暂无日志记录</td></tr>";
+        return;
       }
-    }
 
-    window.onload = loadLogs;
-  </script>
+      logs.forEach(log => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${log.persona || ""}</td>
+          <td>${log.intent_type || ""}</td>
+          <td class="${log.status === 'success' ? 'success' : 'fail'}">${log.status}</td>
+          <td><pre>${log.reply}</pre></td>
+          <td>${new Date(log.timestamp).toLocaleString()}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="5">❌ 加载失败：${e.message}</td></tr>`;
+    }
+  }
+
+  window.onload = loadLogs;
+</script>
+
 </body>
 </html>

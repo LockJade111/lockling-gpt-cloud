@@ -45,6 +45,8 @@ def root():
     return RedirectResponse(url="/dashboard/personas")
 
 # ✅ GPT 聊天主接口
+from src.supabase_logger import write_log_to_supabase, query_logs
+
 @app.post("/chat")
 async def chat(request: Request):
     try:
@@ -59,16 +61,28 @@ async def chat(request: Request):
         intent = parse_intent(message, persona)
 
         if not check_secret_permission(intent, persona, secret):
-            write_log_to_supabase(persona, intent, "denied", "权限不足")
+            write_log_to_supabase(message, "权限不足", intent, "denied")
             return wrap_result("fail", "⛔️ 权限不足", intent)
 
         result = intent_dispatcher(intent)
-        write_log_to_supabase(persona, intent, "success", result)
+        write_log_to_supabase(message, result, intent, "success")
         return wrap_result("success", result, intent)
 
     except Exception as e:
-        traceback.print_exc()
-        return wrap_result("fail", f"❌ 系统错误：{str(e)}")
+        return wrap_result("fail", f"系统错误：{str(e)}")
+
+# ✅ 查询日志接口
+@app.post("/log/query")
+async def query_logs_api(request: Request):
+    try:
+        data = await request.json()
+        filters = {}
+        if data.get("persona"):
+            filters["persona"] = data["persona"]
+        logs = query_logs(filters)
+        return JSONResponse(content={"logs": logs})
+    except Exception as e:
+        return JSONResponse(content={"logs": [], "error": str(e)})
 
 # ✅ 可视化聊天测试页面
 @app.get("/chat-ui", response_class=HTMLResponse)

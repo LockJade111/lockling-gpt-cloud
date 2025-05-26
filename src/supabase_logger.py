@@ -1,74 +1,57 @@
 import os
 import json
 from datetime import datetime
-from supabase import create_client
+from dotenv import load_dotenv
+from supabase import create_client, Client
 
-# 初始化 Supabase 客户端
+# ✅ 加载环境变量
+load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+SUPABASE_TABLE = os.getenv("SUPABASE_TABLE", "logs")
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-def write_log_to_supabase(query, reply, intent_result=None, status="success", source="cloud", raw_intent=None):
-    # 🪛 Debug 输出参数类型
-    print("👉 type(query):", type(query))
-    print("👉 type(reply):", type(reply))
-    print("👉 type(intent_result):", type(intent_result))
-    print("👉 type(raw_intent):", type(raw_intent))
-
-    # ✅ 自动解码字符串类型 JSON，防止日志乱码
-    if isinstance(reply, str):
-        try:
-            reply = json.loads(reply)
-        except:
-            pass
-
-    if isinstance(intent_result, str):
-        try:
-            intent_result = json.loads(intent_result)
-        except:
-            pass
-
-    if isinstance(raw_intent, str):
-        try:
-            raw_intent = json.loads(raw_intent)
-        except:
-            pass
-
-    # ✅ 格式保障：intent_result 一定是 dict
-    if not isinstance(intent_result, dict):
-        intent_result = {}
-
-    # ✅ 若 reply 是对象，强制转为 JSON 字符串
-    if isinstance(reply, (dict, list)):
-        try:
-            reply = json.dumps(reply, ensure_ascii=False)
-        except:
-            reply = str(reply)
-
+def safe_json(obj):
     try:
-        supabase.table("logs").insert({
+        return json.dumps(obj, ensure_ascii=False)
+    except:
+        return str(obj)
+
+# ✅ 写入日志
+def write_log_to_supabase(query, reply, intent_result=None, status="success", source="cloud", raw_intent=None):
+    try:
+        if isinstance(intent_result, str):
+            try:
+                intent_result = json.loads(intent_result)
+            except:
+                intent_result = {}
+
+        log = {
+            "timestamp": datetime.utcnow().isoformat() + "Z",
             "query": query,
-            "reply": json.dumps(reply, ensure_ascii=False) if isinstance(reply, dict) else str(reply),
-            "intent_result": intent_result,
+            "reply": safe_json(reply),
+            "intent_result": safe_json(intent_result),
             "status": status,
             "source": source,
             "persona": intent_result.get("persona", "未知"),
             "intent_type": intent_result.get("intent_type", "unknown"),
-            "message": intent_result.get("message", "（无内容）"),
-            "raw_intent": raw_intent or json.dumps(intent_result, ensure_ascii=False),
-            "timestamp": datetime.utcnow().isoformat() + "Z"
-        }).execute()
+            "raw_intent": safe_json(raw_intent or intent_result)
+        }
+
+        supabase.table(SUPABASE_TABLE).insert(log).execute()
+        print("✅ 日志写入成功")
     except Exception as e:
         print("❌ 日志写入失败：", e)
 
+# ✅ 查询日志
 def query_logs(filters=None):
     try:
-        q = supabase.table("logs").select("*").order("timestamp", desc=True).limit(100)
+        q = supabase.table(SUPABASE_TABLE).select("*").order("timestamp", desc=True).limit(100)
         if filters:
             for key, value in filters.items():
                 q = q.eq(key, value)
-        res = q.execute()
-        return res.data
+        result = q.execute()
+        return result.data
     except Exception as e:
-        print("❌ 日志查询失败：", e)
+        print("❌ 查询日志失败：", e)
         return []
