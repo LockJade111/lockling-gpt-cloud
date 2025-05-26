@@ -1,12 +1,12 @@
 import os
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request, Form
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
-# 自定义模块导入
+# ✅ 模块导入
 from parse_intent_with_gpt import parse_intent
 from check_permission import check_secret_permission
 from intent_dispatcher import dispatcher as intent_dispatcher
@@ -19,14 +19,14 @@ load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 SUPER_SECRET_KEY = os.getenv("SUPER_SECRET_KEY")
-
-# ✅ 初始化 FastAPI
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# ✅ FastAPI 初始化
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# ✅ 跨域支持
+# ✅ CORS 设置
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -38,12 +38,12 @@ app.add_middleware(
 def wrap_result(status: str, reply: str, intent: dict = {}):
     return JSONResponse(content={"status": status, "reply": reply, "intent": intent})
 
-# ✅ 控制台首页跳转
+# ✅ 首页重定向
 @app.get("/", include_in_schema=False)
 def root():
     return RedirectResponse(url="/dashboard/personas")
 
-# ✅ 聊天接口
+# ✅ GPT 聊天主接口
 @app.post("/chat")
 async def chat(request: Request):
     try:
@@ -53,7 +53,7 @@ async def chat(request: Request):
         secret = data.get("secret", "").strip()
 
         if not message or not persona:
-            return wrap_result("fail", "❌ 缺少必要参数")
+            return wrap_result("fail", "❌ 缺少输入内容")
 
         intent = parse_intent(message, persona)
 
@@ -68,12 +68,12 @@ async def chat(request: Request):
     except Exception as e:
         return wrap_result("fail", f"❌ 系统错误：{str(e)}")
 
-# ✅ chat-ui 测试页面
+# ✅ 可视化聊天测试页面
 @app.get("/chat-ui", response_class=HTMLResponse)
 async def chat_ui(request: Request):
     return templates.TemplateResponse("chat_ui.html", {"request": request})
 
-# ✅ 日志页面
+# ✅ 日志查看页面
 @app.get("/logs", response_class=HTMLResponse)
 async def logs_page(request: Request):
     return templates.TemplateResponse("logs.html", {"request": request})
@@ -87,26 +87,25 @@ async def query_logs_api(request: Request):
         secret = data.get("secret", "")
 
         if not check_secret_permission({"intent_type": "view_logs"}, persona, secret):
-            return JSONResponse(content={"logs": [], "error": "无权限"}, status_code=403)
+            return JSONResponse(content={"logs": [], "error": "权限不足"}, status_code=403)
 
         logs = query_logs(persona=persona)
         return JSONResponse(content={"logs": logs})
-
     except Exception as e:
         return JSONResponse(content={"logs": [], "error": str(e)})
 
-# ✅ 角色管理页面
+# ✅ 管理界面 UI
 @app.get("/dashboard/personas", response_class=HTMLResponse)
 async def dashboard_personas(request: Request):
     return templates.TemplateResponse("dashboard_personas.html", {"request": request})
 
-# ✅ 注册新角色
+# ✅ 注册新角色接口
 @app.post("/persona/register")
 async def register_api(request: Request):
     data = await request.json()
     persona = data.get("persona", "").strip()
     secret = data.get("secret", "").strip()
-    operator = data.get("operator", "")
+    operator = data.get("operator", "").strip()
 
     if not check_secret_permission({"intent_type": "register"}, operator, SUPER_SECRET_KEY):
         return JSONResponse(content={"success": False, "error": "权限不足"})
@@ -117,7 +116,7 @@ async def register_api(request: Request):
     except Exception as e:
         return JSONResponse(content={"success": False, "error": str(e)})
 
-# ✅ 删除角色
+# ✅ 删除角色接口
 @app.post("/persona/delete")
 async def delete_api(request: Request):
     data = await request.json()
