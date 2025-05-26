@@ -56,20 +56,18 @@
         tr.innerHTML = `
           <td>${log.persona || ""}</td>
           <td>${log.intent_type || ""}</td>
-          <td class="${log.status === 'success' ? 'success' : 'fail'}">${log.status}</td>
-          <td><pre>${log.reply}</pre></td>
+          <td class="${log.status === "success" ? "success" : "fail"}">${log.status}</td>
+          <td><pre>${JSON.stringify(log.reply || {}, null, 2)}</pre></td>
           <td>${new Date(log.timestamp).toLocaleString()}</td>
         `;
         tbody.appendChild(tr);
       });
-
     } catch (e) {
-      tbody.innerHTML = `<tr><td colspan="5">❌ 加载失败：${e.message}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan='5'>❌ 日志加载失败：${e.message}</td></tr>`;
     }
   }
 
   window.onload = loadLogs;
 </script>
-
 </body>
 </html>
