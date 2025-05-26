@@ -95,16 +95,14 @@ async def query_logs_api(request: Request):
         persona = data.get("persona", "")
         secret = data.get("secret", "")
 
-        # 临时跳过权限（测试期）
-        # 如果需要权限校验可开启以下行：
+        # 可选：如您已开启无权限模式，跳过以下验证
         # if not check_secret_permission({"intent_type": "view_logs"}, persona, secret):
         #     return JSONResponse(content={"logs": [], "error": "权限不足"}, status_code=403)
 
         logs = query_logs(filters={"persona": persona} if persona else {})
-        return JSONResponse(content={"logs": logs})
+        return JSONResponse(content={"logs": logs})  # ✅ logs 是前端 JS 依赖字段
     except Exception as e:
-        return JSONResponse(content={"logs": [], "error": f"⚠️ 查询失败：{str(e)}"})
-
+        return JSONResponse(content={"logs": [], "error": str(e)})
 # ✅ 管理界面
 @app.get("/dashboard/personas", response_class=HTMLResponse)
 async def dashboard_personas(request: Request):
