@@ -107,49 +107,28 @@ async def chat_ui(request: Request):
     return templates.TemplateResponse("chat_ui.html", {"request": request})
 
 # ✅ 注册新角色接口
-from src.register_new_persona import register_new_persona  # 新增导入
+from fastapi import Form
+
+# ✅ 注册新角色接口（使用 Form 提交 + 三表写入函数调用）
+from src.register_new_persona import register_new_persona
 
 @app.post("/persona/register")
-def register_persona(name: str = Form(...), persona: str = Form(...), secret: str = Form(...)):
+def register_persona(
+    name: str = Form(...),
+    persona: str = Form(...),
+    secret: str = Form(...)
+):
     try:
-        result = register_new_persona(name, persona, secret)
+        print("📥 注册入参:", {"name": name, "persona": persona, "secret": secret})
+
+        result = register_new_persona(name=name, persona=persona, secret=secret)
+        
+        print("✅ 注册成功:", result)
         return {"status": "success", "message": result}
+    
     except Exception as e:
-        return {"status": "error", "message": str(e)}
-
-    try:
-        # ✅ 写入 persona_keys
-        register_persona(name, persona, secret)
-
-        # ✅ 写入 roles
-        supabase.table("roles").insert({
-            "name": name,
-            "role": "新注册角色",
-            "tone": "待定义",
-            "prompt": "",
-            "persona": persona
-        }).execute()
-
-        # ✅ 写入 personas
-        supabase.table("personas").insert({
-            "persona": persona,
-            "active": True,
-            "role": "user",
-            "secret_hash": "系统创建",
-            "created_by": "系统",
-        }).execute()
-
-        return templates.TemplateResponse("popup.html", {
-            "request": request,
-            "status": "success",
-            "message": f"✅ 注册成功：{persona}"
-        })
-    except Exception as e:
-        return templates.TemplateResponse("popup.html", {
-            "request": request,
-            "status": "fail",
-            "message": f"❌ 注册失败：{str(e)}"
-        })
+        print("❌ 注册异常:", e)
+        return {"status": "error", "message": f"注册失败：{str(e)}"}
 
 # ✅ 删除角色接口
 @app.post("/persona/delete")
