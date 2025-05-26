@@ -110,3 +110,22 @@ def register_new_persona(persona: str, secret: str, operator="系统", permissio
     
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+import requests
+
+def delete_persona(persona):
+    """
+    删除 persona_keys、roles、personas 三张表中该 persona 的记录
+    """
+    headers = {
+        "apikey": SUPABASE_API_KEY,
+        "Authorization": f"Bearer {SUPABASE_API_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    for table in ["persona_keys", "roles", "personas"]:
+        url = f"{SUPABASE_URL}/rest/v1/{table}?persona=eq.{persona}"
+        response = requests.delete(url, headers=headers)
+        print(f"🗑️ 删除 {table} 中 persona={persona} 的记录：{response.status_code}")
+
+    return True
