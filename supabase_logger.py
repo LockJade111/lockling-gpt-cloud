@@ -15,14 +15,14 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 # ✅ 写入日志（结构清晰 + 防乱码 + 类型安全）
 def write_log_to_supabase(persona: str, intent_result, status: str, reply):
     try:
-        # 确保 intent_result 是 dict
+        # 若 intent_result 是字符串，先转换为 dict
         if isinstance(intent_result, str):
             try:
                 intent_result = json.loads(intent_result)
             except:
                 intent_result = {}
 
-        # 确保 reply 是字符串（防止嵌套乱码）
+        # reply 也处理成字符串，防止嵌套 dict 报错
         if isinstance(reply, dict):
             reply_str = json.dumps(reply, ensure_ascii=False)
         else:
@@ -31,7 +31,7 @@ def write_log_to_supabase(persona: str, intent_result, status: str, reply):
         data = {
             "timestamp": datetime.utcnow().isoformat() + "Z",
             "persona": persona,
-            "message": intent_result.get("message", "无"),  # ✅ 防止 null 写入失败
+            "message": intent_result.get("message", "无"),
             "intent_type": intent_result.get("intent_type", "unknown"),
             "target": intent_result.get("target", ""),
             "allow": intent_result.get("allow", False),
@@ -40,7 +40,9 @@ def write_log_to_supabase(persona: str, intent_result, status: str, reply):
             "source": intent_result.get("source", ""),
             "status": status,
             "env": os.getenv("NODE_ENV", "local"),
-            "raw_intent": json.dumps(intent_result, ensure_ascii=False)
+
+            # 👇将 intent_result 原样作为 JSON 存一份，供前端提取用
+            "raw_intent_json": json.dumps(intent_result, ensure_ascii=False)
         }
 
         response = supabase.table(SUPABASE_TABLE).insert(data).execute()
