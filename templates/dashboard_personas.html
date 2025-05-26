@@ -1,119 +1,217 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
-  <meta charset="UTF-8" />
-  <title>🌌 Persona 超智体角色列表</title>
+  <meta charset="UTF-8">
+  <title>🔐 Persona 超智体管理</title>
   <style>
-    body {
-      font-family: sans-serif;
-      padding: 30px;
-      background-color: #f8f9fa;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 20px;
-    }
-    th, td {
-      border: 1px solid #ccc;
-      padding: 8px 10px;
-      text-align: left;
-    }
-    th {
-      background-color: #eee;
-    }
+    body { font-family: sans-serif; padding: 30px; background-color: #f8f9fa; }
+    h2, h3 { margin-top: 30px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px 10px; text-align: left; }
+    th { background-color: #eee; }
     button {
-      padding: 5px 10px;
-      margin: 5px;
-      border: none;
-      border-radius: 4px;
-      background-color: #007bff;
-      color: white;
-      cursor: pointer;
+      padding: 5px 10px; border: none; border-radius: 4px;
+      background-color: #007bff; color: white; cursor: pointer; margin-right: 5px;
     }
-    button:hover {
-      background-color: #0056b3;
-    }
-    .danger {
-      background-color: #dc3545;
-    }
-    .danger:hover {
-      background-color: #c82333;
+    button:hover { background-color: #0056b3; }
+    .danger { background-color: #dc3545; }
+    .danger:hover { background-color: #c82333; }
+    .hidden { display: none; }
+    input[type="text"], input[type="password"] {
+      padding: 5px; margin: 5px; width: 200px;
     }
   </style>
 </head>
 <body>
 
-<h2>🔐 Persona 超智体角色列表</h2>
+<h2>🔐 Persona 超智体管理</h2>
 
-<table>
+<!-- 搜索 -->
+<input type="text" id="searchInput" placeholder="🔍 输入关键词过滤角色..." oninput="filterTable()"/>
+
+<!-- 角色列表 -->
+<table id="personaTable">
   <thead>
     <tr>
       <th>角色名</th>
+      <th>权限列表</th>
       <th>操作</th>
     </tr>
   </thead>
-  <tbody id="personaTable">
-    {% for p in personas %}
-    <tr>
-      <td>{{ p.persona }}</td>
-      <td>
-        <button class="danger" onclick="deletePersona('{{ p.persona }}')">删除</button>
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
+  <tbody id="personaList"></tbody>
 </table>
 
-<h3>➕ 注册新角色</h3>
+<!-- 分页控件 -->
+<div style="margin-top: 10px;">
+  <button onclick="prevPage()">上一页</button>
+  <span id="pageIndicator">第 1 页</span>
+  <button onclick="nextPage()">下一页</button>
+</div>
+
+<!-- 注册 -->
+<h3>🆕 注册新角色</h3>
 <form id="registerForm">
-  <input type="text" id="name" placeholder="名称" required>
-  <input type="text" id="persona" placeholder="角色名" required>
-  <input type="password" id="secret" placeholder="密钥（由将军输入）" required>
+  <input type="text" id="newPersona" placeholder="角色名（支持中文）" required>
+  <input type="password" id="newSecret" placeholder="密钥" required>
+  <input type="checkbox" id="showSecret" onchange="toggleSecret()"> 显示密钥
+  <br><br>
   <button type="submit">注册</button>
 </form>
 
+<!-- 权限编辑弹窗 -->
+<div id="editModal" class="hidden" style="position: fixed; top: 20%; left: 30%; width: 40%; padding: 20px; background: white; border: 1px solid #ccc; box-shadow: 0 0 10px rgba(0,0,0,0.3); z-index: 999;">
+  <h3>编辑权限 - <span id="editPersonaName"></span></h3>
+  <div id="permissionOptions"></div>
+  <br>
+  <button onclick="savePermissions()">保存</button>
+  <button class="danger" onclick="closeModal()">取消</button>
+</div>
+
 <script>
-document.getElementById("registerForm").addEventListener("submit", async function (e) {
-  e.preventDefault();
+const availablePermissions = ["read", "write", "admin", "query", "report", "budget"];
+let currentEditing = "";
+let personas = [];
+let currentPage = 1;
+const itemsPerPage = 5;
 
-  const name = document.getElementById("name").value.trim();
-  const persona = document.getElementById("persona").value.trim();
-  const secret = document.getElementById("secret").value.trim();
+function toggleSecret() {
+  const input = document.getElementById("newSecret");
+  input.type = document.getElementById("showSecret").checked ? "text" : "password";
+}
 
-  const formData = new FormData();
-  formData.append("name", name);
-  formData.append("persona", persona);
-  formData.append("secret", secret);
+function openModal(role, permissions) {
+  currentEditing = role;
+  document.getElementById("editPersonaName").innerText = role;
+  const container = document.getElementById("permissionOptions");
+  container.innerHTML = "";
+  availablePermissions.forEach(p => {
+    const checked = permissions.includes(p) ? "checked" : "";
+    container.innerHTML += `<label><input type="checkbox" value="${p}" ${checked}> ${p}</label><br>`;
+  });
+  document.getElementById("editModal").classList.remove("hidden");
+}
 
-  const res = await fetch("/persona/register", {
+function closeModal() {
+  document.getElementById("editModal").classList.add("hidden");
+  currentEditing = "";
+}
+
+async function loadPersonas() {
+  const res = await fetch("/persona/details");
+  const data = await res.json();
+  personas = data.data || [];
+  renderTable();
+}
+
+function renderTable() {
+  const table = document.getElementById("personaList");
+  table.innerHTML = "";
+  const start = (currentPage - 1) * itemsPerPage;
+  const end = start + itemsPerPage;
+  const filtered = filterPersonas();
+  const pageItems = filtered.slice(start, end);
+
+  pageItems.forEach(p => {
+    const perms = Array.isArray(p.permissions) ? p.permissions : [];
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${p.role}</td>
+      <td>${perms.join(", ")}</td>
+      <td>
+        <button onclick="openModal('${p.role}', ${JSON.stringify(perms)})">编辑</button>
+        <button class="danger" onclick="deletePersona('${p.role}')">删除</button>
+      </td>
+    `;
+    table.appendChild(row);
+  });
+
+  document.getElementById("pageIndicator").innerText = `第 ${currentPage} 页`;
+}
+
+function prevPage() {
+  if (currentPage > 1) {
+    currentPage--;
+    renderTable();
+  }
+}
+
+function nextPage() {
+  const totalPages = Math.ceil(filterPersonas().length / itemsPerPage);
+  if (currentPage < totalPages) {
+    currentPage++;
+    renderTable();
+  }
+}
+
+function filterPersonas() {
+  const keyword = document.getElementById("searchInput").value.toLowerCase();
+  return personas.filter(p => p.role.toLowerCase().includes(keyword));
+}
+
+async function savePermissions() {
+  const checkboxes = document.querySelectorAll("#permissionOptions input[type='checkbox']");
+  const selected = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+
+  const res = await fetch("/persona/update_permissions", {
     method: "POST",
-    body: formData
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      role: currentEditing,
+      permissions: selected
+    })
   });
 
   const data = await res.json();
-  alert(data.reply || "操作完成");
-  location.reload();
-});
+  if (data.status === "success") {
+    alert("✅ 权限已更新");
+    closeModal();
+    loadPersonas();
+  } else {
+    alert("❌ 更新失败：" + (data.message || "未知错误"));
+  }
+}
 
-async function deletePersona(persona) {
-  const secret = prompt("请输入将军密钥以确认删除角色 [" + persona + "]：");
+async function deletePersona(role) {
+  const secret = prompt(`请输入密钥以删除角色「${role}」：`);
   if (!secret) return;
-
-  const formData = new FormData();
-  formData.append("persona", persona);
-  formData.append("secret", secret);
 
   const res = await fetch("/persona/delete", {
     method: "POST",
-    body: formData
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ persona: role, secret })
   });
 
   const data = await res.json();
-  alert(data.reply || "已执行删除操作");
-  location.reload();
+  if (data.result) {
+    alert("✅ 删除成功");
+    loadPersonas();
+  } else {
+    alert("❌ 删除失败：" + (data.error || "未知错误"));
+  }
 }
-</script>
 
+document.getElementById("registerForm").addEventListener("submit", async function (e) {
+  e.preventDefault();
+  const name = document.getElementById("newPersona").value.trim();
+  const secret = document.getElementById("newSecret").value.trim();
+
+  const res = await fetch("/persona/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ persona: name, secret, operator: "将军" })
+  });
+
+  const data = await res.json();
+  if (data.success) {
+    alert("✅ 注册成功");
+    loadPersonas();
+    document.getElementById("registerForm").reset();
+  } else {
+    alert("❌ 注册失败：" + (data.error || "未知错误"));
+  }
+});
+
+loadPersonas();
+</script>
 </body>
 </html>
