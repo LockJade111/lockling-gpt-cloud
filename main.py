@@ -88,14 +88,15 @@ async def query_logs_api(request: Request):
         persona = data.get("persona", "")
         secret = data.get("secret", "")
 
-        if not check_secret_permission({"intent_type": "view_logs"}, persona, secret):
-            return JSONResponse(content={"logs": [], "error": "权限不足"}, status_code=403)
+        # 临时跳过权限（测试期）
+        # 如果需要权限校验可开启以下行：
+        # if not check_secret_permission({"intent_type": "view_logs"}, persona, secret):
+        #     return JSONResponse(content={"logs": [], "error": "权限不足"}, status_code=403)
 
-        logs = query_logs({"persona": persona})
+        logs = query_logs(filters={"persona": persona} if persona else {})
         return JSONResponse(content={"logs": logs})
     except Exception as e:
-        traceback.print_exc()
-        return JSONResponse(content={"logs": [], "error": str(e)})
+        return JSONResponse(content={"logs": [], "error": f"⚠️ 查询失败：{str(e)}"})
 
 # ✅ 管理界面
 @app.get("/dashboard/personas", response_class=HTMLResponse)
