@@ -6,12 +6,13 @@
   <style>
     body { font-family: sans-serif; padding: 30px; background-color: #f4f6f8; }
     table { width: 100%; border-collapse: collapse; background: #fff; box-shadow: 0 0 5px rgba(0,0,0,0.1); }
-    th, td { padding: 10px 12px; border: 1px solid #ccc; text-align: left; }
+    th, td { padding: 10px 12px; border: 1px solid #ccc; text-align: left; vertical-align: top; }
     th { background-color: #eee; }
     tr:nth-child(even) { background-color: #f9f9f9; }
     .success { color: green; }
     .fail { color: red; }
     .info { color: #555; }
+    pre { margin: 0; white-space: pre-wrap; word-wrap: break-word; font-size: 13px; }
   </style>
 </head>
 <body>
@@ -35,31 +36,36 @@
 
   <script>
     async function loadLogs() {
-      const response = await fetch("/log/query", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ limit: 50 })
-      });
-      const data = await response.json();
-      const logs = data.logs || [];
+      try {
+        const response = await fetch("/log/query", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ limit: 50 })
+        });
 
-      const tbody = document.getElementById("logBody");
-      tbody.innerHTML = "";
+        const data = await response.json();
+        const logs = data.logs || [];
+        const tbody = document.getElementById("logBody");
+        tbody.innerHTML = "";
 
-      logs.forEach(log => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${log.persona}</td>
-          <td>${log.intent_type || ""}</td>
-          <td class="${log.result}">${log.result}</td>
-          <td>${log.detail || ""}</td>
-          <td>${new Date(log.timestamp).toLocaleString()}</td>
-        `;
-        tbody.appendChild(tr);
-      });
+        logs.forEach(log => {
+          const tr = document.createElement("tr");
+
+          const tdPersona = `<td>${log.persona || ''}</td>`;
+          const tdIntent = `<td>${log.intent_type || ''}</td>`;
+          const tdResult = `<td><span class="${log.status === 'success' ? 'success' : 'fail'}">${log.status}</span></td>`;
+          const tdDetail = `<td><pre>${JSON.stringify(log.reply || {}, null, 2)}</pre></td>`;
+          const tdTime = `<td>${new Date(log.timestamp).toLocaleString()}</td>`;
+
+          tr.innerHTML = tdPersona + tdIntent + tdResult + tdDetail + tdTime;
+          tbody.appendChild(tr);
+        });
+      } catch (e) {
+        document.getElementById("logBody").innerHTML = `<tr><td colspan="5">⚠️ 日志加载失败：${e.message}</td></tr>`;
+      }
     }
 
-    loadLogs();
+    window.onload = loadLogs;
   </script>
 
 </body>
