@@ -31,7 +31,7 @@ def write_log_to_supabase(persona: str, intent_result, status: str, reply):
         data = {
             "timestamp": datetime.utcnow().isoformat() + "Z",
             "persona": persona,
-            "message": intent_result.get("message", "无"),
+            "message": intent_result.get("query", "无"),
             "intent_type": intent_result.get("intent_type", "unknown"),
             "target": intent_result.get("target", ""),
             "allow": intent_result.get("allow", False),
