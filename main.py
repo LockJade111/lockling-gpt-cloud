@@ -114,6 +114,10 @@ from fastapi.responses import HTMLResponse
 async def chat_ui(request: Request):
     return templates.TemplateResponse("chat_ui.html", {"request": request})
 
+@app.get("/persona/details")
+def get_persona_details_alias(id: str):
+    return get_persona_detail(id)
+
 # ✅ 注册新角色接口
 from fastapi import Form
 
@@ -137,6 +141,9 @@ def register_persona(
     except Exception as e:
         print("❌ 注册异常:", e)
         return {"status": "error", "message": f"注册失败：{str(e)}"}
+
+    import traceback
+    traceback.print_exc()
 
 # ✅ 删除角色接口
 @app.post("/persona/delete")
