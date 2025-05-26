@@ -1,4 +1,5 @@
 import os
+from src.supabase_logger import write_log_to_supabase, query_logs
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
