@@ -12,7 +12,7 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 SUPABASE_TABLE = os.getenv("SUPABASE_TABLE", "logs")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# ✅ 写入日志（结构清晰 + 安全性字段）
+# ✅ 写入日志（结构清晰 + 防乱码 + 类型安全）
 def write_log_to_supabase(persona: str, intent_result: dict, status: str, reply: str):
     try:
         data = {
@@ -21,13 +21,13 @@ def write_log_to_supabase(persona: str, intent_result: dict, status: str, reply:
             "message": intent_result.get("message", ""),
             "intent_type": intent_result.get("intent_type", "unknown"),
             "target": intent_result.get("target", ""),
-            "allow": intent_result.get("allow", False) if isinstance(intent_result.get("allow"), bool) else None,
+            "allow": intent_result.get("allow", False) if isinstance(intent_result.get("allow"), bool) else False,
             "reason": intent_result.get("reason", ""),
-            "reply": reply,
+            "reply": str(reply),  # 防止 reply 是 dict 出现 JSON 转义乱码
             "source": intent_result.get("source", ""),
             "status": status,
             "env": os.getenv("NODE_ENV", "local"),
-            "allow": intent_result.get("allow", False) if isinstance(intent_result.get("allow"), bool) else False,
+            "raw_intent": json.dumps(intent_result, ensure_ascii=False)  # 原始意图结构
         }
 
         response = supabase.table(SUPABASE_TABLE).insert(data).execute()
@@ -52,7 +52,6 @@ def query_logs(filters: dict = {}, limit: int = 25, offset: int = 0):
         query = query.range(offset, offset + limit - 1)
         result = query.execute()
         return result.data or []
-
     except Exception as e:
         print(f"❌ 查询日志失败: {e}")
         return []
