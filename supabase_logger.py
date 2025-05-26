@@ -27,7 +27,7 @@ def write_log_to_supabase(persona: str, intent_result: dict, status: str, reply:
             "source": intent_result.get("source", ""),
             "status": status,
             "env": os.getenv("NODE_ENV", "local"),
-            "raw_intent": json.dumps(intent_result, ensure_ascii=False)
+            "allow": intent_result.get("allow", False) if isinstance(intent_result.get("allow"), bool) else False,
         }
 
         response = supabase.table(SUPABASE_TABLE).insert(data).execute()
