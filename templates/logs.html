@@ -35,6 +35,13 @@
   </table>
 
   <script>
+    function decodeUnicode(str) {
+      if (typeof str !== "string") return str;
+      return str.replace(/\\u[\dA-F]{4}/gi, function (match) {
+        return String.fromCharCode(parseInt(match.replace(/\\u/g, ""), 16));
+      });
+    }
+
     async function loadLogs() {
       try {
         const response = await fetch("/log/query", {
@@ -53,8 +60,16 @@
 
           const tdPersona = `<td>${log.persona || ''}</td>`;
           const tdIntent = `<td>${log.intent_type || ''}</td>`;
-          const tdResult = `<td><span class="${log.status === 'success' ? 'success' : 'fail'}">${log.status}</span></td>`;
-          const tdDetail = `<td><pre>${JSON.stringify(log.reply || {}, null, 2)}</pre></td>`;
+          const tdResult = `<td><span class="${log.status === 'success' ? 'success' : 'fail'}">${log.status || '未知'}</span></td>`;
+
+          let detailText = '';
+          if (typeof log.reply === 'object') {
+            detailText = JSON.stringify(log.reply, null, 2);
+          } else if (typeof log.reply === 'string') {
+            detailText = decodeUnicode(log.reply);
+          }
+
+          const tdDetail = `<td><pre>${detailText}</pre></td>`;
           const tdTime = `<td>${new Date(log.timestamp).toLocaleString()}</td>`;
 
           tr.innerHTML = tdPersona + tdIntent + tdResult + tdDetail + tdTime;
