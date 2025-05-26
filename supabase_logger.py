@@ -13,21 +13,34 @@ SUPABASE_TABLE = os.getenv("SUPABASE_TABLE", "logs")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ✅ 写入日志（结构清晰 + 防乱码 + 类型安全）
-def write_log_to_supabase(persona: str, intent_result: dict, status: str, reply: str):
+def write_log_to_supabase(persona: str, intent_result, status: str, reply):
     try:
+        # 确保 intent_result 是 dict
+        if isinstance(intent_result, str):
+            try:
+                intent_result = json.loads(intent_result)
+            except:
+                intent_result = {}
+
+        # 确保 reply 是字符串（防止嵌套乱码）
+        if isinstance(reply, dict):
+            reply_str = json.dumps(reply, ensure_ascii=False)
+        else:
+            reply_str = str(reply)
+
         data = {
             "timestamp": datetime.utcnow().isoformat() + "Z",
             "persona": persona,
-            "message": intent_result.get("message", ""),
+            "message": intent_result.get("message", "无"),  # ✅ 防止 null 写入失败
             "intent_type": intent_result.get("intent_type", "unknown"),
             "target": intent_result.get("target", ""),
-            "allow": intent_result.get("allow", False) if isinstance(intent_result.get("allow"), bool) else False,
+            "allow": intent_result.get("allow", False),
             "reason": intent_result.get("reason", ""),
-            "reply": str(reply),  # 防止 reply 是 dict 出现 JSON 转义乱码
+            "reply": reply_str,
             "source": intent_result.get("source", ""),
             "status": status,
             "env": os.getenv("NODE_ENV", "local"),
-            "raw_intent": json.dumps(intent_result, ensure_ascii=False)  # 原始意图结构
+            "raw_intent": json.dumps(intent_result, ensure_ascii=False)
         }
 
         response = supabase.table(SUPABASE_TABLE).insert(data).execute()
