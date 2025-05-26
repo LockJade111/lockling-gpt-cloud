@@ -41,9 +41,7 @@ def register_new_persona(persona: str, secret: str, name: str = "", role: str = 
             return {"status": "error", "step": "persona_keys", "message": r1.text}
 
         # Step 2: personas（角色描述）
-            "persona": persona,
-    "name": name or persona,
-    "role": personas_payload = {
+        personas_payload = {
             "persona": persona,
             "name": name or persona,
             "role": role or "智能角色",
