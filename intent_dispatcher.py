@@ -1,7 +1,7 @@
 import os
 from check_permission import check_secret_permission
 from persona_keys import register_persona
-from supabase_logger import write_log_to_supabase
+from src.supabase_logger import write_log_to_supabase
 from supabase import create_client
 import os
 
