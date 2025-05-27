@@ -158,3 +158,7 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))  # Render 提供 PORT 环境变量
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
+
+@app.get("/logs", response_class=HTMLResponse)
+async def get_logs_page(request: Request):
+    return templates.TemplateResponse("logs.html", {"request": request})
