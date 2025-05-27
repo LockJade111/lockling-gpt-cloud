@@ -1,6 +1,15 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
+  <style>
+  summary:hover { color: #007acc; }
+  .json-viewer { 
+    font-family: monospace; 
+    background: #f4f4f4; 
+    padding: 8px; 
+    border-radius: 4px; 
+  }
+  </style>
   <meta charset="UTF-8">
   <title>📜 Lockling 云脑 操作日志</title>
   <style>
@@ -212,11 +221,6 @@ async function loadLogs() {
 
 loadLogs();
 setInterval(loadLogs, 30000); // 自动刷新间隔 30 秒
-<style>
-  summary:hover { color: #007acc; }
-  .json-viewer { font-family: monospace; background: #f4f4f4; padding: 8px; border-radius: 4px; }
-</style>
-
 </script>
 
 </body>
