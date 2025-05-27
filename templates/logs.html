@@ -2,12 +2,17 @@
 <html lang="zh">
 <head>
   <style>
-  summary:hover { color: #007acc; }
-  .json-viewer { 
-    font-family: monospace; 
-    background: #f4f4f4; 
-    padding: 8px; 
-    border-radius: 4px; 
+    .hl-success { color: green; font-weight: bold; }
+    .hl-fail { color: red; font-weight: bold; }
+    .hl-warn { color: orange; font-weight: bold; }
+  </style>
+  <style>
+    summary:hover { color: #007acc; }
+    .json-viewer { 
+      font-family: monospace; 
+      background: #f4f4f4; 
+      padding: 8px; 
+      border-radius: 4px; 
   }
   </style>
   <meta charset="UTF-8">
@@ -134,21 +139,29 @@ function parseJSONSmart(input) {
   }
 }
 
+function highlightKeywords(text) {
+  return text
+    .replace(/(成功|success|registered)/gi, '<span class="hl-success">$1</span>')
+    .replace(/(失败|fail|denied|unauthorized|错误)/gi, '<span class="hl-fail">$1</span>')
+    .replace(/(权限|warning|请检查|not allowed)/gi, '<span class="hl-warn">$1</span>');
+}
+
 function createCollapsibleDetail(content) {
-  const short = content.slice(0, 100);
-  const full = content;
+  const highlighted = highlightKeywords(content);
+  const short = highlighted.slice(0, 150);
+  const full = highlighted;
   const container = document.createElement("div");
   const pre = document.createElement("pre");
   const toggle = document.createElement("span");
   let expanded = false;
 
-  pre.textContent = short + "...";
+  pre.innerHTML = short + "...";
   toggle.textContent = "展开 ▼";
   toggle.className = "toggle-btn";
 
   toggle.onclick = () => {
     expanded = !expanded;
-    pre.textContent = expanded ? full : short + "...";
+    pre.innerHTML = expanded ? full : short + "...";
     toggle.textContent = expanded ? "收起 ▲" : "展开 ▼";
   };
 
@@ -156,6 +169,7 @@ function createCollapsibleDetail(content) {
   container.appendChild(toggle);
   return container;
 }
+
 
 async function loadLogs() {
   const tbody = document.getElementById("logBody");
