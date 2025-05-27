@@ -186,7 +186,12 @@ async function loadLogs() {
 
       const row = document.createElement("tr");
       row.innerHTML = `
-        <td>${log.persona || '—'}</td>
+        <td>
+          <details>
+            <summary style="cursor: pointer; font-weight: bold;">查看详情</summary>
+            <pre class="json-viewer" style="white-space: pre-wrap;">${detailParsed}</pre>
+          </details>
+        </td>
         <td>${log.intent_type || '—'}</td>
         <td class="${statusClass}">${status === "success" ? "✅ success" : (status === "fail" ? "❌ fail" : "⏳ pending")}</td>
         <td></td>
@@ -207,6 +212,11 @@ async function loadLogs() {
 
 loadLogs();
 setInterval(loadLogs, 30000); // 自动刷新间隔 30 秒
+<style>
+  summary:hover { color: #007acc; }
+  .json-viewer { font-family: monospace; background: #f4f4f4; padding: 8px; border-radius: 4px; }
+</style>
+
 </script>
 
 </body>
