@@ -34,8 +34,15 @@
     <tr><td colspan="5">⏳ 加载中...</td></tr>
   </tbody>
 </table>
-
 <script>
+function parseJSON(text) {
+  try {
+    return JSON.stringify(JSON.parse(text), null, 2);
+  } catch (e) {
+    return text;
+  }
+}
+
 async function loadLogs() {
   const tbody = document.getElementById("logBody");
   tbody.innerHTML = "<tr><td colspan='5'>⏳ 加载中...</td></tr>";
@@ -63,15 +70,8 @@ async function loadLogs() {
       const time = log.timestamp ? new Date(log.timestamp).toLocaleString() : '—';
       const persona = log.persona || '—';
       const intent = log.intent_type || '—';
-      function parseJSON(text) {
-        try {
-          return JSON.stringify(JSON.parse(text), null, 2);  // 格式化 JSON
-        } catch (e) {
-          return text;  // 如果不是合法 JSON，就原样返回
-  }
-}
+      const detail = parseJSON(log.intent_result || log.reply || log.raw_intent || '—');
 
-const detail = parseJSON(log.intent_result || log.reply || log.raw_intent || '—');
       return `
         <tr>
           <td>${persona}</td>
@@ -82,14 +82,14 @@ const detail = parseJSON(log.intent_result || log.reply || log.raw_intent || '�
         </tr>
       `;
     }).join("");
+
   } catch (error) {
-    console.error("加载日志失败:", error);
-    tbody.innerHTML = "<tr><td colspan='5'>❌ 日志加载失败，请检查网络或后端接口。</td></tr>";
+    console.error("🚨 加载失败:", error);
+    tbody.innerHTML = "<tr><td colspan='5'>❌ 日志加载失败</td></tr>";
   }
 }
 
 loadLogs();
 </script>
-
 </body>
 </html>
