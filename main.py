@@ -1,8 +1,9 @@
 import os
+import json
 import traceback
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, Form
-from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -45,8 +46,6 @@ def root():
     return RedirectResponse(url="/dashboard/personas")
 
 # ✅ GPT 聊天主接口
-from src.supabase_logger import write_log_to_supabase, query_logs
-
 @app.post("/chat")
 async def chat(request: Request):
     try:
@@ -71,37 +70,7 @@ async def chat(request: Request):
     except Exception as e:
         return wrap_result("fail", f"系统错误：{str(e)}")
 
-# ✅ 查询日志接口
-@app.post("/log/query")
-async def query_logs_api(request: Request):
-    try:
-        data = await request.json()
-        filters = {}
-        if data.get("persona"):
-            filters["persona"] = data["persona"]
-        logs = query_logs(filters)
-        return JSONResponse(content={"logs": logs})
-    except Exception as e:
-        return JSONResponse(content={"logs": [], "error": str(e)})
-
-# ✅ 可视化聊天测试页面
-@app.get("/chat-ui", response_class=HTMLResponse)
-async def chat_ui(request: Request):
-    return templates.TemplateResponse("chat_ui.html", {"request": request})
-
-# ✅ 日志查看页面
-@app.get("/logs")
-def get_logs(persona: str = ""):
-    try:
-        filters = {}
-        if persona:
-            filters["persona"] = persona
-        logs = query_logs(filters=filters)
-        return {"logs": logs}  # ✅ 必须是 logs，不要写成 data
-    except Exception as e:
-        return {"logs": [], "error": str(e)}  # ✅ logs key 是前端依赖
-
-# ✅ 日志查询接口（权限判断）
+# ✅ 日志查询接口（带权限验证）
 @app.post("/log/query")
 async def query_logs_api(request: Request):
     try:
@@ -109,14 +78,34 @@ async def query_logs_api(request: Request):
         persona = data.get("persona", "")
         secret = data.get("secret", "")
 
-        # 可选：如您已开启无权限模式，跳过以下验证
-        # if not check_secret_permission({"intent_type": "view_logs"}, persona, secret):
-        #     return JSONResponse(content={"logs": [], "error": "权限不足"}, status_code=403)
+        # ✅ 权限判断（如使用无权限模式可注释此段）
+        if not check_secret_permission({"intent_type": "view_logs"}, persona, secret):
+            return JSONResponse(content={"logs": [], "error": "权限不足"}, status_code=403)
 
-        logs = query_logs(filters={"persona": persona} if persona else {})
-        return JSONResponse(content={"logs": logs})  # ✅ logs 是前端 JS 依赖字段
+        filters = {"persona": persona} if persona else {}
+        logs = query_logs(filters=filters)
+        return JSONResponse(content={"logs": logs})  # ✅ logs 是前端依赖字段
+
     except Exception as e:
         return JSONResponse(content={"logs": [], "error": str(e)})
+
+# ✅ 日志页面
+@app.get("/logs")
+def get_logs(persona: str = ""):
+    try:
+        filters = {}
+        if persona:
+            filters["persona"] = persona
+        logs = query_logs(filters=filters)
+        return {"logs": logs}
+    except Exception as e:
+        return {"logs": [], "error": str(e)}
+
+# ✅ 可视化聊天测试页面
+@app.get("/chat-ui", response_class=HTMLResponse)
+async def chat_ui(request: Request):
+    return templates.TemplateResponse("chat_ui.html", {"request": request})
+
 # ✅ 管理界面
 @app.get("/dashboard/personas", response_class=HTMLResponse)
 async def dashboard_personas(request: Request):
@@ -161,10 +150,7 @@ async def delete_api(request: Request):
         traceback.print_exc()
         return JSONResponse(content={"success": False, "error": str(e)})
 
-
-from fastapi.responses import Response
-import json
-
+# ✅ 日志写入测试接口（用于中文乱码测试）
 @app.get("/log/test-write")
 def test_log():
     data = {
