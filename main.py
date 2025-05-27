@@ -1,9 +1,8 @@
 import os
-import json
 import traceback
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, Form
-from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse, Response
+from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -36,7 +35,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ 包装统一格式返回结果
+# ✅ 统一返回格式
 def wrap_result(status: str, reply: str, intent: dict = {}):
     return JSONResponse(content={"status": status, "reply": reply, "intent": intent})
 
@@ -45,7 +44,7 @@ def wrap_result(status: str, reply: str, intent: dict = {}):
 def root():
     return RedirectResponse(url="/dashboard/personas")
 
-# ✅ GPT 聊天主接口
+# ✅ 聊天主接口
 @app.post("/chat")
 async def chat(request: Request):
     try:
@@ -68,43 +67,40 @@ async def chat(request: Request):
         return wrap_result("success", result, intent)
 
     except Exception as e:
+        traceback.print_exc()
         return wrap_result("fail", f"系统错误：{str(e)}")
 
-# ✅ 日志查询接口（带权限验证）
+# ✅ 日志查询接口（权限判断 + 异常处理合并）
 @app.post("/log/query")
 async def query_logs_api(request: Request):
     try:
         data = await request.json()
         persona = data.get("persona", "")
         secret = data.get("secret", "")
-        logs = query_logs(filters={"persona": persona} if persona else {})
-        print("✅ logs 输出：", logs[:1])  # 打印前一条
-        return JSONResponse(content={"logs": logs})
-    except Exception as e:
 
-        # ✅ 权限判断（如使用无权限模式可注释此段）
         if not check_secret_permission({"intent_type": "view_logs"}, persona, secret):
             return JSONResponse(content={"logs": [], "error": "权限不足"}, status_code=403)
 
         filters = {"persona": persona} if persona else {}
         logs = query_logs(filters=filters)
-        return JSONResponse(content={"logs": logs})  # ✅ logs 是前端依赖字段
+        print("✅ logs 输出：", logs[:1])
+        return JSONResponse(content={"logs": logs})
 
     except Exception as e:
+        traceback.print_exc()
         return JSONResponse(content={"logs": [], "error": str(e)})
 
-
-# ✅ 可视化聊天测试页面
+# ✅ 聊天测试页面（绑定到 chatbox.html）
 @app.get("/chat-ui", response_class=HTMLResponse)
 async def chat_ui(request: Request):
-    return templates.TemplateResponse("chat_ui.html", {"request": request})
+    return templates.TemplateResponse("chatbox.html", {"request": request})
 
-# ✅ 管理界面
+# ✅ 角色管理界面
 @app.get("/dashboard/personas", response_class=HTMLResponse)
 async def dashboard_personas(request: Request):
     return templates.TemplateResponse("dashboard_personas.html", {"request": request})
 
-# ✅ 注册角色接口（三表联动）
+# ✅ 注册角色接口
 @app.post("/persona/register")
 def register_persona(
     name: str = Form(...),
@@ -129,25 +125,28 @@ def register_persona(
 # ✅ 删除角色接口
 @app.post("/persona/delete")
 async def delete_api(request: Request):
-    data = await request.json()
-    persona = data.get("persona", "")
-    operator = data.get("operator", "")
-
-    if not check_secret_permission({"intent_type": "delete"}, operator, SUPER_SECRET_KEY):
-        return JSONResponse(content={"success": False, "error": "权限不足"})
-
     try:
+        data = await request.json()
+        persona = data.get("persona", "")
+        operator = data.get("operator", "")
+
+        if not check_secret_permission({"intent_type": "delete"}, operator, SUPER_SECRET_KEY):
+            return JSONResponse(content={"success": False, "error": "权限不足"})
+
         result = delete_persona(persona)
         return JSONResponse(content={"success": True, "result": result})
+
     except Exception as e:
         traceback.print_exc()
         return JSONResponse(content={"success": False, "error": str(e)})
 
-if __name__ == "__main__":
-    import uvicorn
-    port = int(os.environ.get("PORT", 8000))  # Render 提供 PORT 环境变量
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
-
+# ✅ 日志展示页面
 @app.get("/logs", response_class=HTMLResponse)
 async def get_logs_page(request: Request):
     return templates.TemplateResponse("logs.html", {"request": request})
+
+# ✅ 启动服务（用于本地或 Render 云端）
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
