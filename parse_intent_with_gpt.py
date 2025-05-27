@@ -1,7 +1,7 @@
 import json
 import os
-from openai import OpenAI
-
+import openai
+from openai import OpenAI 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def parse_intent(message: str, persona: str, secret: str = ""):
