@@ -150,14 +150,7 @@ async def delete_api(request: Request):
         traceback.print_exc()
         return JSONResponse(content={"success": False, "error": str(e)})
 
-# ✅ 日志写入测试接口（用于中文乱码测试）
-@app.get("/log/test-write")
-def test_log():
-    data = {
-        "status": "success",
-        "message": "角色 小艾 已成功记录日志（含中文）"
-    }
-    return Response(
-        content=json.dumps(data, ensure_ascii=False),
-        media_type="application/json; charset=utf-8"
-    )
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 8000))  # Render 提供 PORT 环境变量
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
