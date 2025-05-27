@@ -63,8 +63,15 @@ async function loadLogs() {
       const time = log.timestamp ? new Date(log.timestamp).toLocaleString() : '—';
       const persona = log.persona || '—';
       const intent = log.intent_type || '—';
-      const detail = log.intent_result || log.reply || log.raw_intent || '—';
+      function parseJSON(text) {
+        try {
+          return JSON.stringify(JSON.parse(text), null, 2);  // 格式化 JSON
+        } catch (e) {
+          return text;  // 如果不是合法 JSON，就原样返回
+  }
+}
 
+const detail = parseJSON(log.intent_result || log.reply || log.raw_intent || '—');
       return `
         <tr>
           <td>${persona}</td>
