@@ -5,13 +5,15 @@
   <title>📜 操作日志 · Lockling 云脑</title>
   <style>
     body { font-family: sans-serif; padding: 30px; background-color: #f4f6f8; }
+    h2 { margin-bottom: 20px; }
     table { width: 100%; border-collapse: collapse; background: #fff; }
     th, td { padding: 10px 12px; border: 1px solid #ccc; text-align: left; }
     th { background-color: #eee; }
     tr:nth-child(even) { background-color: #f9f9f9; }
     pre { white-space: pre-wrap; font-size: 13px; margin: 0; }
-    .success { color: green; }
-    .fail { color: red; }
+    .success { color: green; font-weight: bold; }
+    .fail { color: red; font-weight: bold; }
+    .pending { color: gray; }
   </style>
 </head>
 <body>
@@ -50,34 +52,36 @@ async function loadLogs() {
     const data = await res.json();
     const logs = data.logs || [];
 
-    console.log("✅ 返回的日志数据：", logs);  // ✅ 调试用
-
     if (logs.length === 0) {
-      tbody.innerHTML = "<tr><td colspan='5'>⚠️ 暂无日志记录</td></tr>";
+      tbody.innerHTML = "<tr><td colspan='5'>🚫 无日志记录</td></tr>";
       return;
     }
 
-    tbody.innerHTML = ""; // 清空
+    tbody.innerHTML = logs.map(log => {
+      const status = log.status || (log.allow === true ? "success" : (log.allow === false ? "denied" : "pending"));
+      const statusClass = log.allow === true ? "success" : (log.allow === false ? "fail" : "pending");
+      const time = log.timestamp ? new Date(log.timestamp).toLocaleString() : '—';
+      const persona = log.persona || '—';
+      const intent = log.intent_type || '—';
+      const detail = log.intent_result || log.reply || log.raw_intent || '—';
 
-    logs.forEach(log => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${log.persona || "—"}</td>
-        <td>${log.intent_type || "—"}</td>
-        <td class="${log.status === "success" ? "success" : "fail"}">${log.status}</td>
-        <td><pre>${JSON.stringify(log.reply || {}, null, 2)}</pre></td>
-        <td>${new Date(log.timestamp).toLocaleString()}</td>
+      return `
+        <tr>
+          <td>${persona}</td>
+          <td>${intent}</td>
+          <td class="${statusClass}">${status}</td>
+          <td><pre>${detail}</pre></td>
+          <td>${time}</td>
+        </tr>
       `;
-      tbody.appendChild(tr);
-    });
-
-  } catch (err) {
-    console.error("❌ 日志加载失败：", err);
-    tbody.innerHTML = `<tr><td colspan="5">❌ 加载失败：${err.message}</td></tr>`;
+    }).join("");
+  } catch (error) {
+    console.error("加载日志失败:", error);
+    tbody.innerHTML = "<tr><td colspan='5'>❌ 日志加载失败，请检查网络或后端接口。</td></tr>";
   }
 }
 
-window.onload = loadLogs;
+loadLogs();
 </script>
 
 </body>
