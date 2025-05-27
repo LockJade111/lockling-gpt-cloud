@@ -3,7 +3,6 @@ from check_permission import check_secret_permission
 from persona_keys import register_persona
 from src.supabase_logger import write_log_to_supabase
 from supabase import create_client
-import os
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
@@ -33,21 +32,31 @@ def handle_register(intent):
 
     try:
         result = register_persona(new_name, secret)
-        write_log_to_supabase(persona, intent, "success", f"注册新 persona：{new_name}")
+        write_log_to_supabase(
+            query=persona,
+            reply=f"注册新 persona：{new_name}",
+            intent_result=intent,
+            status="success"
+        )
         return {
             "status": "success",
             "reply": f"✅ 已注册新角色：{new_name}",
             "intent": intent
         }
     except Exception as e:
-        write_log_to_supabase(persona, intent, "fail", str(e))
+        write_log_to_supabase(
+            query=persona,
+            reply=str(e),
+            intent_result=intent,
+            status="fail"
+        )
         return {
             "status": "fail",
             "reply": f"❌ 注册失败：{str(e)}",
             "intent": intent
         }
 
-# ✅ 授权 intent：将 source → target 写入 roles 表
+# ✅ 授权 intent
 def handle_authorize(intent):
     print("📥 收到意图：authorize")
 
@@ -68,30 +77,40 @@ def handle_authorize(intent):
             "granted_by": "系统"
         }).execute()
 
-        write_log_to_supabase(source, intent, "success", f"授权 {target} 成功")
+        # ✅ 添加字段：allow、reason
+        intent["allow"] = True
+        intent["reason"] = "授权成功"
+        intent["target"] = target
+
+        write_log_to_supabase(
+            query=source,
+            reply=f"授权 {target} 成功",
+            intent_result=intent,
+            status="success"
+        )
         return {
             "status": "success",
             "reply": f"✅ 已授权 {target} 使用",
             "intent": intent
         }
     except Exception as e:
-        write_log_to_supabase(source, intent, "fail", str(e))
+        intent["allow"] = False
+        intent["reason"] = str(e)
+        intent["target"] = target
+
+        write_log_to_supabase(
+            query=source,
+            reply=str(e),
+            intent_result=intent,
+            status="fail"
+        )
         return {
             "status": "fail",
             "reply": f"❌ 授权失败：{str(e)}",
             "intent": intent
         }
 
-# ✅ 授权 intent（示例）
-def handle_authorize(intent):
-    print("📥 收到意图：authorize")
-    return {
-        "status": "success",
-        "reply": f"✅ 授权成功（模拟）",
-        "intent": intent
-    }
-
-# ✅ 身份验证 intent（示例 confirm_identity）
+# ✅ 身份验证 intent
 def handle_confirm_identity(intent):
     print("📥 收到意图：confirm_identity")
     target = intent.get("target", "")
@@ -101,7 +120,7 @@ def handle_confirm_identity(intent):
         "intent": intent
     }
 
-# ✅ 密钥确认 intent（示例 confirm_secret）
+# ✅ 密钥确认 intent
 def handle_confirm_secret(intent):
     print("📥 收到意图：confirm_secret")
     return {
@@ -110,7 +129,7 @@ def handle_confirm_secret(intent):
         "intent": intent
     }
 
-# ✅ 主调度函数
+# ✅ 分发入口
 def dispatcher(intent):
     intent_type = intent.get("intent_type", "")
 
@@ -129,5 +148,4 @@ def dispatcher(intent):
             "intent": intent
         }
 
-# ✅ 显式导出 dispatcher
 __all__ = ["dispatcher"]
