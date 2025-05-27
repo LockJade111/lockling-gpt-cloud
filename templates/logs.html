@@ -95,19 +95,21 @@
   </style>
 </head>
 <body>
+<!-- 标题 + 切换语言 -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+  <h2 id="pageTitle">📜 Lockling 云脑 操作日志</h2>
+  <button onclick="toggleLang()" style="padding: 6px 12px; cursor: pointer;">🌐 切换语言</button>
+</div>
 
-<div class="controls"> 
+<!-- 控件区域：搜索 / 查询 / 导出 -->
+<div class="controls">
   🔍 <input type="text" id="searchInput" placeholder="搜索 Persona / Intent">
-  <button id="reloadBtn" onclick="loadLogs()">🔄 手动刷新</button>
+  <button id="reloadBtn" onclick="loadLogs()">🔄 手动刷新</button>  
   <button id="exportBtn" onclick="exportLogs()">📤 导出日志</button>
   <input type="text" id="personaInput" placeholder="输入 persona" style="margin-left:10px;">
   <input type="password" id="secretInput" placeholder="输入密钥" style="margin-left:10px;">
   <button onclick="loadLogs()">🔍 查询</button>
   <a id="backLink" href="/dashboard/personas" style="margin-left: 10px; font-size: 13px;">↩ 返回仪表盘</a>
-</div>
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-  <h2 id="pageTitle">📜 Lockling 云脑 操作日志</h2>
-  <button onclick="toggleLang()" style="padding: 6px 12px; cursor: pointer;">🌐 切换语言</button>
 </div>
 <div class="stats" id="stats">日志统计：加载中...</div>
 
