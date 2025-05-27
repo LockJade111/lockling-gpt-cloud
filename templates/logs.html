@@ -11,7 +11,26 @@
       color: #333;
     }
     h2 {
-      margin-bottom: 15px;
+      margin-bottom: 10px;
+    }
+    .controls {
+      margin-bottom: 10px;
+    }
+    input {
+      padding: 6px 10px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      margin-right: 10px;
+    }
+    button {
+      padding: 6px 12px;
+      font-size: 14px;
+      border: none;
+      background: #007bff;
+      color: #fff;
+      border-radius: 4px;
+      cursor: pointer;
     }
     table {
       width: 100%;
@@ -25,6 +44,7 @@
       padding: 12px 14px;
       border-bottom: 1px solid #ddd;
       text-align: left;
+      vertical-align: top;
     }
     th {
       background-color: #f0f2f5;
@@ -46,11 +66,30 @@
       font-size: 12px;
       margin-top: 40px;
     }
+    .toggle-btn {
+      color: #007bff;
+      cursor: pointer;
+      font-size: 12px;
+      margin-top: 5px;
+      display: inline-block;
+    }
+    .stats {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 10px;
+    }
   </style>
 </head>
 <body>
 
 <h2>📜 Lockling 云脑 操作日志</h2>
+
+<div class="controls">
+  🔍 <input type="text" id="searchInput" placeholder="搜索 Persona / Intent">
+  <button onclick="loadLogs()">🔄 手动刷新</button>
+</div>
+
+<div class="stats" id="stats">日志统计：加载中...</div>
 
 <table>
   <thead>
@@ -70,55 +109,92 @@
 <div class="footer">🪶 由 Lockling 守护 · 数据来源云脑系统</div>
 
 <script>
-function parseJSON(text) {
+function parseJSONSmart(input) {
   try {
-    if (typeof text === "object") return JSON.stringify(text, null, 2);
-    const parsed = JSON.parse(text);
-    return JSON.stringify(parsed, null, 2);
+    let result = input;
+    let depth = 0;
+    while (typeof result === "string" && depth < 5) {
+      result = JSON.parse(result);
+      depth++;
+    }
+    return typeof result === "object" ? JSON.stringify(result, null, 2) : result;
   } catch (e) {
-    return text;
+    return typeof input === "object" ? JSON.stringify(input, null, 2) : input;
   }
+}
+
+function createCollapsibleDetail(content) {
+  const short = content.slice(0, 100);
+  const full = content;
+  const container = document.createElement("div");
+  const pre = document.createElement("pre");
+  const toggle = document.createElement("span");
+  let expanded = false;
+
+  pre.textContent = short + "...";
+  toggle.textContent = "展开 ▼";
+  toggle.className = "toggle-btn";
+
+  toggle.onclick = () => {
+    expanded = !expanded;
+    pre.textContent = expanded ? full : short + "...";
+    toggle.textContent = expanded ? "收起 ▲" : "展开 ▼";
+  };
+
+  container.appendChild(pre);
+  container.appendChild(toggle);
+  return container;
 }
 
 async function loadLogs() {
   const tbody = document.getElementById("logBody");
-  tbody.innerHTML = "<tr><td colspan='5'>⏳ 加载中...</td></tr>";
+  const statsDiv = document.getElementById("stats");
+  const search = document.getElementById("searchInput").value.toLowerCase();
 
+  tbody.innerHTML = "<tr><td colspan='5'>⏳ 加载中...</td></tr>";
   try {
     const res = await fetch("/log/query", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({})
     });
-
     const data = await res.json();
     const logs = data.logs || [];
 
-    if (logs.length === 0) {
-      tbody.innerHTML = "<tr><td colspan='5'>🚫 无日志记录</td></tr>";
-      return;
-    }
+    // 统计信息
+    const total = logs.length;
+    const success = logs.filter(l => l.status === "success").length;
+    const fail = logs.filter(l => l.status === "fail").length;
+    const pending = logs.filter(l => !l.status || l.status === "pending").length;
+    statsDiv.textContent = `日志统计：共 ${total} 条 · ✅ 成功 ${success} 条 · ❌ 失败 ${fail} 条 · ⏳ 等待 ${pending} 条`;
 
-    tbody.innerHTML = logs.map(log => {
+    // 渲染表格
+    tbody.innerHTML = "";
+    logs.forEach(log => {
+      const persona = (log.persona || '—').toLowerCase();
+      const intent = (log.intent_type || '—').toLowerCase();
+      if (search && !persona.includes(search) && !intent.includes(search)) return;
+
       const status = log.status || (log.allow === true ? "success" : (log.allow === false ? "fail" : "pending"));
-      const statusClass = log.allow === true ? "success" : (log.allow === false ? "fail" : "pending");
+      const statusClass = status === "success" ? "success" : status === "fail" ? "fail" : "pending";
       const time = log.timestamp ? new Date(log.timestamp).toLocaleString() : '—';
-      const persona = log.persona || '—';
-      const intent = log.intent_type || '—';
-      const detail = parseJSON(log.intent_result || log.reply || log.raw_intent || '—');
+      const detailRaw = log.intent_result || log.reply || log.raw_intent || '—';
+      const detailParsed = parseJSONSmart(detailRaw);
 
-      return `
-        <tr>
-          <td>${persona}</td>
-          <td>${intent}</td>
-          <td class="${statusClass}">${status === "success" ? "✅ success" : (status === "fail" ? "❌ fail" : "⏳ pending")}</td>
-          <td><pre>${detail}</pre></td>
-          <td>${time}</td>
-        </tr>
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${log.persona || '—'}</td>
+        <td>${log.intent_type || '—'}</td>
+        <td class="${statusClass}">${status === "success" ? "✅ success" : (status === "fail" ? "❌ fail" : "⏳ pending")}</td>
+        <td></td>
+        <td>${time}</td>
       `;
-    }).join("");
+
+      const detailCell = row.children[3];
+      detailCell.appendChild(createCollapsibleDetail(detailParsed));
+
+      tbody.appendChild(row);
+    });
 
   } catch (error) {
     console.error("🚨 加载失败:", error);
@@ -127,6 +203,8 @@ async function loadLogs() {
 }
 
 loadLogs();
+setInterval(loadLogs, 30000); // 自动刷新间隔 30 秒
 </script>
+
 </body>
 </html>
