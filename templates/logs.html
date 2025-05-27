@@ -37,13 +37,17 @@
 <script>
 function parseJSON(text) {
   try {
-    if (typeof text === "object") return JSON.stringify(text, null, 2); // 如果是对象，直接格式化
-    const parsed = JSON.parse(text); // 如果是字符串，尝试解析
+    if (typeof text === "object") return JSON.stringify(text, null, 2);
+    let parsed = JSON.parse(text);
+    if (typeof parsed === "string") {
+      parsed = JSON.parse(parsed); // 二次解析防止嵌套字符串
+    }
     return JSON.stringify(parsed, null, 2);
   } catch (e) {
-    return text; // 如果失败就原样返回（防止卡死）
+    return text;
   }
 }
+
 async function loadLogs() {
   const tbody = document.getElementById("logBody");
   tbody.innerHTML = "<tr><td colspan='5'>⏳ 加载中...</td></tr>";
