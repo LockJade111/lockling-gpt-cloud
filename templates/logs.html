@@ -339,7 +339,32 @@ let currentLang = "zh";  // 默认中文
 applyLang();             // 初始应用语言包
 loadLogs();              // 初次加载日志
 setInterval(loadLogs, 30000); // 自动刷新
-</script>
+function exportLogs() {
+  fetch("/log/query", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({})
+  })
+  .then(res => res.json())
+  .then(data => {
+    const logs = data.logs || [];
 
+    const blob = new Blob([JSON.stringify(logs, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "logs.json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  })
+  .catch(err => {
+    alert("❌ 导出失败：" + err.message);
+    console.error(err);
+  });
+}
+</script>
 </body>
 </html>
