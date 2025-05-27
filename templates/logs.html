@@ -128,6 +128,12 @@
     <tr><td colspan="5">⏳ 加载中...</td></tr>
   </tbody>
 </table>
+<div style="text-align: center; margin-top: 20px;">
+  <button id="loadMoreBtn" onclick="loadLogs(true)">⬇ 加载更多</button>
+</div>
+<div class="footer">🪶 由 Lockling 守护 · 数据来源云脑系统</div>
+
+<script>
 function updateChart(logs) {
   const counts = {};
   logs.forEach(log => {
@@ -147,10 +153,10 @@ function updateChart(logs) {
     window.intentChart = new Chart(ctx, {
       type: "bar",
       data: {
-        labels,
+        labels: labels,
         datasets: [{
           label: "操作类型分布",
-          data,
+          data: data,
           backgroundColor: "rgba(54, 162, 235, 0.5)",
           borderColor: "rgba(54, 162, 235, 1)",
           borderWidth: 1
@@ -167,12 +173,6 @@ function updateChart(logs) {
     });
   }
 }
-<div style="text-align: center; margin-top: 20px;">
-  <button id="loadMoreBtn" onclick="loadLogs(true)">⬇ 加载更多</button>
-</div>
-<div class="footer">🪶 由 Lockling 守护 · 数据来源云脑系统</div>
-
-<script>
 function parseJSONSmart(input) {
   try {
     let result = input;
