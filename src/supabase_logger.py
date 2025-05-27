@@ -47,8 +47,8 @@ def write_log_to_supabase(query: str, reply, intent_result=None, status: str = "
             "source": source,
             "status": status,
             "env": os.getenv("NODE_ENV", "local"),
-            "intent_result": json.dumps(intent_result, ensure_ascii=False),
-            "raw_intent": raw_intent or json.dumps(intent_result, ensure_ascii=False)
+            "intent_result":intent_result,
+            "raw_intent": raw_intent or intent_result,
         }
 
         supabase.table(SUPABASE_TABLE).insert(data).execute()
