@@ -25,57 +25,83 @@ headers = {
     "Content-Type": "application/json",
 }
 
-# ========== 函数区 ==========
-def check_secret_permission(intent: str, persona: str, secret: str) -> bool:
+# ✅ 核心权限函数（返回结构化权限结果）
+def check_secret_permission(intent: dict, persona: str, secret: str) -> dict:
     """
-    三层权限验证机制：
-    1. 超级密钥放行
-    2. 专属环境变量匹配
-    3. 从 Supabase personas 表中读取 bcrypt hash 对比密钥
-    4. 然后检查 persona_roles 表是否授权了 intent
+    权限验证机制（四层）：
+    1. 超级密钥立即放行
+    2. 专属环境密钥比对
+    3. Supabase bcrypt 密钥验证
+    4. persona_roles 表中 intent 权限比对
 
-    返回 True 表示通过，False 表示拒绝
+    返回结构：
+    {
+        "allow": True / False,
+        "reason": "...",
+        "persona": "小艾",
+        "intent_type": "authorize"
+    }
     """
     try:
+        # 预处理字段
+        intent_type = intent.get("intent_type", "unknown")
+        result = {
+            "allow": False,
+            "reason": "❌ 默认拒绝，未通过任一验证路径",
+            "persona": persona,
+            "intent_type": intent_type
+        }
+
         # ---------- 1. 超级密钥直接放行 ----------
         if secret == SUPER_SECRET_KEY:
-            return True
+            result["allow"] = True
+            result["reason"] = "✅ 超级密钥授权"
+            return result
 
-        # ---------- 2. 专属角色密钥（如 LOCKLING_SECRET） ----------
+        # ---------- 2. 专属角色密钥匹配 ----------
         env_key_name = PERSONA_SECRET_KEY_MAP.get(persona)
         if env_key_name:
             env_secret = os.getenv(env_key_name)
             if env_secret and secret == env_secret:
-                return True
+                result["allow"] = True
+                result["reason"] = f"✅ {persona} 的专属密钥通过验证"
+                return result
 
-        # ---------- 3. 从 Supabase 读取 bcrypt hash 匹配 ----------
+        # ---------- 3. bcrypt hash 比对 ----------
         hash_url = f"{SUPABASE_URL}/rest/v1/persona_keys?persona=eq.{persona}&select=secret"
         res = requests.get(hash_url, headers=headers)
-
         if res.status_code == 200 and res.json():
             hashed = res.json()[0].get("secret")
             if hashed and bcrypt.checkpw(secret.encode(), hashed.encode()):
-                return is_intent_authorized(persona, intent)
-        
-        return False
+                # ---------- 4. 检查 intent 权限 ----------
+                if is_intent_authorized(persona, intent_type):
+                    result["allow"] = True
+                    result["reason"] = f"✅ 密钥正确且具有权限：{intent_type}"
+                else:
+                    result["reason"] = f"❌ 密钥正确，但无权执行：{intent_type}"
+                return result
+
+        # 所有验证失败
+        result["reason"] = "❌ 密钥验证失败或权限未授权"
+        return result
 
     except Exception as e:
-        print("❌ 权限校验失败:", e)
-        return False
+        print("❌ 权限校验异常:", e)
+        return {
+            "allow": False,
+            "reason": f"❌ 异常错误：{str(e)}",
+            "persona": persona,
+            "intent_type": intent.get("intent_type", "unknown")
+        }
 
-
+# ✅ 权限表比对
 def is_intent_authorized(persona: str, intent: str) -> bool:
-    """
-    查询 persona_roles 表，是否该 persona 拥有 intent 权限
-    """
     try:
-        query_url = f"{SUPABASE_URL}/rest/v1/persona_roles?persona=eq.{persona}&intent=eq.{intent}"
-        res = requests.get(query_url, headers=headers)
-
+        url = f"{SUPABASE_URL}/rest/v1/persona_roles?persona=eq.{persona}&intent=eq.{intent}"
+        res = requests.get(url, headers=headers)
         if res.status_code == 200 and res.json():
             return True
         return False
-
     except Exception as e:
-        print("❌ 权限验证失败:", e)
+        print("❌ intent 权限验证失败:", e)
         return False
