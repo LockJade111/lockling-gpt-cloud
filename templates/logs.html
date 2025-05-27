@@ -34,23 +34,19 @@
     <tr><td colspan="5">⏳ 加载中...</td></tr>
   </tbody>
 </table>
+
 <script>
-function parseJSON(text) {
+function parseJSONSmart(input) {
   try {
-    let result = text;
-    let attempt = 0;
-
-    // 最多尝试 5 层 JSON.parse 解嵌套（避免死循环）
-    while (typeof result === "string" && attempt < 5) {
+    let result = input;
+    let attempts = 0;
+    while (typeof result === "string" && attempts < 5) {
       result = JSON.parse(result);
-      attempt++;
+      attempts++;
     }
-
-    // 成功解析后美化返回
-    return JSON.stringify(result, null, 2);
+    return typeof result === "object" ? JSON.stringify(result, null, 2) : result;
   } catch (e) {
-    // 保底展示原样
-    return typeof text === "object" ? JSON.stringify(text, null, 2) : text;
+    return typeof input === "object" ? JSON.stringify(input, null, 2) : input;
   }
 }
 
@@ -61,9 +57,7 @@ async function loadLogs() {
   try {
     const res = await fetch("/log/query", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({})
     });
 
@@ -81,7 +75,8 @@ async function loadLogs() {
       const time = log.timestamp ? new Date(log.timestamp).toLocaleString() : '—';
       const persona = log.persona || '—';
       const intent = log.intent_type || '—';
-      const detail = parseJSON(log.intent_result || log.reply || log.raw_intent || '—');
+      const raw = log.intent_result || log.reply || log.raw_intent || '—';
+      const detail = parseJSONSmart(raw);
 
       return `
         <tr>
