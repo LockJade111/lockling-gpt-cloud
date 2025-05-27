@@ -87,6 +87,8 @@
 <div class="controls">
   🔍 <input type="text" id="searchInput" placeholder="搜索 Persona / Intent">
   <button onclick="loadLogs()">🔄 手动刷新</button>
+  <button onclick="exportLogs()">📤 导出日志</button>
+  <a href="/dashboard/personas" style="margin-left: 10px; font-size: 13px;">↩ 返回仪表盘</a>
 </div>
 
 <div class="stats" id="stats">日志统计：加载中...</div>
@@ -160,6 +162,7 @@ async function loadLogs() {
     });
     const data = await res.json();
     const logs = data.logs || [];
+    cachedLogs = logs;    
 
     // 统计信息
     const total = logs.length;

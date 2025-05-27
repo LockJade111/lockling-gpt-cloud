@@ -39,7 +39,7 @@ def write_log_to_supabase(query, reply, intent_result=None, status="success", so
             "reply": json.dumps(reply, ensure_ascii=False),
             "intent_result": intent_result,
             "status": status,
-            "source": source,
+            "source": source or "未知来源"
             "persona": persona,
             "intent_type": translated_intent,
             "message": intent_result.get("message") if isinstance(intent_result, dict) else "(无内容)",
