@@ -93,17 +93,6 @@ async def query_logs_api(request: Request):
     except Exception as e:
         return JSONResponse(content={"logs": [], "error": str(e)})
 
-# ✅ 日志页面
-@app.get("/logs")
-def get_logs(persona: str = ""):
-    try:
-        filters = {}
-        if persona:
-            filters["persona"] = persona
-        logs = query_logs(filters=filters)
-        return {"logs": logs}
-    except Exception as e:
-        return {"logs": [], "error": str(e)}
 
 # ✅ 可视化聊天测试页面
 @app.get("/chat-ui", response_class=HTMLResponse)
