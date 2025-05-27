@@ -9,7 +9,7 @@
     th, td { padding: 10px 12px; border: 1px solid #ccc; text-align: left; }
     th { background-color: #eee; }
     tr:nth-child(even) { background-color: #f9f9f9; }
-    pre { white-space: pre-wrap; font-size: 13px; }
+    pre { white-space: pre-wrap; font-size: 13px; margin: 0; }
     .success { color: green; }
     .fail { color: red; }
   </style>
@@ -34,43 +34,51 @@
 </table>
 
 <script>
-  async function loadLogs() {
-    const tbody = document.getElementById("logBody");
-    try {
-      const res = await fetch("/log/query", {
-        method: "POST",  // ✅ 必须是 POST，否则后端会 405 拒绝
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({})
-      });
+async function loadLogs() {
+  const tbody = document.getElementById("logBody");
+  tbody.innerHTML = "<tr><td colspan='5'>⏳ 加载中...</td></tr>";
 
-      const data = await res.json();
-      const logs = data.logs || [];
+  try {
+    const res = await fetch("/log/query", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({})
+    });
 
-      tbody.innerHTML = "";
-      if (logs.length === 0) {
-        tbody.innerHTML = "<tr><td colspan='5'>⚠️ 暂无日志记录</td></tr>";
-        return;
-      }
+    const data = await res.json();
+    const logs = data.logs || [];
 
-      logs.forEach(log => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${log.persona || ''}</td>
-          <td>${log.intent_type || ''}</td>
-          <td class="${log.status === 'success' ? 'success' : 'fail'}">${log.status}</td>
-          <td><pre>${JSON.stringify(log.reply || {}, null, 2)}</pre></td>
-          <td>${new Date(log.timestamp).toLocaleString()}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-    } catch (e) {
-      tbody.innerHTML = `<tr><td colspan='5'>❌ 加载失败：${e.message}</td></tr>`;
+    console.log("✅ 返回的日志数据：", logs);  // ✅ 调试用
+
+    if (logs.length === 0) {
+      tbody.innerHTML = "<tr><td colspan='5'>⚠️ 暂无日志记录</td></tr>";
+      return;
     }
-  }
 
-  window.onload = loadLogs;
+    tbody.innerHTML = ""; // 清空
+
+    logs.forEach(log => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${log.persona || "—"}</td>
+        <td>${log.intent_type || "—"}</td>
+        <td class="${log.status === "success" ? "success" : "fail"}">${log.status}</td>
+        <td><pre>${JSON.stringify(log.reply || {}, null, 2)}</pre></td>
+        <td>${new Date(log.timestamp).toLocaleString()}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+  } catch (err) {
+    console.error("❌ 日志加载失败：", err);
+    tbody.innerHTML = `<tr><td colspan="5">❌ 加载失败：${err.message}</td></tr>`;
+  }
+}
+
+window.onload = loadLogs;
 </script>
+
 </body>
 </html>
