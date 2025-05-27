@@ -22,7 +22,7 @@ def write_log_to_supabase(query, reply, intent_result=None, status="success", so
         # 写入字段结构（字段缺失自动 fallback）
         log_entry = {
             "query": query or "",
-            "reply": json.dumps(reply, ensure_ascii=False),
+            "reply": reply if isinstance(reply, dict) else {"text": str(reply)},
             "status": status,
             "source": source,
             "timestamp": datetime.utcnow().isoformat() + "Z",
@@ -35,8 +35,8 @@ def write_log_to_supabase(query, reply, intent_result=None, status="success", so
             "secret": intent_result.get("secret", "") if isinstance(intent_result, dict) else "",
             "env": intent_result.get("env", "") if isinstance(intent_result, dict) else "",
             "permissions": json.dumps(intent_result.get("permissions", []), ensure_ascii=False) if isinstance(intent_result, dict) else "[]",
-            "intent_result": json.dumps(intent_result, ensure_ascii=False) if isinstance(intent_result, dict) else str(intent_result),
-            "raw_intent": json.dumps(raw_intent, ensure_ascii=False) if isinstance(raw_intent, dict) else (raw_intent or "")
+            "intent_result": intent_result if isinstance(intent_result, dict) else json.loads(intent_result),
+            "raw_intent": raw_intent if isinstance(raw_intent, dict) else json.loads(raw_intent),
         }
 
         supabase.table(SUPABASE_LOG_TABLE).insert(log_entry).execute()
