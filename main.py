@@ -77,6 +77,10 @@ async def query_logs_api(request: Request):
         data = await request.json()
         persona = data.get("persona", "")
         secret = data.get("secret", "")
+        logs = query_logs(filters={"persona": persona} if persona else {})
+        print("✅ logs 输出：", logs[:1])  # 打印前一条
+        return JSONResponse(content={"logs": logs})
+    except Exception as e:
 
         # ✅ 权限判断（如使用无权限模式可注释此段）
         if not check_secret_permission({"intent_type": "view_logs"}, persona, secret):
