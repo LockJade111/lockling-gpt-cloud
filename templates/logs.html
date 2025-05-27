@@ -2,6 +2,7 @@
 <html lang="zh">
 <head>
   <style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     .hl-success { color: green; font-weight: bold; }
     .hl-fail { color: red; font-weight: bold; }
     .hl-warn { color: orange; font-weight: bold; }
@@ -127,7 +128,43 @@
     <tr><td colspan="5">⏳ 加载中...</td></tr>
   </tbody>
 </table>
-<!-- ✅ 插在这里 -->
+function updateChart(logs) {
+  const counts = {};
+  logs.forEach(log => {
+    const intent = log.intent_type || "unknown";
+    counts[intent] = (counts[intent] || 0) + 1;
+  });
+
+  const labels = Object.keys(counts);
+  const data = Object.values(counts);
+
+  if (window.intentChart) {
+    window.intentChart.data.labels = labels;
+    window.intentChart.data.datasets[0].data = data;
+    window.intentChart.update();
+  } else {
+    const ctx = document.getElementById("logChart").getContext("2d");
+    window.intentChart = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [{
+          label: "操作类型分布",
+          data,
+          backgroundColor: "rgba(54, 162, 235, 0.5)",
+          borderColor: "rgba(54, 162, 235, 1)",
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: { beginAtZero: true }
+        }
+      }
+    });
+  }
+}
 <div style="text-align: center; margin-top: 20px;">
   <button id="loadMoreBtn" onclick="loadLogs(true)">⬇ 加载更多</button>
 </div>
