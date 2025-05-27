@@ -2,18 +2,50 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8">
-  <title>📜 操作日志 · Lockling 云脑</title>
+  <title>📜 Lockling 云脑 操作日志</title>
   <style>
-    body { font-family: sans-serif; padding: 30px; background-color: #f4f6f8; }
-    h2 { margin-bottom: 20px; }
-    table { width: 100%; border-collapse: collapse; background: #fff; }
-    th, td { padding: 10px 12px; border: 1px solid #ccc; text-align: left; }
-    th { background-color: #eee; }
-    tr:nth-child(even) { background-color: #f9f9f9; }
-    pre { white-space: pre-wrap; font-size: 13px; margin: 0; }
+    body {
+      font-family: "Inter", "Noto Sans SC", sans-serif;
+      padding: 30px;
+      background-color: #f5f6f7;
+      color: #333;
+    }
+    h2 {
+      margin-bottom: 15px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      box-shadow: 0 0 6px rgba(0,0,0,0.05);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    th, td {
+      padding: 12px 14px;
+      border-bottom: 1px solid #ddd;
+      text-align: left;
+    }
+    th {
+      background-color: #f0f2f5;
+    }
+    tr:hover {
+      background-color: #f9f9f9;
+    }
     .success { color: green; font-weight: bold; }
     .fail { color: red; font-weight: bold; }
     .pending { color: gray; }
+    pre {
+      white-space: pre-wrap;
+      font-size: 13px;
+      margin: 0;
+    }
+    .footer {
+      text-align: center;
+      color: #999;
+      font-size: 12px;
+      margin-top: 40px;
+    }
   </style>
 </head>
 <body>
@@ -35,18 +67,16 @@
   </tbody>
 </table>
 
+<div class="footer">🪶 由 Lockling 守护 · 数据来源云脑系统</div>
+
 <script>
-function parseJSONSmart(input) {
+function parseJSON(text) {
   try {
-    let result = input;
-    let attempts = 0;
-    while (typeof result === "string" && attempts < 5) {
-      result = JSON.parse(result);
-      attempts++;
-    }
-    return typeof result === "object" ? JSON.stringify(result, null, 2) : result;
+    if (typeof text === "object") return JSON.stringify(text, null, 2);
+    const parsed = JSON.parse(text);
+    return JSON.stringify(parsed, null, 2);
   } catch (e) {
-    return typeof input === "object" ? JSON.stringify(input, null, 2) : input;
+    return text;
   }
 }
 
@@ -57,7 +87,9 @@ async function loadLogs() {
   try {
     const res = await fetch("/log/query", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json"
+      },
       body: JSON.stringify({})
     });
 
@@ -70,19 +102,18 @@ async function loadLogs() {
     }
 
     tbody.innerHTML = logs.map(log => {
-      const status = log.status || (log.allow === true ? "success" : (log.allow === false ? "denied" : "pending"));
+      const status = log.status || (log.allow === true ? "success" : (log.allow === false ? "fail" : "pending"));
       const statusClass = log.allow === true ? "success" : (log.allow === false ? "fail" : "pending");
       const time = log.timestamp ? new Date(log.timestamp).toLocaleString() : '—';
       const persona = log.persona || '—';
       const intent = log.intent_type || '—';
-      const raw = log.intent_result || log.reply || log.raw_intent || '—';
-      const detail = parseJSONSmart(raw);
+      const detail = parseJSON(log.intent_result || log.reply || log.raw_intent || '—');
 
       return `
         <tr>
           <td>${persona}</td>
           <td>${intent}</td>
-          <td class="${statusClass}">${status}</td>
+          <td class="${statusClass}">${status === "success" ? "✅ success" : (status === "fail" ? "❌ fail" : "⏳ pending")}</td>
           <td><pre>${detail}</pre></td>
           <td>${time}</td>
         </tr>
@@ -97,6 +128,5 @@ async function loadLogs() {
 
 loadLogs();
 </script>
-
 </body>
 </html>
