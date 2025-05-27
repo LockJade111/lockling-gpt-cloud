@@ -36,20 +36,18 @@
 </table>
 
 <script>
-function parseJSON(text, depth = 3) {
+function parseJSON(text) {
   try {
-    let result = text;
-    let count = 0;
-    while (typeof result === "string" && count < depth) {
-      result = JSON.parse(result);
-      count++;
-    }
-    return JSON.stringify(result, null, 2);
+    let parsed = text;
+    // 第一次解析
+    if (typeof parsed === "string") parsed = JSON.parse(parsed);
+    // 第二次解析（若里面还是字符串形式的 JSON）
+    if (typeof parsed === "string") parsed = JSON.parse(parsed);
+    return JSON.stringify(parsed, null, 2);
   } catch (e) {
-    return typeof text === "object" ? JSON.stringify(text, null, 2) : text;
+    return text;
   }
 }
-
 async function loadLogs() {
   const tbody = document.getElementById("logBody");
   tbody.innerHTML = "<tr><td colspan='5'>⏳ 加载中...</td></tr>";
