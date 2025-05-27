@@ -34,17 +34,19 @@
     <tr><td colspan="5">⏳ 加载中...</td></tr>
   </tbody>
 </table>
+
 <script>
-function parseJSON(text) {
+function parseJSON(text, depth = 3) {
   try {
-    if (typeof text === "object") return JSON.stringify(text, null, 2);
-    let parsed = JSON.parse(text);
-    if (typeof parsed === "string") {
-      parsed = JSON.parse(parsed); // 二次解析防止嵌套字符串
+    let result = text;
+    let count = 0;
+    while (typeof result === "string" && count < depth) {
+      result = JSON.parse(result);
+      count++;
     }
-    return JSON.stringify(parsed, null, 2);
+    return JSON.stringify(result, null, 2);
   } catch (e) {
-    return text;
+    return typeof text === "object" ? JSON.stringify(text, null, 2) : text;
   }
 }
 
@@ -96,5 +98,6 @@ async function loadLogs() {
 
 loadLogs();
 </script>
+
 </body>
 </html>
