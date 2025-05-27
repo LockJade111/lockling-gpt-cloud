@@ -98,10 +98,13 @@
 
 <h2>📜 Lockling 云脑 操作日志</h2>
 
-<div class="controls">
+<div class="controls"> 
   🔍 <input type="text" id="searchInput" placeholder="搜索 Persona / Intent">
   <button onclick="loadLogs()">🔄 手动刷新</button>
   <button onclick="exportLogs()">📤 导出日志</button>
+  <input type="text" id="personaInput" placeholder="输入 persona" style="margin-left:10px;">
+  <input type="password" id="secretInput" placeholder="输入密钥" style="margin-left:10px;">
+  <button onclick="loadLogs()">🔍 查询</button>
   <a href="/dashboard/personas" style="margin-left: 10px; font-size: 13px;">↩ 返回仪表盘</a>
 </div>
 
@@ -172,6 +175,14 @@ function createCollapsibleDetail(content) {
 
 
 async function loadLogs() {
+  const persona = document.getElementById("personaInput")?.value || "";
+  const secret = document.getElementById("secretInput")?.value || "";
+
+  const res = await fetch("/log/query", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ persona, secret })
+});
   const tbody = document.getElementById("logBody");
   const statsDiv = document.getElementById("stats");
   const search = document.getElementById("searchInput").value.toLowerCase();
