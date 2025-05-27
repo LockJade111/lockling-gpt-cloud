@@ -97,17 +97,19 @@
 <body>
 
 <h2>📜 Lockling 云脑 操作日志</h2>
-
 <div class="controls"> 
   🔍 <input type="text" id="searchInput" placeholder="搜索 Persona / Intent">
-  <button onclick="loadLogs()">🔄 手动刷新</button>
-  <button onclick="exportLogs()">📤 导出日志</button>
+  <button id="reloadBtn" onclick="loadLogs()">🔄 手动刷新</button>
+  <button id="exportBtn" onclick="exportLogs()">📤 导出日志</button>
   <input type="text" id="personaInput" placeholder="输入 persona" style="margin-left:10px;">
   <input type="password" id="secretInput" placeholder="输入密钥" style="margin-left:10px;">
   <button onclick="loadLogs()">🔍 查询</button>
-  <a href="/dashboard/personas" style="margin-left: 10px; font-size: 13px;">↩ 返回仪表盘</a>
+  <a id="backLink" href="/dashboard/personas" style="margin-left: 10px; font-size: 13px;">↩ 返回仪表盘</a>
 </div>
-
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+  <h2 id="pageTitle">📜 Lockling 云脑 操作日志</h2>
+  <button onclick="toggleLang()" style="padding: 6px 12px; cursor: pointer;">🌐 切换语言</button>
+</div>
 <div class="stats" id="stats">日志统计：加载中...</div>
 
 <table>
@@ -243,9 +245,57 @@ async function loadLogs() {
     tbody.innerHTML = "<tr><td colspan='5'>❌ 日志加载失败</td></tr>";
   }
 }
+function toggleLang() {
+  currentLang = currentLang === "zh" ? "en" : "zh";
+  applyLang();
+  loadLogs(); // 切换语言后重新加载日志
+}
 
-loadLogs();
-setInterval(loadLogs, 30000); // 自动刷新间隔 30 秒
+function applyLang() {
+  const langPack = LANG[currentLang];
+  document.getElementById("pageTitle").innerText = langPack.title;
+  document.getElementById("searchInput").placeholder = langPack.search_placeholder;
+  document.getElementById("reloadBtn").innerText = langPack.reload;
+  document.getElementById("exportBtn").innerText = langPack.export;
+  document.getElementById("backLink").innerText = langPack.back;
+  document.querySelectorAll("thead th").forEach((th, i) => {
+    th.innerText = langPack.table[i];
+  });
+}
+const LANG = {
+  zh: {
+    title: "📜 Lockling 云脑 操作日志",
+    search_placeholder: "搜索 Persona / Intent",
+    reload: "手动刷新",
+    export: "导出日志",
+    back: "返回仪表盘",
+    table: ["Persona", "Intent", "Status", "Detail", "Time"],
+    loading: "加载中...",
+    no_logs: "🚫 无日志记录",
+    success: "成功",
+    fail: "失败",
+    unknown: "未知"
+  },
+  en: {
+    title: "📜 Lockling Logs",
+    search_placeholder: "Search Persona / Intent",
+    reload: "Reload",
+    export: "Export Logs",
+    back: "Back to Dashboard",
+    table: ["Persona", "Intent", "Status", "Detail", "Time"],
+    loading: "Loading...",
+    no_logs: "🚫 No logs found",
+    success: "success",
+    fail: "fail",
+    unknown: "unknown"
+  }
+};
+
+let currentLang = "zh";  // 默认中文
+
+applyLang();             // 初始应用语言包
+loadLogs();              // 初次加载日志
+setInterval(loadLogs, 30000); // 自动刷新
 </script>
 
 </body>
