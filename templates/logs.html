@@ -34,20 +34,26 @@
     <tr><td colspan="5">⏳ 加载中...</td></tr>
   </tbody>
 </table>
-
 <script>
 function parseJSON(text) {
   try {
-    let parsed = text;
-    // 第一次解析
-    if (typeof parsed === "string") parsed = JSON.parse(parsed);
-    // 第二次解析（若里面还是字符串形式的 JSON）
-    if (typeof parsed === "string") parsed = JSON.parse(parsed);
-    return JSON.stringify(parsed, null, 2);
+    let result = text;
+    let attempt = 0;
+
+    // 最多尝试 5 层 JSON.parse 解嵌套（避免死循环）
+    while (typeof result === "string" && attempt < 5) {
+      result = JSON.parse(result);
+      attempt++;
+    }
+
+    // 成功解析后美化返回
+    return JSON.stringify(result, null, 2);
   } catch (e) {
-    return text;
+    // 保底展示原样
+    return typeof text === "object" ? JSON.stringify(text, null, 2) : text;
   }
 }
+
 async function loadLogs() {
   const tbody = document.getElementById("logBody");
   tbody.innerHTML = "<tr><td colspan='5'>⏳ 加载中...</td></tr>";
