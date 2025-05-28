@@ -141,20 +141,20 @@ def intent_dispatcher(intent):
     intent_type = intent.get("intent_type", "")
 
     if intent_type == "register_persona":
-    return handle_register(intent)
-elif intent_type == "authorize":
-    return handle_authorize(intent)
-elif intent_type == "confirm_identity":
-    return handle_confirm_identity(intent)
-elif intent_type == "confirm_secret":
-    return handle_confirm_secret(intent)
-elif intent_type == "chitchat":
-    return handle_chitchat(intent)  # 👈 我们下一步就会定义这个
-else:
-    return {
-        "status": "fail",
-        "reply": f"❓ 无法识别的指令类型: {intent_type}",
-        "intent": intent
-    }
+        return handle_register(intent)
+    elif intent_type == "authorize":
+        return handle_authorize(intent)
+    elif intent_type == "confirm_identity":
+        return handle_confirm_identity(intent)
+    elif intent_type == "confirm_secret":
+        return handle_confirm_secret(intent)
+    elif intent_type == "chitchat":
+        return handle_chitchat(intent)  # 👈 我们下一步就会定义这个
+    else:
+        return {
+            "status": "fail",
+            "reply": f"❓ 无法识别的指令类型: {intent_type}",
+            "intent": intent
+        }
 
 __all__ = ["intent_dispatcher"]
