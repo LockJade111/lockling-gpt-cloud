@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+
 # ✅ 智能写入桥函数（放在 main.py 顶部 write_log 导入下方）
 from src.supabase_logger import write_log_to_supabase
 from src.local_logger import write_log_to_local
@@ -52,7 +53,7 @@ app.add_middleware(
 )
 
 # ✅ 统一返回格式
-def wrap_result(status: str, reply: str, intent: dict = {}):
+def return wrap_result("success", result["reply"], intent)
     return JSONResponse(content={"status": status, "reply": reply, "intent": intent})
 
 # ✅ 首页重定向
@@ -61,7 +62,7 @@ def root():
     return RedirectResponse(url="/dashboard/personas")
 
 # ✅ 聊天主接口
-@app.post("/chat")
+async def chat(request: Request):@app.post("/chat")
 async def chat(request: Request):
     try:
         data = await request.json()
@@ -157,6 +158,44 @@ async def delete_api(request: Request):
         traceback.print_exc()
         return JSONResponse(content={"success": False, "error": str(e)})
 
+from fastapi import Request
+from fastapi.responses import JSONResponse
+
+@app.post("/chat")
+async def chat(request: Request):
+    try:
+        data = await request.json()
+        message = data.get("message", "")
+        persona = data.get("persona", "user")  # 默认角色是 user
+        secret = data.get("secret", "")        # 可选密钥
+
+        # 🔍 用 GPT 解析意图
+        intent = parse_intent(message, persona, secret)
+
+        # 🔧 分发执行
+        result = intent_dispatcher(intent)
+
+        # 📋 日志记录
+        write_log_bridge(message, result["reply"], intent, result["status"])
+
+        return JSONResponse(content=result)
+
+    except Exception as e:
+        print(f"❌ Chat 处理失败：{e}")
+        return JSONResponse(content={
+            "status": "fail",
+            "reply": "❌ 出现异常，暂时无法处理你的请求。",
+            "intent": {
+                "intent_type": "unknown",
+                "persona": "user",
+                "secret": "",
+                "target": "",
+                "permissions": [],
+                "allow": False,
+                "reason": str(e)
+            }
+        })
+
 # ✅ 日志展示页面
 @app.get("/logs", response_class=HTMLResponse)
 async def get_logs_page(request: Request):
@@ -167,3 +206,4 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
+

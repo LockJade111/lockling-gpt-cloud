@@ -1,5 +1,5 @@
 import os
-from check_permission import check_secret_permission
+from check_permission import check_secret_permission, check_persona_secret
 from persona_keys import register_persona
 from src.supabase_logger import write_log_to_supabase
 from supabase import create_client
@@ -10,7 +10,7 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ✅ 注册 persona intent
 def handle_register(intent):
-    print("📥 收到意图：register")
+    print("📥 收到意图：register_persona")
 
     persona = intent.get("persona", "").strip()
     new_name = intent.get("target", "").strip()
@@ -56,9 +56,9 @@ def handle_register(intent):
             "intent": intent
         }
 
-# ✅ 授权 intent
-def handle_authorize(intent):
-    print("📥 收到意图：authorize")
+# ✅ 授权 intent（confirm_identity）
+def handle_confirm_identity(intent):
+    print("📥 收到意图：confirm_identity")
 
     source = intent.get("persona", "").strip()
     target = intent.get("target", "").strip()
@@ -66,7 +66,7 @@ def handle_authorize(intent):
     if not source or not target:
         return {
             "status": "fail",
-            "reply": "❌ 授权失败：缺少 source 或 target",
+            "reply": "❌ 授权失败：缺少操作者或目标角色。",
             "intent": intent
         }
 
@@ -74,10 +74,9 @@ def handle_authorize(intent):
         supabase.table("roles").insert({
             "source": source,
             "target": target,
-            "granted_by": "系统"
+            "granted_by": "Lockling"
         }).execute()
 
-        # ✅ 添加字段：allow、reason
         intent["allow"] = True
         intent["reason"] = "授权成功"
         intent["target"] = target
@@ -88,6 +87,7 @@ def handle_authorize(intent):
             intent_result=intent,
             status="success"
         )
+
         return {
             "status": "success",
             "reply": f"✅ 已授权 {target} 使用",
@@ -96,7 +96,6 @@ def handle_authorize(intent):
     except Exception as e:
         intent["allow"] = False
         intent["reason"] = str(e)
-        intent["target"] = target
 
         write_log_to_supabase(
             query=source,
@@ -104,6 +103,7 @@ def handle_authorize(intent):
             intent_result=intent,
             status="fail"
         )
+
         return {
             "status": "fail",
             "reply": f"❌ 授权失败：{str(e)}",
@@ -111,16 +111,6 @@ def handle_authorize(intent):
         }
 
 # ✅ 身份验证 intent
-def handle_confirm_identity(intent):
-    print("📥 收到意图：confirm_identity")
-    target = intent.get("target", "")
-    return {
-        "status": "success",
-        "reply": f"✅ {target} 身份验证通过",
-        "intent": intent
-    }
-
-# ✅ 密钥确认 intent
 def handle_confirm_secret(intent):
     print("📥 收到意图：confirm_secret")
     return {
@@ -128,24 +118,43 @@ def handle_confirm_secret(intent):
         "reply": f"✅ 密钥已确认",
         "intent": intent
     }
+# ✅ 闲聊意图
+def handle_chitchat(intent):
+    print("📥 收到意图：chitchat")
+    return {
+        "status": "success",
+        "reply": "🗣️ 我在呢，有什么我可以帮你的吗？",
+        "intent": intent
+    }
 
-# ✅ 分发入口
-def dispatcher(intent):
+# ✅ 撤销授权 intent（占位）
+def handle_revoke_identity(intent):
+    print("📥 收到意图：revoke_identity")
+    return {
+        "status": "success",
+        "reply": f"⚠️ 尚未实现撤销授权功能，占位中",
+        "intent": intent
+    }
+
+# ✅ 主控分发器
+def intent_dispatcher(intent):
     intent_type = intent.get("intent_type", "")
 
-    if intent_type == "register":
-        return handle_register(intent)
-    elif intent_type == "authorize":
-        return handle_authorize(intent)
-    elif intent_type == "confirm_identity":
-        return handle_confirm_identity(intent)
-    elif intent_type == "confirm_secret":
-        return handle_confirm_secret(intent)
-    else:
-        return {
-            "status": "fail",
-            "reply": f"❓ 无法识别的指令类型: {intent_type}",
-            "intent": intent
-        }
+    if intent_type == "register_persona":
+    return handle_register(intent)
+elif intent_type == "authorize":
+    return handle_authorize(intent)
+elif intent_type == "confirm_identity":
+    return handle_confirm_identity(intent)
+elif intent_type == "confirm_secret":
+    return handle_confirm_secret(intent)
+elif intent_type == "chitchat":
+    return handle_chitchat(intent)  # 👈 我们下一步就会定义这个
+else:
+    return {
+        "status": "fail",
+        "reply": f"❓ 无法识别的指令类型: {intent_type}",
+        "intent": intent
+    }
 
-__all__ = ["dispatcher"]
+__all__ = ["intent_dispatcher"]

@@ -3,27 +3,41 @@
 <head>
   <meta charset="UTF-8">
   <title>Lockling 云脑 · Chat 测试界面</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      background: #f9f9f9;
+    }
+    #chat-box {
+      max-width: 600px;
+      margin: auto;
+    }
+    .message {
+      margin-top: 10px;
+      white-space: pre-wrap;
+    }
+    .user {
+      font-weight: bold;
+      color: #333;
+    }
+    .bot {
+      color: #0055cc;
+      margin-left: 20px;
+    }
+  </style>
 </head>
 <body>
-  <h2>💬 Chat 测试界面</h2>
-  <form id="chatForm">
-    <input type="text" id="message" placeholder="输入一句话">
-    <button type="submit">发送</button>
-  </form>
-  <pre id="result"></pre>
+  <div id="chat-box">
+    <h2>💬 Lockling 测试界面</h2>
+    <form id="chat-form">
+      <input type="text" id="user-input" placeholder="输入一句话" style="width:70%;" />
+      <input type="text" id="persona" placeholder="persona" value="将军" />
+      <input type="text" id="secret" placeholder="密钥" />
+      <button type="submit">发送</button>
+    </form>
+  </div>
 
-  <script>
-    document.getElementById("chatForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const msg = document.getElementById("message").value;
-      const res = await fetch("/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: msg, persona: "将军" })
-      });
-      const data = await res.json();
-      document.getElementById("result").innerText = JSON.stringify(data, null, 2);
-    });
-  </script>
+  <script src="/static/js/chat.js"></script>
 </body>
 </html>

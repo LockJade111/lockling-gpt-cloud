@@ -1,18 +1,22 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
-    <meta charset="UTF-8">
-    <title>Lockling 聊天助手</title>
-    <link rel="stylesheet" href="/static/css/chat.css">
+  <meta charset="UTF-8">
+  <title>锁灵 · 智能助手</title>
+  <link rel="stylesheet" href="/static/css/chat.css">
 </head>
 <body>
-    <div id="chat-container">
-        <div id="chat-box"></div>
-        <form id="chat-form">
-            <input type="text" id="user-input" placeholder="请输入内容..." autocomplete="off" required />
-            <button type="submit">发送</button>
-        </form>
-    </div>
-    <script src="/static/js/chat.js"></script>
+  <div id="chat-box" class="chat-box"></div>
+
+  <form id="chat-form" class="chat-form">
+    <input type="text" id="user-input" placeholder="输入内容..." autocomplete="off">
+    <button type="submit">发送</button>
+
+    <!-- ✅ 隐藏字段（模拟身份和口令） -->
+    <input type="hidden" id="persona" value="将军猫">
+    <input type="hidden" id="secret" value="玉衡在手">
+  </form>
+
+  <script src="/static/js/chat.js"></script>
 </body>
 </html>
