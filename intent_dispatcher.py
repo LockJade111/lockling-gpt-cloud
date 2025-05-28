@@ -1,8 +1,9 @@
 import os
-from check_permission import check_secret_permission, check_persona_secret
+from check_permission import check_secret_permission, check_persona_secret, update_persona_secret
 from persona_keys import register_persona
 from src.supabase_logger import write_log_to_supabase
 from supabase import create_client
+from secret_manager import verify_secret, generate_new_secret
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
@@ -38,9 +39,10 @@ def handle_register(intent):
             intent_result=intent,
             status="success"
         )
+        new_secret = generate_new_secret()
         return {
             "status": "success",
-            "reply": f"✅ 已注册新角色：{new_name}",
+            "reply": f"✅ 已注册新角色：{new_name}\n🆕 新口令已生成：{new_secret}",
             "intent": intent
         }
     except Exception as e:
@@ -56,31 +58,7 @@ def handle_register(intent):
             "intent": intent
         }
 
-"intent_type": "update_secret"
-def handle_update_secret(intent):
-    print("🔐 收到意图：update_secret")
-
-    persona = intent.get("persona", "").strip()
-    secret = intent.get("secret", "").strip()
-    new_secret = intent.get("target", "").strip()  # 用户输入的新口令放在 target
-
-    if not check_persona_secret(persona, secret):
-        return {
-            "status": "fail",
-            "reply": "❌ 密钥更新失败：原密钥不正确。",
-            "intent": intent
-        }
-
-    from check_permission import update_persona_secret
-    update_persona_secret(persona, new_secret)
-
-    return {
-        "status": "success",
-        "reply": f"🔑 密钥已更新为：「{new_secret}」",
-        "intent": intent
-    }
-
-# ✅ 授权 intent（confirm_identity）
+# ✅ 更新密钥 intent
 def handle_update_secret(intent):
     print("🔐 收到意图：update_secret")
 
@@ -102,7 +80,6 @@ def handle_update_secret(intent):
             "intent": intent
         }
 
-    from check_permission import update_persona_secret
     update_persona_secret(persona, new_secret)
 
     return {
@@ -119,6 +96,7 @@ def handle_confirm_secret(intent):
         "reply": f"✅ 密钥已确认",
         "intent": intent
     }
+
 # ✅ 闲聊意图
 def handle_chitchat(intent):
     print("📥 收到意图：chitchat")
@@ -150,9 +128,11 @@ def intent_dispatcher(intent):
     elif intent_type == "confirm_secret":
         return handle_confirm_secret(intent)
     elif intent_type == "chitchat":
-        return handle_chitchat(intent)  # 👈 我们下一步就会定义这个
+        return handle_chitchat(intent)
     elif intent_type == "update_secret":
         return handle_update_secret(intent)
+    elif intent_type == "revoke_identity":
+        return handle_revoke_identity(intent)
     else:
         return {
             "status": "fail",
