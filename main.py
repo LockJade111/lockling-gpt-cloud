@@ -53,7 +53,7 @@ app.add_middleware(
 )
 
 # ✅ 统一返回格式
-def return wrap_result("success", result["reply"], intent)
+def wrap_result("success", result["reply"], intent)
     return JSONResponse(content={"status": status, "reply": reply, "intent": intent})
 
 # ✅ 首页重定向
