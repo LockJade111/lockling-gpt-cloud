@@ -50,6 +50,22 @@ def is_intent_authorized(persona: str, intent: str) -> bool:
         print("❌ intent 权限验证失败:", e)
         return False
 
+# ✅ 更新 persona 的密钥（用于 update_secret 意图）
+def update_persona_secret(persona: str, new_secret: str) -> bool:
+    try:
+        import json
+
+        hashed = bcrypt.hashpw(new_secret.encode(), bcrypt.gensalt()).decode()
+        url = f"{SUPABASE_URL}/rest/v1/persona_keys?persona=eq.{persona}"
+
+        payload = json.dumps({ "secret": hashed })
+
+        res = requests.patch(url, headers=headers, data=payload)
+        return res.status_code in [200, 204]
+    except Exception as e:
+        print("❌ update_persona_secret 出错:", e)
+        return False
+
 # ✅ 核心权限函数（返回结构化权限结果）
 def check_secret_permission(intent: dict, persona: str, secret: str) -> dict:
     """
