@@ -54,7 +54,7 @@ def parse_intent(message: str, persona: str, secret: str = ""):
 
 try:
     response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model = os.getenv("GPT_MODEL", "gpt-3.5-turbo"),
         messages=[
             {"role": "system", "content": prompt},
             {"role": "user", "content": message}
@@ -67,7 +67,7 @@ try:
     # ✅ 补充字段，便于后续判断
     intent["persona"] = persona
     intent["secret"] = secret
-
+    
     return intent
 
 except Exception as e:
