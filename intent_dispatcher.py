@@ -56,59 +56,60 @@ def handle_register(intent):
             "intent": intent
         }
 
+"intent_type": "update_secret"
+def handle_update_secret(intent):
+    print("🔐 收到意图：update_secret")
+
+    persona = intent.get("persona", "").strip()
+    secret = intent.get("secret", "").strip()
+    new_secret = intent.get("target", "").strip()  # 用户输入的新口令放在 target
+
+    if not check_persona_secret(persona, secret):
+        return {
+            "status": "fail",
+            "reply": "❌ 密钥更新失败：原密钥不正确。",
+            "intent": intent
+        }
+
+    from check_permission import update_persona_secret
+    update_persona_secret(persona, new_secret)
+
+    return {
+        "status": "success",
+        "reply": f"🔑 密钥已更新为：「{new_secret}」",
+        "intent": intent
+    }
+
 # ✅ 授权 intent（confirm_identity）
-def handle_confirm_identity(intent):
-    print("📥 收到意图：confirm_identity")
+def handle_update_secret(intent):
+    print("🔐 收到意图：update_secret")
 
-    source = intent.get("persona", "").strip()
-    target = intent.get("target", "").strip()
+    persona = intent.get("persona", "").strip()
+    old_secret = intent.get("secret", "").strip()
+    new_secret = intent.get("target", "").strip()
 
-    if not source or not target:
+    if not persona or not old_secret or not new_secret:
         return {
             "status": "fail",
-            "reply": "❌ 授权失败：缺少操作者或目标角色。",
+            "reply": "❌ 更新失败：缺少必要信息。",
             "intent": intent
         }
 
-    try:
-        supabase.table("roles").insert({
-            "source": source,
-            "target": target,
-            "granted_by": "Lockling"
-        }).execute()
-
-        intent["allow"] = True
-        intent["reason"] = "授权成功"
-        intent["target"] = target
-
-        write_log_to_supabase(
-            query=source,
-            reply=f"授权 {target} 成功",
-            intent_result=intent,
-            status="success"
-        )
-
-        return {
-            "status": "success",
-            "reply": f"✅ 已授权 {target} 使用",
-            "intent": intent
-        }
-    except Exception as e:
-        intent["allow"] = False
-        intent["reason"] = str(e)
-
-        write_log_to_supabase(
-            query=source,
-            reply=str(e),
-            intent_result=intent,
-            status="fail"
-        )
-
+    if not check_persona_secret(persona, old_secret):
         return {
             "status": "fail",
-            "reply": f"❌ 授权失败：{str(e)}",
+            "reply": "❌ 密钥更新失败：原密钥验证不通过。",
             "intent": intent
         }
+
+    from check_permission import update_persona_secret
+    update_persona_secret(persona, new_secret)
+
+    return {
+        "status": "success",
+        "reply": f"🔑 密钥已成功更新为：「{new_secret}」",
+        "intent": intent
+    }
 
 # ✅ 身份验证 intent
 def handle_confirm_secret(intent):
@@ -150,6 +151,8 @@ def intent_dispatcher(intent):
         return handle_confirm_secret(intent)
     elif intent_type == "chitchat":
         return handle_chitchat(intent)  # 👈 我们下一步就会定义这个
+    elif intent_type == "update_secret":
+        return handle_update_secret(intent)
     else:
         return {
             "status": "fail",
