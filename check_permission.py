@@ -25,23 +25,22 @@ headers = {
     "Content-Type": "application/json",
 }
 
-# ✅ 核心权限函数（返回结构化权限结果）
-def check_secret_permission(intent: dict, persona: str, secret: str) -> dict:
-    """
-    权限验证机制（四层）：
-    1. 超级密钥立即放行
-    2. 专属环境密钥比对
-    3. Supabase bcrypt 密钥验证
-    4. persona_roles 表中 intent 权限比对
 
-    返回结构：
-    {
-        "allow": True / False,
-        "reason": "...",
-        "persona": "小艾",
-        "intent_type": "authorize"
-    }
-    """
+# ✅ 权限表比对
+def is_intent_authorized(persona: str, intent: str) -> bool:
+    try:
+        url = f"{SUPABASE_URL}/rest/v1/persona_roles?persona=eq.{persona}&intent=eq.{intent}"
+        res = requests.get(url, headers=headers)
+        if res.status_code == 200 and res.json():
+            return True
+        return False
+    except Exception as e:
+        print("❌ intent 权限验证失败:", e)
+        return False
+
+
+# ✅ 核心权限函数（包含一次性口令机制）
+def check_secret_permission(intent: dict, persona: str, secret: str) -> dict:
     try:
         # 预处理字段
         intent_type = intent.get("intent_type", "unknown")
@@ -67,13 +66,20 @@ def check_secret_permission(intent: dict, persona: str, secret: str) -> dict:
                 result["reason"] = f"✅ {persona} 的专属密钥通过验证"
                 return result
 
-        # ---------- 3. bcrypt hash 比对 ----------
+        # ---------- 3. 一次性密钥验证（通过后失效） ----------
+        from secret_manager import verify_and_invalidate_secret
+        if verify_and_invalidate_secret(secret):
+            result["allow"] = True
+            result["reason"] = "✅ 一次性密钥通过验证"
+            return result
+
+        # ---------- 4. bcrypt hash 比对 ----------
         hash_url = f"{SUPABASE_URL}/rest/v1/persona_keys?persona=eq.{persona}&select=secret"
         res = requests.get(hash_url, headers=headers)
         if res.status_code == 200 and res.json():
             hashed = res.json()[0].get("secret")
             if hashed and bcrypt.checkpw(secret.encode(), hashed.encode()):
-                # ---------- 4. 检查 intent 权限 ----------
+                # ---------- 5. intent 权限检查 ----------
                 if is_intent_authorized(persona, intent_type):
                     result["allow"] = True
                     result["reason"] = f"✅ 密钥正确且具有权限：{intent_type}"
@@ -93,15 +99,3 @@ def check_secret_permission(intent: dict, persona: str, secret: str) -> dict:
             "persona": persona,
             "intent_type": intent.get("intent_type", "unknown")
         }
-
-# ✅ 权限表比对
-def is_intent_authorized(persona: str, intent: str) -> bool:
-    try:
-        url = f"{SUPABASE_URL}/rest/v1/persona_roles?persona=eq.{persona}&intent=eq.{intent}"
-        res = requests.get(url, headers=headers)
-        if res.status_code == 200 and res.json():
-            return True
-        return False
-    except Exception as e:
-        print("❌ intent 权限验证失败:", e)
-        return False
