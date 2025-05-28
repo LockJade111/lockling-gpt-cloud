@@ -52,32 +52,32 @@ def parse_intent(message: str, persona: str, secret: str = ""):
 用户输入：「{message}」
 """.strip()    
 
-    try:
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": prompt},
-                {"role": "user", "content": message}
-            ]
-        )
+try:
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": message}
+        ]
+    )
 
-        content = response.choices[0].message.content.strip()
-        intent = json.loads(content)
+    content = response.choices[0].message.content.strip()
+    intent = json.loads(content)
 
-        # ✅ 补充字段，便于后续判断
-        intent["persona"] = persona
-        intent["secret"] = secret
+    # ✅ 补充字段，便于后续判断
+    intent["persona"] = persona
+    intent["secret"] = secret
 
-        return intent
+    return intent
 
-    except Exception as e:
-        return {
-            "intent_type": "unknown",
-            "persona": persona,
-            "secret": secret,
-            "target": "",
-            "permissions": [],
-            "allow": False,
-            "reason": f"🐛 GPT解析失败：{str(e)}",
-            "raw": content if 'content' in locals() else "无返回内容"
-        }
+except Exception as e:
+    return {
+        "intent_type": "unknown",
+        "persona": persona,
+        "secret": secret,
+        "target": "",
+        "permissions": [],
+        "allow": False,
+        "reason": f"🐛 GPT解析失败：{str(e)}",
+        "raw": content if 'content' in locals() else "无返回内容"
+    }
