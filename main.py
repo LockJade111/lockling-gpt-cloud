@@ -6,6 +6,22 @@ from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+# ✅ 智能写入桥函数（放在 main.py 顶部 write_log 导入下方）
+from src.supabase_logger import write_log_to_supabase
+from src.local_logger import write_log_to_local
+def write_log_bridge(message, result, intent, status):
+    """
+    根据意图或数据内容判断写入 Supabase 还是本地
+    """
+    try:
+        # 若未声明 sensitive，默认走 Supabase 写入
+        sensitive = intent.get("sensitive", False)
+        if sensitive:
+            write_log_to_local(message, result, intent, status)
+        else:
+            write_log_to_supabase(message, result, intent, status)
+    except Exception as e:
+        print(f"⚠️ 日志写入失败：{e}")
 
 # ✅ 内部模块导入
 from parse_intent_with_gpt import parse_intent
@@ -13,13 +29,16 @@ from check_permission import check_secret_permission
 from intent_dispatcher import dispatcher as intent_dispatcher
 from persona_keys import delete_persona
 from src.register_new_persona import register_new_persona
-from src.supabase_logger import write_log_to_supabase, query_logs
+from src.logger_bridge import write_log
 
 # ✅ 加载环境变量
 load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 SUPER_SECRET_KEY = os.getenv("SUPER_SECRET_KEY")
+print("🔑 SUPABASE_URL:", os.getenv("SUPABASE_URL"))
+print("🔑 SUPABASE_ANON_KEY:", os.getenv("SUPABASE_ANON_KEY"))
+print("🔑 SUPABASE_SERVICE_ROLE_KEY:", os.getenv("SUPABASE_SERVICE_ROLE_KEY"))
 
 # ✅ FastAPI 初始化
 app = FastAPI()
@@ -59,13 +78,14 @@ async def chat(request: Request):
         intent = parse_intent(message, persona)
 
         if not check_secret_permission(intent, persona, secret):
-            write_log_to_supabase(message, "权限不足", intent, "denied")
+            write_log_bridge(message, "权限不足", intent, "denied")
             return wrap_result("fail", "⛔️ 权限不足", intent)
 
         result = intent_dispatcher(intent)
-        write_log_to_supabase(message, result, intent, "success")
+        write_log_bridge(message, result, intent, "success")
         return wrap_result("success", result, intent)
-
+        
+        
     except Exception as e:
         traceback.print_exc()
         return wrap_result("fail", f"系统错误：{str(e)}")

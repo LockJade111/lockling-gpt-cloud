@@ -35,7 +35,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV=/Users/lockjade1/lockling_clean/venv
+VIRTUAL_ENV=/Volumes/Lockling_Sys/LocklingSystem/venv
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"

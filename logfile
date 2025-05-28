@@ -1,0 +1,6 @@
+2025-05-27 16:11:40.161 PDT [68486] LOG:  starting PostgreSQL 14.18 (Homebrew) on aarch64-apple-darwin24.4.0, compiled by Apple clang version 17.0.0 (clang-1700.0.13.3), 64-bit
+2025-05-27 16:11:40.161 PDT [68486] LOG:  listening on IPv4 address "127.0.0.1", port 5432
+2025-05-27 16:11:40.161 PDT [68486] LOG:  listening on IPv6 address "::1", port 5432
+2025-05-27 16:11:40.162 PDT [68486] LOG:  listening on Unix socket "/tmp/.s.PGSQL.5432"
+2025-05-27 16:11:40.163 PDT [68487] LOG:  database system was shut down at 2025-05-27 16:11:31 PDT
+2025-05-27 16:11:40.165 PDT [68486] LOG:  database system is ready to accept connections
