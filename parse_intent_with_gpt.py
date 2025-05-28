@@ -67,7 +67,7 @@ try:
     # ✅ 补充字段，便于后续判断
     intent["persona"] = persona
     intent["secret"] = secret
-    return intent  # ⬅️ 必须缩进到 try: 块里！！！
+       return intent 
 
 except Exception as e:
     return {
