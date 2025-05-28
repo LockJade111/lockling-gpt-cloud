@@ -1,11 +1,10 @@
-from dotenv import load_dotenv
-load_dotenv()
-
-import json
 import os
-import openai
+import json
+from dotenv import load_dotenv
 from openai import OpenAI
 
+# ✅ 加载 .env 中的变量
+load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def parse_intent(message: str, persona: str, secret: str = ""):
@@ -49,6 +48,7 @@ def parse_intent(message: str, persona: str, secret: str = ""):
                 {"role": "user", "content": message}
             ]
         )
+
         content = response.choices[0].message.content.strip()
         intent = json.loads(content)
 
@@ -69,6 +69,7 @@ def parse_intent(message: str, persona: str, secret: str = ""):
             "allow": False,
             "reason": f"🐛 GPT解析失败：{str(e)}"
         }
+
     # 👇 防止 GPT 返回非纯 JSON 内容（例如代码块 ```json ... ```）
     if content.startswith("```json"):
         content = content.replace("```json", "").strip()
