@@ -36,9 +36,6 @@ load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 SUPER_SECRET_KEY = os.getenv("SUPER_SECRET_KEY")
-print("🔑 SUPABASE_URL:", os.getenv("SUPABASE_URL"))
-print("🔑 SUPABASE_ANON_KEY:", os.getenv("SUPABASE_ANON_KEY"))
-print("🔑 SUPABASE_SERVICE_ROLE_KEY:", os.getenv("SUPABASE_SERVICE_ROLE_KEY"))
 
 # ✅ FastAPI 初始化
 app = FastAPI()
@@ -75,7 +72,7 @@ async def chat(request: Request):
         if not message or not persona:
             return wrap_result("fail", "❌ 缺少输入内容")
 
-        intent = parse_intent(message, persona)
+        intent = parse_intent(message, persona, secret)        
 
         if not check_secret_permission(intent, persona, secret):
             write_log_bridge(message, "权限不足", intent, "denied")

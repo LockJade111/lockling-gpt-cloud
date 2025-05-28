@@ -38,24 +38,47 @@ def parse_intent(message: str, persona: str, secret: str = ""):
 
 当前 persona 为：{persona}
     """.strip()
+try:
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": message}
+        ]
+    )
+    content = response.choices[0].message.content.strip()
+    intent = json.loads(content)
 
-    try:
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": prompt},
-                {"role": "user", "content": message}
-            ]
-        )
+    # ✅ 强制补充字段
+    intent["persona"] = persona
+    intent["secret"] = secret
 
-        content = response.choices[0].message.content.strip()
-        intent = json.loads(content)
+    return intent
 
-        # ✅ 强制补充字段
-        intent["persona"] = persona
-        intent["secret"] = secret
+except Exception as e:
+    return {
+        "intent_type": "unknown",
+        "persona": persona,
+        "secret": secret,
+        "target": "",
+        "permissions": [],
+        "allow": False,
+        "reason": f"🐛 GPT解析失败：{str(e)}"
+    }
 
-        return intent
+    # 👇 防止 GPT 返回非纯 JSON 内容（例如代码块 ```json ... ```）
+    if content.startswith("```json"):
+        content = content.replace("```json", "").strip()
+    if content.endswith("```"):
+        content = content.replace("```", "").strip()
+
+    intent = json.loads(content)
+
+    # ✅ 强制补充字段
+    intent["persona"] = persona
+    intent["secret"] = secret
+
+    return intent
 
     except Exception as e:
         # ✅ 兜底失败结构（防止日志页或系统爆炸）
