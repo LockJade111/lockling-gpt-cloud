@@ -68,7 +68,7 @@ def root():
     return RedirectResponse(url="/dashboard/personas")
 
 # ✅ 聊天主接口
-async def chat(request: Request):@app.post("/chat")
+@app.post("/chat")
 async def chat(request: Request):
     try:
         data = await request.json()
