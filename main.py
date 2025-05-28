@@ -53,8 +53,14 @@ app.add_middleware(
 )
 
 # ✅ 统一返回格式
-def wrap_result("success", result["reply"], intent)
-    return JSONResponse(content={"status": status, "reply": reply, "intent": intent})
+from fastapi.responses import JSONResponse
+
+def wrap_result(status, reply, intent):
+    return JSONResponse(content={
+        "status": status,
+        "reply": reply,
+        "intent": intent
+    })
 
 # ✅ 首页重定向
 @app.get("/", include_in_schema=False)
