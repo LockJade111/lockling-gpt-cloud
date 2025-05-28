@@ -70,28 +70,3 @@ def parse_intent(message: str, persona: str, secret: str = ""):
             "reason": f"🐛 GPT解析失败：{str(e)}"
         }
 
-    # 👇 防止 GPT 返回非纯 JSON 内容（例如代码块 ```json ... ```）
-    if content.startswith("```json"):
-        content = content.replace("```json", "").strip()
-    if content.endswith("```"):
-        content = content.replace("```", "").strip()
-
-    intent = json.loads(content)
-
-    # ✅ 强制补充字段
-    intent["persona"] = persona
-    intent["secret"] = secret
-
-    return intent
-
-    except Exception as e:
-        # ✅ 兜底失败结构（防止日志页或系统爆炸）
-        return {
-            "intent_type": "unknown",
-            "persona": persona,
-            "secret": secret,
-            "target": "",
-            "permissions": [],
-            "allow": False,
-            "reason": f"🐛 GPT解析失败：{str(e)}"
-        }
