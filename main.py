@@ -27,7 +27,7 @@ def write_log_bridge(message, result, intent, status):
 # ✅ 内部模块导入
 from parse_intent_with_gpt import parse_intent
 from check_permission import check_secret_permission
-from intent_dispatcher import dispatcher as intent_dispatcher
+from intent_dispatcher import intent_dispatcher
 from persona_keys import delete_persona
 from src.register_new_persona import register_new_persona
 from src.logger_bridge import write_log
