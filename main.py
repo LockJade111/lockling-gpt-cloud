@@ -74,21 +74,33 @@ async def chat(request: Request):
         data = await request.json()
         message = data.get("message", "").strip()
         persona = data.get("persona", "").strip()
-        secret = data.get("secret", "").strip()
-
+        secret = data.get("secret", "").strip()   
+        
         if not message or not persona:
             return wrap_result("fail", "❌ 缺少输入内容")
-
-        intent = parse_intent(message, persona, secret)        
+            
+        intent = parse_intent(message, persona, secret)
+        intent["raw_message"] = message
 
         if not check_secret_permission(intent, persona, secret):
             write_log_bridge(message, "权限不足", intent, "denied")
             return wrap_result("fail", "⛔️ 权限不足", intent)
 
         result = intent_dispatcher(intent)
+
+        # ✅ 若是 chitchat，则生成 GPT 回复
+        if intent.get("intent_type") == "chitchat":
+            from generate_reply_with_gpt import generate_reply
+            reply_text = generate_reply(message)
+            result["reply"] = reply_text
+
         write_log_bridge(message, result, intent, "success")
         return wrap_result("success", result, intent)
-        
+
+    except Exception as e:   
+        import traceback
+        traceback.print_exc()
+        return wrap_result("fail", f"系统错误：{str(e)}")        
         
     except Exception as e:
         traceback.print_exc()

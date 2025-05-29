@@ -1,143 +1,117 @@
 import os
-from check_permission import check_secret_permission, check_persona_secret, update_persona_secret
-from persona_keys import register_persona
-from src.supabase_logger import write_log_to_supabase
-from supabase import create_client
-from secret_manager import verify_secret, generate_new_secret
+import json
+from dotenv import load_dotenv
+from openai import OpenAI
 
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+load_dotenv()
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# ✅ 注册 persona intent
-def handle_register(intent):
-    print("📥 收到意图：register_persona")
+def parse_intent(message: str, persona: str, secret: str = ""):
+    prompt = f"""
+你是 Lockling，一位智慧而亲和的门店守护精灵，外形为金黑色钥匙拟人形象，身份是系统的语义与权限解释者。
 
-    persona = intent.get("persona", "").strip()
-    new_name = intent.get("target", "").strip()
-    secret = intent.get("secret", "").strip()
+你的任务是将用户的自然语言指令解析为结构化命令，并提取以下四个字段：
+- intent_type
+- target
+- permissions
+- secret
 
-    if not persona or not new_name or not secret:
-        return {
-            "status": "fail",
-            "reply": "❗ 缺少 persona、target 或 secret 字段。",
-            "intent": intent
-        }
+当前 persona：{persona}
+当前密钥输入：{secret}
 
-    if not check_persona_secret(persona, secret):
-        return {
-            "status": "fail",
-            "reply": "❌ 注册失败：操作者密钥错误。",
-            "intent": intent
-        }
+你支持的 intent_type 包括：
+1. confirm_secret       → 身份验证
+2. register_persona     → 注册角色
+3. confirm_identity     → 授权他人
+4. revoke_identity      → 取消授权
+5. delete_persona       → 删除角色
+6. authorize            → 授权权限
+7. update_secret        → 更改密钥
+8. chitchat             → 闲聊（你好、在吗、谢谢等）
+9. unknown              → 无法识别
+
+📌 说明：
+- 不判断密钥是否正确；
+- 若意图模糊，intent_type 设为 "unknown"；
+- 对于 chitchat，不要填写 target 和 secret；
+- 输出必须是合法 JSON，不能有解释文字。
+
+📝 JSON格式示例：
+{{
+  "intent_type": "register_persona",
+  "target": "司铃",
+  "permissions": ["读", "写"],
+  "secret": "玉衡在手"
+}}
+
+请解析以下用户输入，并输出 JSON：
+「{message}」
+""".strip()
 
     try:
-        result = register_persona(new_name, secret)
-        write_log_to_supabase(
-            query=persona,
-            reply=f"注册新 persona：{new_name}",
-            intent_result=intent,
-            status="success"
+        response = client.chat.completions.create(
+            model=os.getenv("GPT_MODEL", "gpt-4"),
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": message}
+            ]
         )
-        new_secret = generate_new_secret()
-        return {
-            "status": "success",
-            "reply": f"✅ 已注册新角色：{new_name}\n🆕 新口令已生成：{new_secret}",
-            "intent": intent
-        }
-    except Exception as e:
-        write_log_to_supabase(
-            query=persona,
-            reply=str(e),
-            intent_result=intent,
-            status="fail"
-        )
-        return {
-            "status": "fail",
-            "reply": f"❌ 注册失败：{str(e)}",
-            "intent": intent
-        }
+        content = response.choices[0].message.content.strip()
 
-# ✅ 更新密钥 intent
-def handle_update_secret(intent):
-    print("🔐 收到意图：update_secret")
+        # 处理多余文本（如 GPT 多输出解释）
+        json_start = content.find("{")
+        json_end = content.rfind("}") + 1
+        json_str = content[json_start:json_end]
 
-    persona = intent.get("persona", "").strip()
-    old_secret = intent.get("secret", "").strip()
-    new_secret = intent.get("target", "").strip()
-
-    if not persona or not old_secret or not new_secret:
-        return {
-            "status": "fail",
-            "reply": "❌ 更新失败：缺少必要信息。",
-            "intent": intent
-        }
-
-    if not check_persona_secret(persona, old_secret):
-        return {
-            "status": "fail",
-            "reply": "❌ 密钥更新失败：原密钥验证不通过。",
-            "intent": intent
-        }
-
-    update_persona_secret(persona, new_secret)
-
-    return {
-        "status": "success",
-        "reply": f"🔑 密钥已成功更新为：「{new_secret}」",
-        "intent": intent
-    }
-
-# ✅ 身份验证 intent
-def handle_confirm_secret(intent):
-    print("📥 收到意图：confirm_secret")
-    return {
-        "status": "success",
-        "reply": f"✅ 密钥已确认",
-        "intent": intent
-    }
-
-# ✅ 闲聊意图
+        intent = json.loads(json_str)
+        
+# ✅ 闲聊意图：使用 GPT 动态生成回复
 def handle_chitchat(intent):
     print("📥 收到意图：chitchat")
+    raw = intent.get("raw_message", "").strip()
+
+    prompt = f"""
+你是 Lockling，一位亲切、机智的门店守护精灵，负责与客人交流。
+
+当前用户说的话是：
+「{raw}」
+
+请用一句自然、有温度的语言进行回复，不要重复用户内容，也不要问“有什么可以帮你”，要有个性地回应。回复只需一句中等长度的话。
+""".strip()
+
+    try:
+        response = client.chat.completions.create(
+            model=os.getenv("GPT_MODEL", "gpt-4"),
+            messages=[{"role": "system", "content": prompt}]
+        )
+        reply = response.choices[0].message.content.strip()
+    except Exception as e:
+        reply = f"🐛 回复生成失败：{str(e)}"
+
     return {
         "status": "success",
-        "reply": "🗣️ 我在呢，有什么我可以帮你的吗？",
+        "reply": reply,
         "intent": intent
     }
 
-# ✅ 撤销授权 intent（占位）
-def handle_revoke_identity(intent):
-    print("📥 收到意图：revoke_identity")
-    return {
-        "status": "success",
-        "reply": f"⚠️ 尚未实现撤销授权功能，占位中",
-        "intent": intent
-    }
+        # ✅ 补充字段
+        intent["persona"] = persona
+        intent["secret"] = secret
 
-# ✅ 主控分发器
-def intent_dispatcher(intent):
-    intent_type = intent.get("intent_type", "")
+        # ✅ 严格清理非目标字段
+        for key in list(intent.keys()):
+            if key not in ["intent_type", "target", "permissions", "secret", "persona"]:
+                intent.pop(key)
 
-    if intent_type == "register_persona":
-        return handle_register(intent)
-    elif intent_type == "authorize":
-        return handle_authorize(intent)
-    elif intent_type == "confirm_identity":
-        return handle_confirm_identity(intent)
-    elif intent_type == "confirm_secret":
-        return handle_confirm_secret(intent)
-    elif intent_type == "chitchat":
-        return handle_chitchat(intent)
-    elif intent_type == "update_secret":
-        return handle_update_secret(intent)
-    elif intent_type == "revoke_identity":
-        return handle_revoke_identity(intent)
-    else:
+        return intent
+
+    except Exception as e:
         return {
-            "status": "fail",
-            "reply": f"❓ 无法识别的指令类型: {intent_type}",
-            "intent": intent
+            "intent_type": "unknown",
+            "persona": persona,
+            "secret": secret,
+            "target": "",
+            "permissions": [],
+            "reason": f"GPT解析异常：{str(e)}",
+            "raw": content if 'content' in locals() else "无返回"
         }
-
-__all__ = ["intent_dispatcher"]
