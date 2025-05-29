@@ -103,6 +103,14 @@ async def chat(request: Request):
         write_log_bridge(message, result, intent, "success")
         return wrap_result("success", result, intent)
 
+    except Exception as e:
+        return wrap_result("fail", {
+            "intent_type": "unknown",
+            "persona": "",
+            "secret": "",
+            "target": "",
+            "permissions": []
+        }, f"⚠️ 系统错误：{str(e)}")
     except Exception as e:   
         import traceback
         traceback.print_exc()
