@@ -124,14 +124,6 @@ from intent_dispatcher import intent_dispatcher
             "permissions": []
         })
 
-    except Exception as e:   
-        import traceback
-        traceback.print_exc()
-        return wrap_result("fail", f"系统错误：{str(e)}")        
-        
-    except Exception as e:
-        traceback.print_exc()
-        return wrap_result("fail", f"系统错误：{str(e)}")
 
 # ✅ 日志查询接口（权限判断 + 异常处理合并）
 @app.post("/log/query")
