@@ -92,7 +92,7 @@ async def chat(request: Request):
 
         # ✅ 权限校验（已更新为只传 intent）
         from check_permission import check_secret_permission
-        permission_result = check_secret_permission(intent)
+        permission_result = check_secret_permission(intent, persona, secret)
         if not permission_result.get("allow"):
             write_log_bridge(message, permission_result.get("reason", "无权限"), intent, "denied")
             return wrap_result("fail", permission_result.get("reason", "⛔️ 权限不足"), intent)
