@@ -15,20 +15,13 @@ def write_log_bridge(message, result, intent, status):
     """
     根据意图或数据内容判断写入 Supabase 还是本地
     """
-try:
-    # 你的代码
-    intent = parse_intent(message, persona, secret)
-    intent["raw_message"] = message
-except Exception as e:
-    return wrap_result("fail", {
-        "intent_type": "unknown",
-        "persona": persona,
-        "secret": secret,
-        "target": "",
-        "permissions": [],
-        "raw_message": message
-    }, f"⚠️ 系统错误：{str(e)}")
-
+    try:
+        if SUPABASE_KEY and status == "success":
+            write_log_to_supabase(message, result, intent, status)
+        else:
+            write_log_to_local(message, result, intent, status)
+    except Exception as e:
+        print("⚠️ 日志写入异常：", e)
 
 # ✅ 内部模块导入
 from parse_intent_with_gpt import parse_intent
