@@ -116,3 +116,33 @@ def handle_chitchat(intent):
         "reply": reply,
         "intent": intent
     }
+
+# ✅ 主控分发器（根据 intent_type 分发到不同处理函数）
+def intent_dispatcher(intent):
+    intent_type = intent.get("intent_type", "")
+
+    if intent_type == "register_persona":
+        return handle_register(intent)
+    elif intent_type == "authorize":
+        return handle_authorize(intent)
+    elif intent_type == "confirm_identity":
+        return handle_confirm_identity(intent)
+    elif intent_type == "confirm_secret":
+        return handle_confirm_secret(intent)
+    elif intent_type == "update_secret":
+        return handle_update_secret(intent)
+    elif intent_type == "revoke_identity":
+        return handle_revoke_identity(intent)
+    elif intent_type == "delete_persona":
+        return handle_delete_persona(intent)
+    elif intent_type == "chitchat":
+        return handle_chitchat(intent)
+    else:
+        return {
+            "status": "fail",
+            "reply": f"❓ 无法识别的指令类型: {intent_type}",
+            "intent": intent
+        }
+
+# 供外部模块 import 使用
+__all__ = ["intent_dispatcher"]
