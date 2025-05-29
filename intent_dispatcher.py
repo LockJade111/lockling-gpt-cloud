@@ -1,4 +1,4 @@
-mport os
+import os
 import json
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -10,37 +10,9 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # ✅ 解析意图
 def parse_intent(message: str, persona: str, secret: str = ""):
-    prompt = f"""
-你是云脑中枢系统的语义分析核心模块你不具备人格情绪或形象只负责将用户输入转换为标准结构化 JSON 指令
-
-你的任务是从用户自然语言中提取以下字段
-- intent_type意图类型（从预设选项中选一）
-- target目标对象（如角色名对象名）
-- permissions权限列表（如 读写执行）
-- secret密钥字符串（如用户验证口令）
-
-规则说明
-1. 你不做任何解释不回复用户不闲聊；
-2. 若意图模糊不清则 intent_type 为 "unknown"；
-3. 对于 intent_type 为 "chitchat" 的情况target 和 secret 应留空；
-4. 输出必须是**合法 JSON**不能有多余解释
-
-可选 intent_type
-- confirm_secret
-- register_persona
-- confirm_identity
-- revoke_identity
-- delete_persona
-- authorize
-- update_secret
-- chitchat
-- unknown
-
-请解析以下用户输入
-{message}
-"""
-
-""".strip()
+from prompt_library.parse_intent_prompt import get_parse_intent_prompt
+...
+prompt = get_parse_intent_prompt(message)
 
     try:
         response = client.chat.completions.create(
@@ -80,22 +52,28 @@ def parse_intent(message: str, persona: str, secret: str = ""):
             "raw": content if 'content' in locals() else "无返回"
         }
 
+from prompt_library.lockling_prompt import get_chitchat_prompt_system, format_user_message
+
 # ✅ 闲聊意图处理模块（GPT生成自然语言回复）
 def handle_chitchat(intent):
-    print("📥 收到意图chitchat")
+    print("📥 收到意图 chitchat")
     raw = intent.get("raw", "")
 
     try:
+        prompt = get_chitchat_prompt_system()
+        user_msg = format_user_message(raw)
+
         response = client.chat.completions.create(
             model=os.getenv("GPT_MODEL", "gpt-4"),
             messages=[
-                {"role": "system", "content": prompt}
+                {"role": "system", "content": prompt},
+                user_msg
             ]
         )
         reply = response.choices[0].message.content.strip()
         print("🎯 GPT 回复内容", reply)
     except Exception as e:
-        reply = f"🐛 回复失败{str(e)}"
+        reply = f"🐛 回复失败：{str(e)}"
 
     return {
         "status": "success",
