@@ -129,6 +129,7 @@ async def main_router(request: Request):
 
         # 1️⃣ 意图解析
         intent = parse_intent(message, persona, secret)
+        print("🧠 INTENT 解析结果：", intent)        
 
         # 2️⃣ 权限验证
         permission_result = check_secret_permission(intent, persona, secret)
