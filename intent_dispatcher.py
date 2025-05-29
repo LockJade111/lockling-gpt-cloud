@@ -9,8 +9,7 @@ load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # ✅ 解析意图
-from prompt_library.parse_intent_prompt import get_parse_intent_prompt
-
+from library.parse_intent_prompt import get_parse_intent_prompt
 def parse_intent(message: str, persona: str, secret: str = ""):
     prompt = get_parse_intent_prompt(message)
 
@@ -53,8 +52,7 @@ def parse_intent(message: str, persona: str, secret: str = ""):
         }
 
 
-from prompt_library.lockling_prompt import get_chitchat_prompt_system, format_user_message
-
+from library.parse_intent_prompt import get_parse_intent_prompt
 # ✅ 闲聊意图处理模块（GPT生成自然语言回复）
 def handle_chitchat(intent):
     print("📥 收到意图 chitchat")

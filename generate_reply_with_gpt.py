@@ -1,7 +1,7 @@
 import os
 from openai import OpenAI
 from dotenv import load_dotenv
-from prompt_library.lockling_prompt import get_chitchat_prompt_system, format_user_message
+from library.lockling_prompt import get_chitchat_prompt_system, format_user_message
 
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
