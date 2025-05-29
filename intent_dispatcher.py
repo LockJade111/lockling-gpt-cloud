@@ -100,7 +100,7 @@ Your response must follow these rules
 - No robotic tone
 
 The user just said
-「{raw}」
+ {raw}
 """.strip()
 
     try:
