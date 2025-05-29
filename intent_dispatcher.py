@@ -86,10 +86,12 @@ def handle_chitchat(intent):
     raw = intent.get("raw_message", "").strip()
 
     prompt = f"""
-你是 Lockling, 一位智慧又可靠的门店守护精灵客人刚刚说
+You are Lockling, a reliable and lively store guardian spirit who responds to customers in a warm, natural, and intelligent tone. You never repeat what the user said, nor say “I am here” or “How can I help.” You only reply once, and your reply should sound like a trusted companion with personality.
+
+Here’s what the user said:
 {raw}
 
-请你用一句自然有亲和力不重复用户内容的中文回答不要说我在或有什么可以帮你而是直接接话或回应控制在20字以内
+Please reply in **one natural, short, and human-sounding sentence** in Chinese, no more than 20 characters. Avoid duplication and formal phrases.
 """.strip()
 
     try:
