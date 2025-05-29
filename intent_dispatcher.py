@@ -7,7 +7,7 @@ from openai import OpenAI
 from generate_reply_with_gpt import handle_chitchat, generate_reply
 from library.parse_intent_prompt import get_parse_intent_prompt
 from library.lockling_prompt import get_chitchat_prompt_system, format_user_message
-from permission.check_permission import check_secret_permission
+from check_permission import check_secret_permission
 
 # ✅ 加载 API Key
 load_dotenv()
