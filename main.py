@@ -105,8 +105,8 @@ async def chat(request: Request):
                 return wrap_result("fail", permission_result.get("reason", "⛔️ 权限不足"), intent)
 
 
-       # ✅ 非闲聊：交给 dispatcher
-       from intent_dispatcher import intent_dispatcher
+       # ✅ 非闲聊：交给 dispatch
+from intent_dispatcher import intent_dispatcher
        result = intent_dispatcher(intent)
 
        # ✅ 成功日志记录
