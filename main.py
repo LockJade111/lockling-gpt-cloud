@@ -22,7 +22,13 @@ def write_log_bridge(message, result, intent, status):
         else:
             write_log_to_supabase(message, result, intent, status)
     except Exception as e:
-        print(f"⚠️ 日志写入失败：{e}")
+    return wrap_result("fail", {
+        "intent_type": "unknown",
+        "persona": "",
+        "secret": "",
+        "target": "",
+        "permissions": []
+    }, f"⚠️ 系统错误：{str(e)}")
 
 # ✅ 内部模块导入
 from parse_intent_with_gpt import parse_intent
