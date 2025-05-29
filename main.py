@@ -118,6 +118,37 @@ async def chat(request: Request):
             "permissions": []
         })
 
+# ✅ 主路由：统一处理外部请求
+@app.post("/")
+async def main_router(request: Request):
+    try:
+        data = await request.json()
+        message = data.get("message", "")
+        persona = data.get("persona", "")
+        secret = data.get("secret", "")
+
+        # 1️⃣ 意图解析
+        intent = parse_intent(message, persona, secret)
+
+        # 2️⃣ 权限验证
+        permission_result = check_secret_permission(intent, persona, secret)
+        if not permission_result.get("allow"):
+            return wrap_result("fail", permission_result.get("reason"), intent)
+
+        # 3️⃣ 意图分发处理
+        result = intent_dispatcher(intent)
+
+        # 4️⃣ 写入日志
+        write_log_bridge(message, result, intent, result.get("status", "unknown"))
+
+        # 5️⃣ 返回统一格式
+        return wrap_result(result.get("status", "fail"), result.get("reply", ""), intent)
+
+    except Exception as e:
+        print("❌ 处理请求失败:", e)
+        return wrap_result("fail", f"系统错误：{str(e)}", {"intent_type": "unknown"})
+
+
 # ✅ 日志查询接口（权限判断 + 异常处理合并）
 @app.post("/log/query")
 async def query_logs_api(request: Request):

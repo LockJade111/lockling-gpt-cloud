@@ -2,14 +2,18 @@ import os
 import json
 from dotenv import load_dotenv
 from openai import OpenAI
-from generate_reply_with_gpt import handle_chitchat
-from generate_reply_with_gpt import generate_reply
 
+# ✅ 自定义模块导入
+from generate_reply_with_gpt import handle_chitchat, generate_reply
+from library.parse_intent_prompt import get_parse_intent_prompt
+from library.lockling_prompt import get_chitchat_prompt_system, format_user_message
+from permission.check_permission import check_secret_permission
+
+# ✅ 加载 API Key
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# ✅ 解析意图
-from library.parse_intent_prompt import get_parse_intent_prompt
+# ✅ 意图解析函数
 def parse_intent(message: str, persona: str, secret: str = ""):
     prompt = get_parse_intent_prompt(message)
 
@@ -26,16 +30,16 @@ def parse_intent(message: str, persona: str, secret: str = ""):
         json_start = content.find("{")
         json_end = content.rfind("}") + 1
         json_str = content[json_start:json_end]
-
         intent = json.loads(json_str)
 
         # ✅ 补充字段
         intent["persona"] = persona
         intent["secret"] = secret
+        intent["raw"] = message
 
-        # ✅ 严格清理非目标字段
+        # ✅ 严格清理字段
         for key in list(intent.keys()):
-            if key not in ["intent_type", "target", "permissions", "secret", "persona", "raw_message"]:
+            if key not in ["intent_type", "target", "permissions", "secret", "persona", "raw"]:
                 intent.pop(key)
 
         return intent
@@ -51,12 +55,25 @@ def parse_intent(message: str, persona: str, secret: str = ""):
             "raw": content if 'content' in locals() else "无返回"
         }
 
-
-from library.parse_intent_prompt import get_parse_intent_prompt
-# ✅ 闲聊意图处理模块（GPT生成自然语言回复）
+# ✅ 闲聊意图处理
 def handle_chitchat(intent):
     print("📥 收到意图 chitchat")
+
+    if intent.get("intent_type") != "chitchat":
+        return {"status": "error", "reason": "⚠️ 非 chitchat 意图不应进此函数"}
+
     raw = intent.get("raw", "")
+    persona = intent.get("persona", "")
+    secret = intent.get("secret", "")
+
+    check_result = check_secret_permission(intent, persona, secret)
+    if not check_result["allow"]:
+        print("🚫 权限拒绝：", check_result["reason"])
+        return {
+            "status": "unauthorized",
+            "reply": check_result["reason"],
+            "intent": intent
+        }
 
     try:
         prompt = get_chitchat_prompt_system()
@@ -70,23 +87,27 @@ def handle_chitchat(intent):
             ]
         )
         reply = response.choices[0].message.content.strip()
-        print("🎯 GPT 回复内容", reply)
+        print("🎯 GPT 回复内容:", reply)
+
+        return {
+            "status": "success",
+            "reply": reply,
+            "intent": intent
+        }
+
     except Exception as e:
-        reply = f"🐛 回复失败：{str(e)}"
+        print("❌ GPT 回复出错：", e)
+        return {
+            "status": "error",
+            "reason": str(e),
+            "intent": intent
+        }
 
-    return {
-        "status": "success",
-        "reply": reply,
-        "intent": intent
-    }
-
-# ✅ 主控分发器（根据 intent_type 分发到不同处理函数）
+# ✅ 主控分发器
 def intent_dispatcher(intent):
     intent_type = intent.get("intent_type", "")
 
-    if intent_type == "chitchat":
-        return handle_register(intent)
-    elif intent_type == "authorize":
+    if intent_type == "authorize":
         return handle_authorize(intent)
     elif intent_type == "confirm_identity":
         return handle_confirm_identity(intent)
@@ -98,6 +119,8 @@ def intent_dispatcher(intent):
         return handle_revoke_identity(intent)
     elif intent_type == "delete_persona":
         return handle_delete_persona(intent)
+    elif intent_type == "register":
+        return handle_register(intent)
     elif intent_type == "chitchat":
         return handle_chitchat(intent)
     else:
@@ -107,5 +130,5 @@ def intent_dispatcher(intent):
             "intent": intent
         }
 
-# 供外部模块 import 使用
+# ✅ 供外部调用
 __all__ = ["intent_dispatcher"]
