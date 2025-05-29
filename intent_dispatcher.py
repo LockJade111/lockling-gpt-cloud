@@ -9,10 +9,10 @@ load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # ✅ 解析意图
-def parse_intent(message: str, persona: str, secret: str = ""):
 from prompt_library.parse_intent_prompt import get_parse_intent_prompt
-...
-prompt = get_parse_intent_prompt(message)
+
+def parse_intent(message: str, persona: str, secret: str = ""):
+    prompt = get_parse_intent_prompt(message)
 
     try:
         response = client.chat.completions.create(
@@ -51,6 +51,7 @@ prompt = get_parse_intent_prompt(message)
             "reason": f"GPT解析异常{str(e)}",
             "raw": content if 'content' in locals() else "无返回"
         }
+
 
 from prompt_library.lockling_prompt import get_chitchat_prompt_system, format_user_message
 
