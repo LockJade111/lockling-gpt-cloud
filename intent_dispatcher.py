@@ -6,6 +6,7 @@ from openai import OpenAI
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+# ✅ 意图解析模块
 def parse_intent(message: str, persona: str, secret: str = ""):
     prompt = f"""
 你是 Lockling，一位智慧而亲和的门店守护精灵，外形为金黑色钥匙拟人形象，身份是系统的语义与权限解释者。
@@ -64,8 +65,30 @@ def parse_intent(message: str, persona: str, secret: str = ""):
         json_str = content[json_start:json_end]
 
         intent = json.loads(json_str)
-        
-# ✅ 闲聊意图：使用 GPT 动态生成回复
+
+        # ✅ 补充字段
+        intent["persona"] = persona
+        intent["secret"] = secret
+
+        # ✅ 严格清理非目标字段
+        for key in list(intent.keys()):
+            if key not in ["intent_type", "target", "permissions", "secret", "persona"]:
+                intent.pop(key)
+
+        return intent
+
+    except Exception as e:
+        return {
+            "intent_type": "unknown",
+            "persona": persona,
+            "secret": secret,
+            "target": "",
+            "permissions": [],
+            "reason": f"GPT解析异常：{str(e)}",
+            "raw": content if 'content' in locals() else "无返回"
+        }
+
+# ✅ 闲聊意图处理模块（GPT生成自然语言回复）
 def handle_chitchat(intent):
     print("📥 收到意图：chitchat")
     raw = intent.get("raw_message", "").strip()
@@ -93,25 +116,3 @@ def handle_chitchat(intent):
         "reply": reply,
         "intent": intent
     }
-
-        # ✅ 补充字段
-        intent["persona"] = persona
-        intent["secret"] = secret
-
-        # ✅ 严格清理非目标字段
-        for key in list(intent.keys()):
-            if key not in ["intent_type", "target", "permissions", "secret", "persona"]:
-                intent.pop(key)
-
-        return intent
-
-    except Exception as e:
-        return {
-            "intent_type": "unknown",
-            "persona": persona,
-            "secret": secret,
-            "target": "",
-            "permissions": [],
-            "reason": f"GPT解析异常：{str(e)}",
-            "raw": content if 'content' in locals() else "无返回"
-        }
