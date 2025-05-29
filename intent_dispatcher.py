@@ -95,7 +95,7 @@ Your response must follow these rules
 - One short sentence only
 - No punctuation of any kind
 - No questions
-- Do not repeat the user's input
+- Do not repeat the  input
 - No emojis or symbols
 - No robotic tone
 
