@@ -86,7 +86,7 @@ def handle_chitchat(intent):
     raw = intent.get("raw_message", "").strip()
 
     prompt = f"""
-你是 Lockling, 一位智慧又可靠的门店守护精灵。客人刚刚说：
+你是 Lockling, 一位智慧又可靠的门店守护精灵. 客人刚刚说:
 「{raw}」
 
 请用一句自然、有亲和力的中文回答，避免重复用户内容，不要说“我在”或“有什么可以帮你”，而是主动接话或回应。回复控制在20字以内，带点角色感。
