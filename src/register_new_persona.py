@@ -52,7 +52,7 @@ def register_new_persona(persona: str, secret: str, name: str = "", role: str = 
         if not r2.ok:
             return {"status": "error", "step": "personas", "message": r2.text}
         
-        # Step 3: roles（授权权限，仅当指定了授权对象时写入）
+        # Step 3: roles（授权权限仅当指定了授权对象时写入）
         if authorize:   
             roles_payload = {  
                 "source": persona,

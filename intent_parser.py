@@ -38,7 +38,7 @@ def parse_intent(user_input: str, persona: str) -> dict:
         persona_match = re.search(r"我是(\S+)", user_input)
         grantee_match = re.search(r"授权(\S+?)注册", user_input)
         permission_match = "register_persona" if "注册新角色" in user_input else None
-        secret_match = re.search(r"(?:密钥|口令)[为是:]?\s*([^\s，。；：]*)", user_input)
+        secret_match = re.search(r"(?:密钥|口令)[为是:]?\s*([^\s；]*)", user_input)
 
         if persona_match and grantee_match and permission_match and secret_match:
             return {

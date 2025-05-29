@@ -53,7 +53,7 @@ def update_persona_secret(requestor: str, new_secret: str) -> bool:
         print("❌ update_persona_secret 出错:", e)
         return False
 
-# ✅ 核心验证函数：密钥与权限全流程校验
+# ✅ 核心验证函数密钥与权限全流程校验
 
 def check_secret_permission(intent: dict, persona: str, secret: str) -> dict:
     # 你已有的权限判断逻辑
@@ -65,7 +65,7 @@ def check_secret_permission(intent: dict, persona: str, secret: str) -> dict:
 
         result = {
             "allow": False,
-            "reason": "❌ 默认拒绝，未通过验证",
+            "reason": "❌ 默认拒绝未通过验证",
             "requestor": requestor,
             "intent_type": intent_type
         }
@@ -77,7 +77,7 @@ def check_secret_permission(intent: dict, persona: str, secret: str) -> dict:
         # ---------- 超级密钥（将军身份）立即放行 ----------
         if requestor == "将军" and secret == SUPER_SECRET_KEY:
             result["allow"] = True
-            result["reason"] = "✅ 管理员身份确认，权限放行"
+            result["reason"] = "✅ 管理员身份确认权限放行"
             return result
 
         # ---------- bcrypt 密钥比对 ----------
@@ -88,9 +88,9 @@ def check_secret_permission(intent: dict, persona: str, secret: str) -> dict:
             if hashed and bcrypt.checkpw(secret.encode(), hashed.encode()):
                 if is_intent_authorized(requestor, intent_type):
                     result["allow"] = True
-                    result["reason"] = f"✅ 密钥正确且有权执行：{intent_type}"
+                    result["reason"] = f"✅ 密钥正确且有权执行{intent_type}"
                 else:
-                    result["reason"] = f"❌ 密钥正确，但无权执行：{intent_type}"
+                    result["reason"] = f"❌ 密钥正确但无权执行{intent_type}"
                 return result
 
         result["reason"] = "❌ 密钥验证失败或权限未授权"
@@ -100,7 +100,7 @@ def check_secret_permission(intent: dict, persona: str, secret: str) -> dict:
         print("❌ 权限校验异常:", e)
         return {
             "allow": False,
-            "reason": f"❌ 异常错误：{str(e)}",
+            "reason": f"❌ 异常错误{str(e)}",
             "requestor": intent.get("requestor", "unknown"),
             "intent_type": intent.get("intent_type", "unknown")
         }

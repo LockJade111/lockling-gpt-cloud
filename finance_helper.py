@@ -40,4 +40,4 @@ def log_finance(intent, persona=None):
 
     except Exception as e:
         print("❌ Failed to write finance log:", e)
-        return {"reply": f"❌ 写入失败：{str(e)}"}
+        return {"reply": f"❌ 写入失败{str(e)}"}

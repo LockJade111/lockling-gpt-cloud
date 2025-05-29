@@ -36,7 +36,7 @@ def update_env_variable(key: str, value: str, append_if_array=True):
         new_lines.append(f"{key}={value}\n")
 
     write_env_file(new_lines)
-    print(f"✅ .env 更新成功：{key} -> {value}")
+    print(f"✅ .env 更新成功{key} -> {value}")
 
 def remove_from_env_array(key: str, value_to_remove: str):
     lines = read_env_file()
@@ -52,14 +52,14 @@ def remove_from_env_array(key: str, value_to_remove: str):
             new_lines.append(line)
 
     write_env_file(new_lines)
-    print(f"🔻 .env 移除授权：{value_to_remove}")
+    print(f"🔻 .env 移除授权{value_to_remove}")
 
-# ✅ 示例：添加授权关系
+# ✅ 示例添加授权关系
 def add_authorization_env(authorizer: str, grantee: str):
     pair = f"{authorizer}:{grantee}"
     update_env_variable("AUTHORIZED_REGISTER", pair)
 
-# ✅ 示例：激活新 persona
+# ✅ 示例激活新 persona
 def activate_persona(name: str):
     key = f"PERSONA_{name}"
     update_env_variable(key, "active", append_if_array=False)

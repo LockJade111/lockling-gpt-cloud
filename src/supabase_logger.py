@@ -44,7 +44,7 @@ def write_log_to_supabase(message, reply, intent_result=None, status="success", 
         supabase.table("logs").insert(data).execute()
 
     except Exception as e:
-        print("❌ 日志写入失败：", e)
+        print("❌ 日志写入失败", e)
 
 # ✅ 查询日志函数
 def query_logs(filters=None):
@@ -56,5 +56,5 @@ def query_logs(filters=None):
         result = q.execute()
         return result.data
     except Exception as e:
-        print("❌ 查询日志失败：", e)
+        print("❌ 查询日志失败", e)
         return []

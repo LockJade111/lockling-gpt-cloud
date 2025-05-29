@@ -17,7 +17,7 @@ headers = {
 def check_secret_permission(intent, persona, secret):
     return {
         "allow": True,
-        "reason": "🟢 权限系统已暂时关闭，允许所有操作（开发模式）",
+        "reason": "🟢 权限系统已暂时关闭允许所有操作（开发模式）",
         "persona": persona,
         "intent_type": intent.get("intent_type", "unknown")
     }
@@ -39,7 +39,7 @@ def check_secret_permission(intent, persona, secret):
             if hashed and bcrypt.checkpw(secret.encode(), hashed.encode()):
                 return {
                     "allow": True,
-                    "reason": "✅ 密钥匹配，允许执行"
+                    "reason": "✅ 密钥匹配允许执行"
                 }
             else:
                 return {
@@ -55,5 +55,5 @@ def check_secret_permission(intent, persona, secret):
     except Exception as e:
         return {
             "allow": False,
-            "reason": f"❌ 权限检查异常：{str(e)}"
+            "reason": f"❌ 权限检查异常{str(e)}"
         }

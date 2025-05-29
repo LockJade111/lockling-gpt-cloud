@@ -12,7 +12,7 @@ TABLE = "persona_keys"
 # ✅ 初始化 Supabase
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# ✅ 注册 persona（旧接口，写入 persona_keys）
+# ✅ 注册 persona（旧接口写入 persona_keys）
 def register_persona(persona: str, secret: str, created_by="系统", role="user"):
     existing = supabase.table(TABLE).select("persona").eq("persona", persona).execute()
     if existing.data:
@@ -49,7 +49,7 @@ def check_persona_secret(persona: str, input_secret: str) -> bool:
             supabase.table(TABLE).update({"failed_attempts": 0}).eq("persona", persona).execute()
             return True
         else:
-            # 密码错误，增加失败次数
+            # 密码错误增加失败次数
             attempts = row.get("failed_attempts", 0) + 1
             locked = attempts >= 5
             supabase.table(TABLE).update({
@@ -103,7 +103,7 @@ def register_new_persona(persona: str, secret: str, operator="系统", permissio
             "intent_type": "register_persona",
             "target": persona,
             "allow": True,
-            "result": f"注册成功，权限：{permissions}"
+            "result": f"注册成功权限{permissions}"
         }).execute()
 
         return {"status": "success", "message": "✅ 多表注册成功"}
@@ -126,6 +126,6 @@ def delete_persona(persona):
     for table in ["persona_keys", "roles", "personas"]:
         url = f"{SUPABASE_URL}/rest/v1/{table}?persona=eq.{persona}"
         response = requests.delete(url, headers=headers)
-        print(f"🗑️ 删除 {table} 中 persona={persona} 的记录：{response.status_code}")
+        print(f"🗑️ 删除 {table} 中 persona={persona} 的记录{response.status_code}")
 
     return True

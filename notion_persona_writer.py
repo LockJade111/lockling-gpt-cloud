@@ -31,4 +31,4 @@ async def save_log_to_notion(message: str, persona: str, reply: str, intent: str
         )
         print("✅ 日志已写入 Notion")
     except Exception as e:
-        print("❌ Notion 写入失败：", str(e))
+        print("❌ Notion 写入失败", str(e))

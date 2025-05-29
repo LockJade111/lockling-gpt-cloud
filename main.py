@@ -21,7 +21,7 @@ def write_log_bridge(message, result, intent, status):
         else:
             write_log_to_local(message, result, intent, status)
     except Exception as e:
-        print("⚠️ 日志写入异常：", e)
+        print("⚠️ 日志写入异常", e)
 
 # ✅ 模块引入（顶部）
 from intent_dispatcher import parse_intent        # ✅ 云脑中枢替代旧 intent 模块
@@ -84,7 +84,7 @@ async def chat(request: Request):
         intent = parse_intent(message, persona, secret)
         intent["raw_message"] = message
 
-        # ✅ 闲聊：直接走 GPT 回复，无需权限校验
+        # ✅ 闲聊直接走 GPT 回复无需权限校验
         if intent.get("intent_type") == "chitchat":
             from generate_reply_with_gpt import generate_reply
             reply_text = generate_reply(message, persona)
@@ -99,7 +99,7 @@ async def chat(request: Request):
                 write_log_bridge(message, permission_result.get("reason", "无权限"), intent, "denied")
                 return wrap_result("fail", permission_result.get("reason", "⛔️ 权限不足"), intent)
 
-        # ✅ 非闲聊：交给 dispatch
+        # ✅ 非闲聊交给 dispatch
         from intent_dispatcher import intent_dispatcher
         result = intent_dispatcher(intent)
 
@@ -109,7 +109,7 @@ async def chat(request: Request):
 
     except Exception as e:
         import traceback
-        print("❌ 系统错误：", traceback.format_exc())
+        print("❌ 系统错误", traceback.format_exc())
         return wrap_result("fail", "⚠️ 系统错误", {
             "intent_type": "unknown",
             "persona": "",
@@ -131,7 +131,7 @@ async def query_logs_api(request: Request):
 
         filters = {"persona": persona} if persona else {}
         logs = query_logs(filters=filters)
-        print("✅ logs 输出：", logs[:1])
+        print("✅ logs 输出", logs[:1])
         return JSONResponse(content={"logs": logs})
 
     except Exception as e:
@@ -168,7 +168,7 @@ def register_persona(
         return result
     except Exception as e:
         traceback.print_exc()
-        return {"status": "error", "message": f"注册失败：{str(e)}"}
+        return {"status": "error", "message": f"注册失败{str(e)}"}
 
 # ✅ 删除角色接口
 @app.post("/persona/delete")
@@ -211,10 +211,10 @@ async def chat(request: Request):
         return JSONResponse(content=result)
 
     except Exception as e:
-        print(f"❌ Chat 处理失败：{e}")
+        print(f"❌ Chat 处理失败{e}")
         return JSONResponse(content={
             "status": "fail",
-            "reply": "❌ 出现异常，暂时无法处理你的请求。",
+            "reply": "❌ 出现异常暂时无法处理你的请求",
             "intent": {
                 "intent_type": "unknown",
                 "persona": "user",

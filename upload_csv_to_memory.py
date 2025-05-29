@@ -16,7 +16,7 @@ csv_path = "/Users/lockjade1/Desktop/memory.csv"
 # ✅ 加载 CSV 并清洗数据
 df = pd.read_csv(csv_path)
 
-# ✅ 替换非法 float 值，填空防止 JSON 报错
+# ✅ 替换非法 float 值填空防止 JSON 报错
 df = df.replace([np.inf, -np.inf], np.nan)
 df = df.fillna("")
 

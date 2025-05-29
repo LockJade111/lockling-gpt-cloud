@@ -6,7 +6,7 @@ load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def ask_gpt(message, persona):
-    system_prompt = f"你是{persona}，一个值得信赖的智能助手。请用简洁友好的语气回答问题。"
+    system_prompt = f"你是{persona}一个值得信赖的智能助手请用简洁友好的语气回答问题"
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[

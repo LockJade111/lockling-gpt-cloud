@@ -30,4 +30,4 @@ def write_log_to_notion(title: str, response: str, persona: str):
     if response.status_code != 200:
         print("❌ 写入 Notion 失败:", response.text)
     else:
-        print("✅ 已写入日志至 Notion。")
+        print("✅ 已写入日志至 Notion")

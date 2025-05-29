@@ -27,7 +27,7 @@ VOICE_PASSPHRASES = [
 
 def is_authorized_speaker(persona: str, message: str) -> bool:
     """
-    判断当前 persona 是否为授权人本人，或是否说出了强信任身份声明
+    判断当前 persona 是否为授权人本人或是否说出了强信任身份声明
     """
     if persona == AUTH_GRANTER:
         return True

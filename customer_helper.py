@@ -26,8 +26,8 @@ def log_customer(intent, persona=None):
 
         response = supabase.table(CUSTOMER_TABLE).insert(data).execute()
         print("✅ Customer log created:", response)
-        return {"reply": f"✅ 已记录客户内容：{source}"}
+        return {"reply": f"✅ 已记录客户内容{source}"}
 
     except Exception as e:
         print("❌ Failed to log customer data:", e)
-        return {"reply": f"❌ 写入失败：{str(e)}"}
+        return {"reply": f"❌ 写入失败{str(e)}"}

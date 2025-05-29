@@ -20,6 +20,6 @@ for entry in conversations:
 
 if records:
     response = supabase.table("memory_logs").insert(records).execute()
-    print("✅ 上传成功：", response)
+    print("✅ 上传成功", response)
 else:
     print("⚠️ 没有可上传的记录")

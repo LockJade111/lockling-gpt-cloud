@@ -12,7 +12,7 @@ def parse_intent(message, persona):
     if intent.get("intent_type") != "unknown":
         return intent
 
-    # 如果GPT失败，走正则解析兜底
+    # 如果GPT失败走正则解析兜底
     return try_regex_parse(message, persona)
 
 
@@ -20,23 +20,23 @@ def parse_intent(message, persona):
 def try_gpt_parse(message, persona):
     try:
         prompt = f"""
-你是一个语义理解助手，请根据下方输入内容提取操作意图，并以 JSON 结构返回（不要任何注释或解释）：
+你是一个语义理解助手请根据下方输入内容提取操作意图并以 JSON 结构返回（不要任何注释或解释）
 
-字段包括：
-- intent：英文动作（如 register_persona、confirm_identity、revoke_identity）
-- intent_type：同 intent（可重复）
-- new_name：如是注册角色
-- identity：如包含口令
-- target：如涉及对象（被授权/撤权者）
-- requires：如赋予的权限关键字
-- source：原始语句
-- persona：说话人身份
+字段包括
+- intent英文动作（如 register_persona、confirm_identity、revoke_identity）
+- intent_type同 intent（可重复）
+- new_name如是注册角色
+- identity如包含口令
+- target如涉及对象（被授权/撤权者）
+- requires如赋予的权限关键字
+- source原始语句
+- persona说话人身份
 
-输入：
+输入
 「{message}」
-说话人是：{persona}
+说话人是{persona}
 
-输出JSON：
+输出JSON
 """
 
         completion = openai.ChatCompletion.create(

@@ -26,8 +26,8 @@ def schedule_event(intent, persona=None):
 
         response = supabase.table(SCHEDULE_TABLE).insert(data).execute()
         print("✅ Schedule event logged:", response)
-        return {"reply": f"✅ 已安排事项：{source}"}
+        return {"reply": f"✅ 已安排事项{source}"}
 
     except Exception as e:
         print("❌ Failed to schedule event:", e)
-        return {"reply": f"❌ 日程写入失败：{str(e)}"}
+        return {"reply": f"❌ 日程写入失败{str(e)}"}
