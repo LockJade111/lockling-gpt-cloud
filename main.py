@@ -23,13 +23,15 @@ def write_log_bridge(message, result, intent, status):
     except Exception as e:
         print("⚠️ 日志写入异常：", e)
 
-# ✅ 内部模块导入
-from parse_intent_with_gpt import parse_intent
+# ✅ 模块引入（顶部）
+from intent_dispatcher import parse_intent        # ✅ 云脑中枢替代旧 intent 模块
 from check_permission import check_secret_permission
-from intent_dispatcher import intent_dispatcher
+from generate_reply_with_gpt import generate_reply
 from persona_keys import delete_persona
 from src.register_new_persona import register_new_persona
 from src.logger_bridge import write_log
+from src.supabase_logger import write_log_to_supabase
+from src.local_logger import write_log_to_local
 
 # ✅ 加载环境变量
 load_dotenv()
