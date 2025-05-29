@@ -91,25 +91,32 @@ def parse_intent(message: str, persona: str, secret: str = ""):
 # ✅ 闲聊意图处理模块（GPT生成自然语言回复）
 def handle_chitchat(intent):
     print("📥 收到意图：chitchat")
+
+    from openai import OpenAI
+    import os
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
     raw = intent.get("raw_message", "").strip()
 
     prompt = f"""
-你是 Lockling，一位亲切、机智的门店守护精灵，负责与客人交流。
-
-当前用户说的话是：
+你是 Lockling，一位智慧又可靠的门店守护精灵。客人刚刚说：
 「{raw}」
 
-请用一句自然、有温度的语言进行回复，不要重复用户内容，也不要问“有什么可以帮你”，要有个性地回应。回复只需一句中等长度的话。
+请用一句自然、有亲和力的中文回答，避免重复用户内容，不要说“我在”或“有什么可以帮你”，而是主动接话或回应。回复控制在一句话以内。
 """.strip()
 
     try:
         response = client.chat.completions.create(
             model=os.getenv("GPT_MODEL", "gpt-4"),
-            messages=[{"role": "system", "content": prompt}]
+            messages=[
+                {"role": "system", "content": prompt}
+            ]
         )
         reply = response.choices[0].message.content.strip()
+        print("🎯 GPT 回复内容：", reply)
+
     except Exception as e:
-        reply = f"🐛 回复生成失败：{str(e)}"
+        reply = f"🐛 回复失败：{str(e)}"
 
     return {
         "status": "success",
