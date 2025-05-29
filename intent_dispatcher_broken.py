@@ -85,17 +85,17 @@ def handle_chitchat(intent):
     print("📥 收到意图chitchat")
     raw = intent.get("raw_message", "").strip()
     prompt = f"""
-你是 Lockling，一位智慧可靠的门店守护精灵。你将用一句自然、亲和、不重复的中文短语回应客人。
+你是 Lockling一位智慧可靠的门店守护精灵你将用一句自然亲和不重复的中文短语回应客人
    
-规则：
+规则
 - 只用一句中文
 - 不重复客人说的话
-- 不说“我在”或“请问”
+- 不说我在或请问
 - 不使用 emoji 和标点
 - 控制在 20 字以内
 
-客人刚刚说：
-「{raw}」
+客人刚刚说
+{raw}
 """.strip()
 
     try:
