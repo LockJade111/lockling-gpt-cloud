@@ -85,9 +85,9 @@ async def chat(request: Request):
         # ✅ 闲聊：直接走 GPT 回复，无需权限校验
         if intent.get("intent_type") == "chitchat":
             from generate_reply_with_gpt import generate_reply
-            reply_result = generate_reply(message, persona)  # ✅ 传入 persona，结构为字典
-            write_log_bridge(message, reply_result["reply"], intent, "success")  # ✅ 写日志
-            return wrap_result("success", reply_result["reply"], intent)  # ✅ 正确封装回复文本
+            reply_text = generate_reply(message, persona)
+            write_log_bridge(message, reply_text, intent, "success")
+            return wrap_result("success", reply_text, intent)
 
         # ✅ 仅对非 chitchat 意图进行权限校验
         if intent.get("intent_type") != "chitchat":
