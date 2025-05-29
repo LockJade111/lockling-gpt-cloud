@@ -96,7 +96,8 @@ def handle_chitchat(intent):
 
 客人刚刚说
 {raw}
-""".strip()
+         
+       """.strip()
 
     try:
         response = client.chat.completions.create(
