@@ -115,7 +115,7 @@ import requests
 
 def delete_persona(persona):
     """
-    删除 persona_keys、roles、personas 三张表中该 persona 的记录
+    删除 persona_keysrolespersonas 三张表中该 persona 的记录
     """
     headers = {
         "apikey": SUPABASE_API_KEY,

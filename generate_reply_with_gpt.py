@@ -31,9 +31,9 @@ def handle_chitchat(intent: dict) -> dict:
     }
 
 
-# ✅ 非闲聊任务回复如解锁指令、指令反馈等
+# ✅ 非闲聊任务回复如解锁指令指令反馈等
 def generate_reply(message: str, persona: str, mode: str = "default") -> str:
-    prompt = get_lockling_prompt(message, mode=mode)  # ✅ 自定义模式如 ritual、pro 等
+    prompt = get_lockling_prompt(message, mode=mode)  # ✅ 自定义模式如 ritualpro 等
 
     try:
         response = client.chat.completions.create(
@@ -49,12 +49,12 @@ def generate_reply(message: str, persona: str, mode: str = "default") -> str:
 def get_lockling_prompt(message: str, mode: str = "default") -> str:
     if mode == "chitchat":
         return f"""
-你是 Lockling一位亲切、灵动的门店守护精灵
+你是 Lockling一位亲切灵动的门店守护精灵
 
 客人刚刚说
-「{message}」
+{message}
 
-请用一句温暖、有趣、具有人格魅力的话来回应不要重复用户内容也不要问“我能帮你什么”只需一句有温度的回应
+请用一句温暖有趣具有人格魅力的话来回应不要重复用户内容也不要问我能帮你什么只需一句有温度的回应
 """.strip()
 
     elif mode == "ritual":
@@ -62,7 +62,7 @@ def get_lockling_prompt(message: str, mode: str = "default") -> str:
 你是 Lockling一位仪式感极强的门锁助手擅长用充满仪式感和古意的话回应客户
 
 来宾说
-「{message}」
+{message}
 
 请用一句类似古风或哲理语气的方式回应体现品牌文化与门锁之道
 """.strip()
@@ -72,16 +72,16 @@ def get_lockling_prompt(message: str, mode: str = "default") -> str:
 你是 Lockling一位专业门锁顾问 AI
 
 用户说
-「{message}」
+{message}
 
-请用一句简明专业、不失亲和力的话语回答体现 LockJade 的安防专业能力
+请用一句简明专业不失亲和力的话语回答体现 LockJade 的安防专业能力
 """.strip()
 
     # 默认人格
     return f"""
-你是 Lockling一位灵动、可靠的门店守护精灵
+你是 Lockling一位灵动可靠的门店守护精灵
 
-请根据下方输入用一句温暖自然、带有个性与风格的方式回应不要重复内容不要客套开场
+请根据下方输入用一句温暖自然带有个性与风格的方式回应不要重复内容不要客套开场
 
-「{message}」
+{message}
 """.strip()

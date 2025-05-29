@@ -11,21 +11,21 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 # ✅ 解析意图
 def parse_intent(message: str, persona: str, secret: str = ""):
     prompt = f"""
-你是“云脑中枢”系统的语义分析核心模块你不具备人格、情绪或形象只负责将用户输入转换为标准结构化 JSON 指令
+你是云脑中枢系统的语义分析核心模块你不具备人格情绪或形象只负责将用户输入转换为标准结构化 JSON 指令
 
 你的任务是从用户自然语言中提取以下字段
 - intent_type意图类型（从预设选项中选一）
-- target目标对象（如角色名、对象名）
-- permissions权限列表（如 读、写、执行）
+- target目标对象（如角色名对象名）
+- permissions权限列表（如 读写执行）
 - secret密钥字符串（如用户验证口令）
 
-【规则说明】
-1. 你不做任何解释、不回复用户、不闲聊；
+规则说明
+1. 你不做任何解释不回复用户不闲聊；
 2. 若意图模糊不清则 intent_type 为 "unknown"；
 3. 对于 intent_type 为 "chitchat" 的情况target 和 secret 应留空；
 4. 输出必须是**合法 JSON**不能有多余解释
 
-【可选 intent_type】
+可选 intent_type
 - confirm_secret
 - register_persona
 - confirm_identity
@@ -37,7 +37,7 @@ def parse_intent(message: str, persona: str, secret: str = ""):
 - unknown
 
 请解析以下用户输入
-「{message}」
+{message}
 """
 
 """.strip()
@@ -87,9 +87,9 @@ def handle_chitchat(intent):
 
     prompt = f"""
 你是 Lockling, 一位智慧又可靠的门店守护精灵. 客人刚刚说:
-「{raw}」
+{raw}
 
-请用一句自然、有亲和力的中文回答避免重复用户内容不要说“我在”或“有什么可以帮你”而是主动接话或回应回复控制在20字以内带点角色感
+请用一句自然有亲和力的中文回答避免重复用户内容不要说我在或有什么可以帮你而是主动接话或回应回复控制在20字以内带点角色感
 """.strip()
 
     try:

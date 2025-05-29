@@ -8,7 +8,7 @@ def register_from_intent(name: str) -> str:
         PERSONA_REGISTRY[name] = {
             "name": name,
             "role": "新注册角色",
-            "tone": "温和、默认",
+            "tone": "温和默认",
             "permissions": ["read", "query", "schedule", "other", "write", "admin"],  # 默认包含调度权限
             "prompt": f"你是 {name}一个刚刚诞生的 AI 助手请根据用户指令开始服务"
         }

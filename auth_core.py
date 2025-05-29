@@ -7,7 +7,7 @@ import re
 AUTH_GRANTER = os.getenv("AUTH_GRANTER", "天下我有")
 AUTH_KEY = os.getenv("AUTH_KEY", "玉衡在手")
 
-# 允许的“我是谁”口头声明语句
+# 允许的我是谁口头声明语句
 AUTHORIZED_CLAIMS = [
     "我是最高将领",
     "我是天下我有",

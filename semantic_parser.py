@@ -23,7 +23,7 @@ def try_gpt_parse(message, persona):
 你是一个语义理解助手请根据下方输入内容提取操作意图并以 JSON 结构返回（不要任何注释或解释）
 
 字段包括
-- intent英文动作（如 register_persona、confirm_identity、revoke_identity）
+- intent英文动作（如 register_personaconfirm_identityrevoke_identity）
 - intent_type同 intent（可重复）
 - new_name如是注册角色
 - identity如包含口令
@@ -33,7 +33,7 @@ def try_gpt_parse(message, persona):
 - persona说话人身份
 
 输入
-「{message}」
+{message}
 说话人是{persona}
 
 输出JSON
