@@ -76,15 +76,15 @@ def root():
 # ✅ 聊天主接口
 @app.post("/chat")
 async def chat(request: Request):
-    try:  
+    try:
         data = await request.json()
         message = data.get("message", "").strip()
         persona = data.get("persona", "").strip()
         secret = data.get("secret", "").strip()
-    
+
         if not message or not persona:
             return wrap_result("fail", "❌ 缺少输入内容", {})
-        
+
         # ✅ 意图解析
         intent = parse_intent(message, persona, secret)
         intent["raw_message"] = message
@@ -103,15 +103,13 @@ async def chat(request: Request):
                 write_log_bridge(message, permission_result.get("reason", "无权限"), intent, "denied")
                 return wrap_result("fail", permission_result.get("reason", "⛔️ 权限不足"), intent)
 
+        # ✅ 非闲聊：交给 dispatch
+        from intent_dispatcher import intent_dispatcher
+        result = intent_dispatcher(intent)
 
-       # ✅ 非闲聊：交给 dispatch
-from intent_dispatcher import intent_dispatcher
-       result = intent_dispatcher(intent)
-
-       # ✅ 成功日志记录
-       write_log_bridge(message, result, intent, "success")
-       return wrap_result("success", result, intent)
-
+        # ✅ 成功日志记录
+        write_log_bridge(message, result, intent, "success")
+        return wrap_result("success", result, intent)
 
     except Exception as e:
         import traceback
@@ -123,7 +121,6 @@ from intent_dispatcher import intent_dispatcher
             "target": "",
             "permissions": []
         })
-
 
 # ✅ 日志查询接口（权限判断 + 异常处理合并）
 @app.post("/log/query")
