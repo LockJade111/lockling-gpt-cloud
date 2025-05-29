@@ -7,7 +7,11 @@ from openai import OpenAI
 from generate_reply_with_gpt import handle_chitchat, generate_reply
 from library.parse_intent_prompt import get_parse_intent_prompt
 from library.lockling_prompt import get_chitchat_prompt_system, format_user_message
-from check_permission import check_secret_permission
+from check_permission import (
+    check_secret_permission,
+    check_persona_secret,
+    SUPER_SECRET_KEY
+)
 
 # ✅ 加载 API Key
 load_dotenv()
@@ -102,6 +106,34 @@ def handle_chitchat(intent):
             "reason": str(e),
             "intent": intent
         }
+
+
+# ✅ 身份确认处理模块（确认 requestor + 密钥）
+def handle_confirm_identity(intent):
+    requestor = intent.get("requestor", "")
+    secret = intent.get("secret", "")
+
+    # 超级密钥身份直通
+    if requestor == "将军" and secret == SUPER_SECRET_KEY:
+        return {
+            "status": "success",
+            "reply": "✅ 身份已确认，将军口令无误。",
+            "intent": intent
+        }
+
+    # 数据库验证
+    if check_persona_secret(requestor, secret):
+        return {
+            "status": "success",
+            "reply": f"✅ 身份已确认，{requestor} 密钥匹配成功。",
+            "intent": intent
+        }
+
+    return {
+        "status": "fail",
+        "reply": f"❌ 身份验证失败，{requestor} 密钥错误或未登记。",
+        "intent": intent
+    }
 
 # ✅ 主控分发器
 def intent_dispatcher(intent):
