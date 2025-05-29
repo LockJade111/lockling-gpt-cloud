@@ -2,11 +2,12 @@ import os
 import json
 from dotenv import load_dotenv
 from openai import OpenAI
+from generate_reply_with_gpt import handle_chitchat
 
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# ✅ 意图解析模块
+# ✅ 解析意图
 def parse_intent(message: str, persona: str, secret: str = ""):
     prompt = f"""
 你是 Lockling，一位智慧而亲和的门店守护精灵，外形为金黑色钥匙拟人形象，身份是系统的语义与权限解释者。
@@ -59,7 +60,6 @@ def parse_intent(message: str, persona: str, secret: str = ""):
         )
         content = response.choices[0].message.content.strip()
 
-        # 处理多余文本（如 GPT 多输出解释）
         json_start = content.find("{")
         json_end = content.rfind("}") + 1
         json_str = content[json_start:json_end]
@@ -72,7 +72,7 @@ def parse_intent(message: str, persona: str, secret: str = ""):
 
         # ✅ 严格清理非目标字段
         for key in list(intent.keys()):
-            if key not in ["intent_type", "target", "permissions", "secret", "persona"]:
+            if key not in ["intent_type", "target", "permissions", "secret", "persona", "raw_message"]:
                 intent.pop(key)
 
         return intent
@@ -91,18 +91,13 @@ def parse_intent(message: str, persona: str, secret: str = ""):
 # ✅ 闲聊意图处理模块（GPT生成自然语言回复）
 def handle_chitchat(intent):
     print("📥 收到意图：chitchat")
-
-    from openai import OpenAI
-    import os
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
     raw = intent.get("raw_message", "").strip()
 
     prompt = f"""
 你是 Lockling，一位智慧又可靠的门店守护精灵。客人刚刚说：
 「{raw}」
 
-请用一句自然、有亲和力的中文回答，避免重复用户内容，不要说“我在”或“有什么可以帮你”，而是主动接话或回应。回复控制在一句话以内。
+请用一句自然、有亲和力的中文回答，避免重复用户内容，不要说“我在”或“有什么可以帮你”，而是主动接话或回应。回复控制在20字以内，带点角色感。
 """.strip()
 
     try:
@@ -114,7 +109,6 @@ def handle_chitchat(intent):
         )
         reply = response.choices[0].message.content.strip()
         print("🎯 GPT 回复内容：", reply)
-
     except Exception as e:
         reply = f"🐛 回复失败：{str(e)}"
 
@@ -128,7 +122,7 @@ def handle_chitchat(intent):
 def intent_dispatcher(intent):
     intent_type = intent.get("intent_type", "")
 
-    if intent_type == "register_persona":
+    if intent_type == "chitchat":
         return handle_register(intent)
     elif intent_type == "authorize":
         return handle_authorize(intent)

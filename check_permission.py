@@ -54,7 +54,10 @@ def update_persona_secret(requestor: str, new_secret: str) -> bool:
         return False
 
 # ✅ 核心验证函数：密钥与权限全流程校验
-def check_secret_permission(intent: dict) -> dict:
+
+def check_secret_permission(intent: dict, persona: str, secret: str) -> dict:
+    # 你已有的权限判断逻辑
+    ...
     try:
         requestor = intent.get("requestor", "")
         secret = intent.get("secret", "")

@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from generate_reply_with_gpt import generate_reply 
 
 # ✅ 智能写入桥函数（放在 main.py 顶部 write_log 导入下方）
 from src.supabase_logger import write_log_to_supabase
@@ -76,41 +77,51 @@ def root():
 # ✅ 聊天主接口
 @app.post("/chat")
 async def chat(request: Request):
-    try:
+    try:  
         data = await request.json()
         message = data.get("message", "").strip()
         persona = data.get("persona", "").strip()
-        secret = data.get("secret", "").strip()   
-        
+        secret = data.get("secret", "").strip()
+    
         if not message or not persona:
-            return wrap_result("fail", "❌ 缺少输入内容")
-            
+            return wrap_result("fail", "❌ 缺少输入内容", {})
+
+        # ✅ 意图解析
         intent = parse_intent(message, persona, secret)
         intent["raw_message"] = message
 
-        if not check_secret_permission(intent, persona, secret):
-            write_log_bridge(message, "权限不足", intent, "denied")
-            return wrap_result("fail", "⛔️ 权限不足", intent)
+        # ✅ 权限校验（已更新为只传 intent）
+        from check_permission import check_secret_permission
+        permission_result = check_secret_permission(intent)
+        if not permission_result.get("allow"):
+            write_log_bridge(message, permission_result.get("reason", "无权限"), intent, "denied")
+            return wrap_result("fail", permission_result.get("reason", "⛔️ 权限不足"), intent)
 
-        result = intent_dispatcher(intent)
-
-        # ✅ 若是 chitchat，则生成 GPT 回复
+        # ✅ 闲聊：走 GPT 回复
         if intent.get("intent_type") == "chitchat":
             from generate_reply_with_gpt import generate_reply
             reply_text = generate_reply(message)
-            result["reply"] = reply_text
+            return wrap_result("success", reply_text, intent)
 
+        # ✅ 非闲聊走 dispatcher
+        from intent_dispatcher import intent_dispatcher
+        result = intent_dispatcher(intent)
+
+        # ✅ 成功日志记录
         write_log_bridge(message, result, intent, "success")
         return wrap_result("success", result, intent)
 
     except Exception as e:
-        return wrap_result("fail", {
+        import traceback
+        print("❌ 系统错误：", traceback.format_exc())
+        return wrap_result("fail", "⚠️ 系统错误", {
             "intent_type": "unknown",
             "persona": "",
             "secret": "",
             "target": "",
             "permissions": []
-        }, f"⚠️ 系统错误：{str(e)}")
+        })
+
     except Exception as e:   
         import traceback
         traceback.print_exc()
