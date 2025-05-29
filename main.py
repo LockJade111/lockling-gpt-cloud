@@ -85,31 +85,34 @@ async def chat(request: Request):
     
         if not message or not persona:
             return wrap_result("fail", "❌ 缺少输入内容", {})
-
+        
         # ✅ 意图解析
         intent = parse_intent(message, persona, secret)
         intent["raw_message"] = message
 
-        # ✅ 权限校验（已更新为只传 intent）
-        from check_permission import check_secret_permission
-        permission_result = check_secret_permission(intent, persona, secret)
-        if not permission_result.get("allow"):
-            write_log_bridge(message, permission_result.get("reason", "无权限"), intent, "denied")
-            return wrap_result("fail", permission_result.get("reason", "⛔️ 权限不足"), intent)
-
-        # ✅ 闲聊：走 GPT 回复
+        # ✅ 闲聊：直接走 GPT 回复，无需权限校验
         if intent.get("intent_type") == "chitchat":
             from generate_reply_with_gpt import generate_reply
             reply_text = generate_reply(message)
             return wrap_result("success", reply_text, intent)
 
-        # ✅ 非闲聊走 dispatcher
-        from intent_dispatcher import intent_dispatcher
-        result = intent_dispatcher(intent)
+        # ✅ 仅对非 chitchat 意图进行权限校验
+        if intent.get("intent_type") != "chitchat":
+            from check_permission import check_secret_permission
+            permission_result = check_secret_permission(intent, persona, secret)
+            if not permission_result.get("allow"):
+                write_log_bridge(message, permission_result.get("reason", "无权限"), intent, "denied")
+                return wrap_result("fail", permission_result.get("reason", "⛔️ 权限不足"), intent)
 
-        # ✅ 成功日志记录
-        write_log_bridge(message, result, intent, "success")
-        return wrap_result("success", result, intent)
+
+       # ✅ 非闲聊：交给 dispatcher
+       from intent_dispatcher import intent_dispatcher
+       result = intent_dispatcher(intent)
+
+       # ✅ 成功日志记录
+       write_log_bridge(message, result, intent, "success")
+       return wrap_result("success", result, intent)
+
 
     except Exception as e:
         import traceback

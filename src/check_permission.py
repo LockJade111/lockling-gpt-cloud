@@ -15,11 +15,12 @@ headers = {
 }
 
 def check_secret_permission(intent, persona, secret):
-    """
-    三参数权限验证逻辑：
-    - 如果 intent_type 是 chitchat，直接放行
-    - 否则验证密钥是否匹配（可接入 Supabase 密钥表）
-    - 还可拓展权限表查询（persona_roles）进行授权限制
+    return {
+        "allow": True,
+        "reason": "🟢 权限系统已暂时关闭，允许所有操作（开发模式）",
+        "persona": persona,
+        "intent_type": intent.get("intent_type", "unknown")
+    }
     """
     try:
         intent_type = intent.get("intent_type", "")
