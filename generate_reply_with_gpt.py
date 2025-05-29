@@ -33,3 +33,21 @@ def handle_chitchat(intent: dict) -> dict:
         "reply": reply,
         "intent": intent
     }
+
+def generate_reply(message: str, persona: str) -> str:
+    prompt = f"""
+你是 {persona}，一位亲切、聪明的守护 AI 助手，请用自然、温暖、有个性的语气回答下面的问题：
+
+「{message}」
+
+请只返回一句回答，不要重复问题，不要问“我可以帮你什么”，也不要有引导语。
+""".strip()
+
+    try:
+        response = client.chat.completions.create(
+            model=os.getenv("GPT_MODEL", "gpt-4"),
+            messages=[{"role": "system", "content": prompt}]
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        return f"❌ 网络错误：{str(e)}"
