@@ -98,7 +98,7 @@ def handle_chitchat(intent):
 - 不使用标点符号
 - 一次只说一句
 
-️ 客人刚刚说
+️客人刚刚说
 {raw}
 """.strip()
 
