@@ -45,6 +45,10 @@ def parse_intent(message: str, persona: str, secret: str = ""):
         for key in list(intent.keys()):
             if key not in ["intent_type", "target", "permissions", "secret", "persona", "raw"]:
                 intent.pop(key)
+        # ✅ 新增验证模块调用
+        if not check_persona_secret(persona, secret):
+            intent["intent_type"] = "unauthorized"
+            intent["reason"] = "身份验证失败：密钥错误或未登记。" 
 
         return intent
 
@@ -110,6 +114,7 @@ def handle_chitchat(intent):
 
 # ✅ 身份确认处理模块（确认 requestor + 密钥）
 def handle_confirm_identity(intent):
+    print("🔍 来自 intent_dispatcher.py 的身份验证开始")
     requestor = intent.get("requestor", "")
     secret = intent.get("secret", "")
 

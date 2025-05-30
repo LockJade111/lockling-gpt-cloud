@@ -61,6 +61,7 @@ def update_persona_secret(requestor: str, new_secret: str) -> bool:
 
 # ✅ 核心权限验证入口（身份 + 密钥 + 行为）
 def check_secret_permission(intent: dict, persona: str, secret: str) -> dict:
+    print("🪱 验证模块已被调用")
     try:
         requestor = persona or intent.get("requestor", "")
         intent_type = intent.get("intent_type", "unknown")
