@@ -3,7 +3,12 @@ from openai import OpenAI
 from dotenv import load_dotenv
 from library.lockling_prompt import get_chitchat_prompt_system, format_user_message
 
-load_dotenv()
+from pathlib import Path
+
+# ✅ 强制加载当前脚本所在目录的 .env 文件
+env_path = Path(__file__).resolve().parent / ".env"
+load_dotenv(dotenv_path=env_path)
+
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # ✅ 闲聊回复只需一句情感灵动

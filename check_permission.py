@@ -3,13 +3,18 @@ import requests
 import bcrypt
 import json
 from dotenv import load_dotenv
+from pathlib import Path
 
-load_dotenv()
+# ✅ 强化版 dotenv 加载
+dotenv_path = Path(__file__).resolve().parent / ".env"
+load_dotenv(dotenv_path=dotenv_path)
 
 # ✅ 读取环境变量
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-SUPER_SECRET_KEY = os.getenv("SUPER_SECRET_KEY", "玉衡在手")
+SUPER_SECRET_KEY = os.getenv("SUPER_SECRET_KEY")
+if not SUPER_SECRET_KEY:
+    raise ValueError("🚨 缺少 SUPER_SECRET_KEY，权限系统无法初始化。请检查 .env 设置。")
 
 # ✅ Supabase 请求头
 headers = {
