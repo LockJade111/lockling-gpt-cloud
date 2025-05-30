@@ -1,6 +1,7 @@
 import os
 import traceback
 from dotenv import load_dotenv
+from pathlib import Path
 from fastapi import FastAPI, Request, Form
 from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -34,7 +35,8 @@ from src.supabase_logger import write_log_to_supabase
 from src.local_logger import write_log_to_local
 
 # ✅ 加载环境变量
-load_dotenv()
+dotenv_path = Path(__file__).resolve().parent / ".env"
+load_dotenv(dotenv_path=dotenv_path)
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 SUPER_SECRET_KEY = os.getenv("SUPER_SECRET_KEY")
