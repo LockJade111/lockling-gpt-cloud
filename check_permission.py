@@ -50,8 +50,8 @@ def is_intent_authorized(requestor: str, intent_type: str) -> bool:
 def update_persona_secret(requestor: str, new_secret: str) -> bool:
     try:
         hashed = bcrypt.hashpw(new_secret.encode(), bcrypt.gensalt()).decode()
-        url = f"{SUPABASE_URL}/rest/v1/persona_keys?requestor=eq.{requestor}"
-        payload = json.dumps({"secret": hashed})
+        url = f"{SUPABASE_URL}/rest/v1/persona_keys?persona=eq.{requestor}"
+        payload = json.dumps({"secret_hash": hashed})
         res = requests.patch(url, headers=headers, data=payload)
         return res.status_code in [200, 204]
     except Exception as e:
