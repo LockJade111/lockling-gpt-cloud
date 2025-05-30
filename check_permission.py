@@ -29,7 +29,7 @@ def check_persona_secret(requestor: str, secret: str) -> bool:
         url = f"{SUPABASE_URL}/rest/v1/persona_keys?requestor=eq.{requestor}&select=secret"
         res = requests.get(url, headers=headers)
         if res.status_code == 200 and res.json():
-            hashed = res.json()[0].get("secret")
+            hashed = res.json()[0].get("secret_hash")
             return hashed and bcrypt.checkpw(secret.encode(), hashed.encode())
         return False
     except Exception as e:
