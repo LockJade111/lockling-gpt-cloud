@@ -4,3 +4,5 @@
 2025-05-27 16:11:40.162 PDT [68486] LOG:  listening on Unix socket "/tmp/.s.PGSQL.5432"
 2025-05-27 16:11:40.163 PDT [68487] LOG:  database system was shut down at 2025-05-27 16:11:31 PDT
 2025-05-27 16:11:40.165 PDT [68486] LOG:  database system is ready to accept connections
+2025-05-30 02:12:15.891 PDT [846] FATAL:  role "postgres" does not exist
+2025-05-30 02:13:21.503 PDT [884] FATAL:  role "lockjade" does not exist
