@@ -26,7 +26,8 @@ headers = {
 # ✅ 单次密钥验证（bcrypt 比对）
 def check_persona_secret(requestor: str, secret: str) -> bool:
     try:
-        url = f"{SUPABASE_URL}/rest/v1/persona_keys?persona=eq.{requestor}&select=secret_hash"
+        # ✅ 修复后应为：
+        url = f"{SUPABASE_URL}/rest/v1/persona_keys?persona=eq.{requestor}&select=secret"
         res = requests.get(url, headers=headers)
         if res.status_code == 200 and res.json():
             hashed = res.json()[0].get("secret_hash")
@@ -71,6 +72,9 @@ def check_secret_permission(intent: dict, persona: str, secret: str) -> dict:
             "requestor": requestor,
             "intent_type": intent_type
         }
+        print("🧩 intent：", intent)
+        print("🧩 persona：", requestor)
+        print("🧩 secret：", secret)
 
         # ✅ 无需权限检查的意图类型
         if intent_type in ["chitchat", "register_persona", "confirm_secret"]:
