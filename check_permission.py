@@ -26,7 +26,7 @@ headers = {
 # ✅ 单次密钥验证（bcrypt 比对）
 def check_persona_secret(requestor: str, secret: str) -> bool:
     try:
-        url = f"{SUPABASE_URL}/rest/v1/persona_keys?requestor=eq.{requestor}&select=secret"
+        url = f"{SUPABASE_URL}/rest/v1/persona_keys?persona=eq.{requestor}&select=secret_hash"
         res = requests.get(url, headers=headers)
         if res.status_code == 200 and res.json():
             hashed = res.json()[0].get("secret_hash")
