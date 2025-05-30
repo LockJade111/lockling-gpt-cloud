@@ -87,6 +87,15 @@ async def chat(request: Request):
         intent = parse_intent(message, persona, secret)
         intent["raw_message"] = message
 
+                # ✅ 身份验证（将军）
+        if intent.get("intent_type") == "confirm_identity":
+            from check_permission import check_persona_secret
+            print("🪪 身份验证触发")
+            if check_persona_secret(persona, secret):
+                return wrap_result("success", "✅ 身份验证通过，权限同步更新中…", intent)
+            else:
+                return wrap_result("fail", "❌ 身份验证失败，密钥错误或未登记。", intent)
+
         # ✅ 闲聊直接走 GPT 回复无需权限校验
         if intent.get("intent_type") == "chitchat":
             from generate_reply_with_gpt import generate_reply
