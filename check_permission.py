@@ -21,40 +21,42 @@ def check_secret_permission(intent, persona, secret):
         "persona": persona,
         "intent_type": intent.get("intent_type", "unknown")
     }
-    """
-    try:
-        intent_type = intent.get("intent_type", "")
-        if intent_type == "chitchat":
+
+"""
+# 以下为正式权限校验逻辑（暂时注释）
+try:
+    intent_type = intent.get("intent_type", "")
+    if intent_type == "chitchat":
+        return {
+            "allow": True,
+            "reason": "✅ 闲聊意图默认放行"
+        }
+
+    # 查询 persona 密钥
+    url = f"{SUPABASE_URL}/rest/v1/personas?persona=eq.{persona}&select=secret"
+    res = requests.get(url, headers=headers)
+
+    if res.status_code == 200 and res.json():
+        hashed = res.json()[0].get("secret")
+        if hashed and bcrypt.checkpw(secret.encode(), hashed.encode()):
             return {
                 "allow": True,
-                "reason": "✅ 闲聊意图默认放行"
+                "reason": "✅ 密钥匹配允许执行"
+            }
+        else:
+            return {
+                "allow": False,
+                "reason": "❌ 密钥错误"
             }
 
-        # 查询 persona 密钥
-        url = f"{SUPABASE_URL}/rest/v1/personas?persona=eq.{persona}&select=secret"
-        res = requests.get(url, headers=headers)
+    return {
+        "allow": False,
+        "reason": "❌ 未找到该 persona 或无密钥记录"
+    }
 
-        if res.status_code == 200 and res.json():
-            hashed = res.json()[0].get("secret")
-            if hashed and bcrypt.checkpw(secret.encode(), hashed.encode()):
-                return {
-                    "allow": True,
-                    "reason": "✅ 密钥匹配允许执行"
-                }
-            else:
-                return {
-                    "allow": False,
-                    "reason": "❌ 密钥错误"
-                }
-
-        return {
-            "allow": False,
-            "reason": "❌ 未找到该 persona 或无密钥记录"
-        }
-
-    except Exception as e:
-        return {
-            "allow": False,
-            "reason": f"❌ 权限检查异常{str(e)}"
-        }
-
+except Exception as e:
+    return {
+        "allow": False,
+        "reason": f"❌ 权限检查异常{str(e)}"
+    }
+"""
