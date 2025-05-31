@@ -1,0 +1,108 @@
+{
+  "将军": {
+    "can_write": true,
+    "can_delegate": true,
+    "can_manage_memory": true,
+    "can_execute_action": true,
+    "can_handle_finance": true,
+    "can_update_schedule": true
+  },
+  "玉衡": {
+    "exec": [],
+    "read": {
+      "cloud": [],
+      "local": [
+        "memorys",
+        "finance"
+      ]
+    },
+    "write": {
+      "cloud": [],
+      "local": [
+        "finance"
+      ]
+    }
+  },
+  "军师": {
+    "exec": [],
+    "read": {
+      "cloud": [
+        "memorys",
+        "memorys_public",
+        "customers",
+        "logs",
+        "finance",
+        "personas",
+        "persona_keys",
+        "roles"
+      ],
+      "local": [
+        "memory",
+        "memorys",
+        "logs",
+        "customers",
+        "finance",
+        "personas",
+        "persona_keys",
+        "roles"
+      ]
+    },
+    "write": {
+      "cloud": [],
+      "local": [
+        "memory"
+      ]
+    }
+  },
+  "锁灵": {
+    "exec": [],
+    "read": {
+      "cloud": [
+        "memorys",
+        "memorys_public"
+      ],
+      "local": []
+    },
+    "write": {
+      "cloud": [
+        "memorys",
+        "memorys_public"
+      ],
+      "local": [
+        "customers"
+      ]
+    }
+  },
+  "司铃": {
+    "exec": [],
+    "read": {
+      "cloud": [
+        "memorys_public"
+      ],
+      "local": [
+        "customers",
+        "finance",
+        "memorys"
+      ]
+    },
+    "write": {
+      "cloud": [
+        "memorys_public"
+      ],
+      "local": []
+    }
+  },
+  "小徒弟": {
+    "exec": [],
+    "read": {
+      "cloud": [
+        "memorys_public"
+      ],
+      "local": []
+    },
+    "write": {
+      "cloud": [],
+      "local": []
+    }
+  }
+}

@@ -2,6 +2,8 @@ import json
 from datetime import datetime
 from supabase import create_client
 import os
+from dotenv import load_dotenv
+load_dotenv()
 
 # ✅ 环境变量加载
 SUPABASE_URL = os.getenv("SUPABASE_URL")

@@ -1,33 +1,55 @@
-# test_permissions.py
+from src.check_permission import check_secret_permission
 
-from permission_checker import check_permission
-from src.logger_bridge import log_event
-
-roles = ["军师", "锁灵", "玉衡", "司铃", "小徒弟"]
-resources = [
-    ("memory", "local"),
-    ("memorys", "local"),
-    ("customers", "local"),
-    ("logs", "local"),
-    ("finance", "local"),
-    ("memorys_public", "cloud"),
-    ("memorys", "cloud")
+# ✏️ 在这里配置你要测试的身份信息与意图
+test_cases = [
+    {
+        "persona": "junshi",  # 军师
+        "intent": {
+            "intent_type": "read_memory"
+        },
+        "secret": "junshi_secret"
+    },
+    {
+        "persona": "lockling",  # 锁灵
+        "intent": {
+            "intent_type": "write_customers"
+        },
+        "secret": "lockling_secret"
+    },
+    {
+        "persona": "yuheng",  # 玉衡
+        "intent": {
+            "intent_type": "read_finance"
+        },
+        "secret": "yuheng_secret"
+    },
+    {
+        "persona": "silin",  # 司铃
+        "intent": {
+            "intent_type": "write_plan"
+        },
+        "secret": "silin_secret"
+    },
+    {
+        "persona": "lockling",
+        "intent": {
+            "intent_type": "chitchat"  # 默认意图
+        },
+        "secret": "wrong_secret"
+    }
 ]
-actions = ["read", "write", "exec"]
 
-def test_permissions():
-    print("🔍 权限校验测试开始\n")
-
-    for role in roles:
-        print(f"\n--- 角色：{role} ---")
-        for action in actions:
-            for resource, source in resources:
-                allowed = check_permission(role, action, resource, source=source)
-                status = "✅ PASS" if allowed else "❌ DENY"
-                print(f"{status:8} | {role:4} | {action:5} | {resource:15} | 来源：{source}")
-
-                # 同时记录行为日志（可选）
-                log_event("test", role, action, resource, source, "pass" if allowed else "deny")
-
+# ✅ 运行所有测试
 if __name__ == "__main__":
-    test_permissions()
+    for idx, case in enumerate(test_cases):
+        print(f"\n--- 测试用例 {idx + 1} ---")
+        result = check_secret_permission(
+            intent=case["intent"],
+            persona=case["persona"],
+            secret=case["secret"]
+        )
+        print(f"Persona: {case['persona']}")
+        print(f"Intent Type: {case['intent']['intent_type']}")
+        print(f"结果: {'✅ 允许' if result['allow'] else '❌ 拒绝'}")
+        print(f"原因: {result['reason']}")
+        print(f"附加信息: {result}")

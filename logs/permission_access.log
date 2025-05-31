@@ -1,0 +1,8 @@
+2025-05-30T21:05:18.699598 | PASS  | 军师     | read   | memorys         | 来源：local  | 
+2025-05-30T21:05:18.840508 | PASS  | 军师     | read   | memorys_public  | 来源：cloud  | 
+2025-05-30T21:05:18.971976 | PASS  | 锁灵     | write  | memorys_public  | 来源：cloud  | 
+2025-05-30T21:05:19.094269 | PASS  | 玉衡     | read   | finance         | 来源：local  | 
+2025-05-30T21:05:19.215562 | DENY  | 司铃     | write  | customers_public | 来源：cloud  | 
+2025-05-30T21:05:19.362878 | PASS  | 小徒弟    | read   | memorys_public  | 来源：cloud  | 
+2025-05-30T21:05:19.454330 | DENY  | 小徒弟    | read   | finance         | 来源：local  | 
+2025-05-30T21:05:19.620011 | DENY  | 军师     | exec   | 调度              | 来源：local  | 

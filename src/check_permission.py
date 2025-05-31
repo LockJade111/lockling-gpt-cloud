@@ -57,3 +57,4 @@ def check_secret_permission(intent, persona, secret):
             "allow": False,
             "reason": f"❌ 权限检查异常{str(e)}"
         }
+     """
