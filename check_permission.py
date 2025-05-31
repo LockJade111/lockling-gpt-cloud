@@ -23,6 +23,23 @@ def check_secret_permission(intent, persona, secret):
     }
 
 """
+
+def check_persona_secret(persona, secret):
+    """
+    🔐 校验指定 persona 的密钥（用于高权限验证）
+    """
+    try:
+        url = f"{SUPABASE_URL}/rest/v1/personas?persona=eq.{persona}&select=secret"
+        res = requests.get(url, headers=headers)
+
+        if res.status_code == 200 and res.json():
+            hashed = res.json()[0].get("secret")
+            return hashed and bcrypt.checkpw(secret.encode(), hashed.encode())
+        return False
+    except Exception as e:
+        print(f"[权限验证异常] {str(e)}")
+        return False
+
 # 以下为正式权限校验逻辑（暂时注释）
 try:
     intent_type = intent.get("intent_type", "")
