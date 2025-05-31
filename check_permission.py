@@ -14,6 +14,7 @@ headers = {
     "Content-Type": "application/json",
 }
 
+# ✅ 主权限验证：默认放行（开发模式）
 def check_secret_permission(intent, persona, secret):
     return {
         "allow": True,
@@ -21,13 +22,35 @@ def check_secret_permission(intent, persona, secret):
         "persona": persona,
         "intent_type": intent.get("intent_type", "unknown")
     }
-    """
+
+# ✅ 单独密钥验证（备用）
+def check_persona_secret(persona, secret):
+    return {
+        "match": True,
+        "persona": persona,
+        "message": "✅ 默认允许：密钥验证已跳过（开发模式）"
+    }
+
+# ✅ 等级权限判断（备用）
+def check_permission_level(persona, intent_type):
+    return {
+        "allow": True,
+        "level": "开发模式",
+        "reason": "✅ 默认允许所有权限"
+    }
+
+"""
+# 🔒 正式模式（密钥验证版）：如需启用请取消注释上方主函数并注释当前开发模式
+
+def check_secret_permission(intent, persona, secret):
     try:
         intent_type = intent.get("intent_type", "")
         if intent_type == "chitchat":
             return {
                 "allow": True,
-                "reason": "✅ 闲聊意图默认放行"
+                "reason": "✅ 闲聊意图默认放行",
+                "persona": persona,
+                "intent_type": intent_type
             }
 
         # 查询 persona 密钥
@@ -39,7 +62,9 @@ def check_secret_permission(intent, persona, secret):
             if hashed and bcrypt.checkpw(secret.encode(), hashed.encode()):
                 return {
                     "allow": True,
-                    "reason": "✅ 密钥匹配允许执行"
+                    "reason": "✅ 密钥匹配允许执行",
+                    "persona": persona,
+                    "intent_type": intent_type
                 }
             else:
                 return {
@@ -55,6 +80,6 @@ def check_secret_permission(intent, persona, secret):
     except Exception as e:
         return {
             "allow": False,
-            "reason": f"❌ 权限检查异常{str(e)}"
+            "reason": f"❌ 权限检查异常: {str(e)}"
         }
-     """
+"""
