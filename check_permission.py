@@ -26,7 +26,8 @@ def check_secret_permission(intent, persona, secret):
 
 def check_persona_secret(persona, secret):
     """
-    🔐 校验指定 persona 的密钥（用于高权限验证）
+
+     # 🔐 验证 persona 密钥是否匹配
     """
     try:
         url = f"{SUPABASE_URL}/rest/v1/personas?persona=eq.{persona}&select=secret"
