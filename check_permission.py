@@ -7,6 +7,7 @@ load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+SUPER_SECRET_KEY = "🧪_default_fake_key_for_dev_mode"
 
 headers = {
     "apikey": SUPABASE_KEY,
