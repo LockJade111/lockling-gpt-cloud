@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 from supabase import create_client, Client
 
-load_dotenv(dotenv_path=".env")  # 强制加载 .env 文件
+load_dotenv(dotenv_path=".env")
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
@@ -19,14 +19,6 @@ def write_to_cloud(table_name: str, data: dict):
         return None
 
 def query_cloud_db(table_name: str, filters: dict = None, limit: int = 10):
-    """
-    查询云端数据库
-
-    :param table_name: 表名
-    :param filters: dict 过滤条件，如 {'persona': '军师'}
-    :param limit: 限制条数
-    :return: 查询结果列表或 None
-    """
     try:
         query = supabase.table(table_name).select("*")
         if filters:

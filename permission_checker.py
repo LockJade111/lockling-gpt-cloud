@@ -2,28 +2,58 @@
 
 ROLES_PERMISSIONS = {
     "军师": {
-        "read": ["memory", "memorys", "logs", "finance"],
-        "write": ["memory", "memorys", "logs", "finance"],
+        "read": {
+            "local": ["memorys", "logs", "finance", "customers"],
+            "cloud": ["memorys_public", "customers_public"]
+        },
+        "write": {
+            "local": ["memorys", "logs", "finance", "customers"],
+            "cloud": ["memorys_public"]
+        },
         "exec": ["授权", "调度", "管理"]
     },
     "锁灵": {
-        "read": ["memorys", "memorys_public"],
-        "write": ["memorys", "memorys_public"],
+        "read": {
+            "local": [],
+            "cloud": ["memorys", "memorys_public", "customers_public"]
+        },
+        "write": {
+            "local": [],
+            "cloud": ["memorys", "memorys_public"]
+        },
         "exec": []
     },
     "玉衡": {
-        "read": ["memorys", "finance"],
-        "write": ["memorys"],
+        "read": {
+            "local": ["memorys", "finance"],
+            "cloud": []
+        },
+        "write": {
+            "local": ["memorys"],
+            "cloud": []
+        },
         "exec": []
     },
     "司铃": {
-        "read": ["memorys", "memorys_public"],
-        "write": ["memorys_public"],
+        "read": {
+            "local": ["memorys", "finance", "customers"],
+            "cloud": ["memorys_public"]
+        },
+        "write": {
+            "local": [],
+            "cloud": ["memorys_public", "customers_public"]
+        },
         "exec": []
     },
     "小徒弟": {
-        "read": ["memorys_public"],
-        "write": [],
+        "read": {
+            "local": [],
+            "cloud": ["memorys_public"]
+        },
+        "write": {
+            "local": [],
+            "cloud": []
+        },
         "exec": []
     }
 }
@@ -36,32 +66,46 @@ PERSONA_REGISTRY = {
     "persona_5": {"name": "小徒弟", "permissions": ROLES_PERMISSIONS.get("小徒弟", {})},
 }
 
-        
-def has_permission(persona_id: str, action: str, resource: str) -> bool:
-    """
-    根据 persona_id 查注册表，判断是否有权限执行 action 于 resource
-    """
+# ✅ 权限判断（支持 local/cloud + exec）
+def has_permission(persona_id: str, action: str, resource: str, source: str = "local") -> bool:
     persona = PERSONA_REGISTRY.get(persona_id)
     if not persona:
         return False
     permissions = persona.get("permissions", {})
-    allowed_resources = permissions.get(action, [])
-    return resource in allowed_resources
-    
+    if action == "exec":
+        return resource in permissions.get("exec", [])
+    return resource in permissions.get(action, {}).get(source, [])
 
+# ✅ 支持中文角色名 → persona 映射
+def check_permission(role_name: str, action: str, resource: str, source: str = "local") -> bool:
+    role_to_persona = {
+        "军师": "persona_1",
+        "锁灵": "persona_2",
+        "玉衡": "persona_3",
+        "司铃": "persona_4",
+        "小徒弟": "persona_5",
+    }
+    persona_id = role_to_persona.get(role_name)
+    if not persona_id:
+        return False
+    return has_permission(persona_id, action, resource, source)
 
-# 测试用例示范
+# ✅ 测试用例（包含本地 + 云端）
 if __name__ == "__main__":
     test_cases = [
-        ("persona_1", "read", "memory"),
-        ("persona_2", "write", "memorys_public"),
-        ("persona_3", "read", "finance"),
-        ("persona_4", "write", "memorys_public"),
-        ("persona_5", "write", "memorys_public"),
+        ("军师", "read", "memorys", "local"),
+        ("军师", "read", "memorys_public", "cloud"),
+        ("锁灵", "write", "memorys_public", "cloud"),
+        ("玉衡", "read", "finance", "local"),
+        ("司铃", "write", "customers_public", "cloud"),
+        ("小徒弟", "read", "memorys_public", "cloud"),
+        ("小徒弟", "read", "finance", "local"),
+        ("军师", "exec", "调度", ""),  # exec 没有 source
     ]
-    for pid, act, res in test_cases:
-        perm = PERSONA_REGISTRY.get(pid, {}).get("permissions", {})
-        allowed = res in perm.get(act, [])
-        print(f"角色 {pid} 是否可{act} {res}：{allowed}")
 
-
+    for role, action, resource, source in test_cases:
+        if action == "exec":
+            allowed = check_permission(role, action, resource)
+        else:
+            allowed = check_permission(role, action, resource, source)
+        print(f"角色 {role} 是否可 {action} {resource}（{source}）：{allowed}")

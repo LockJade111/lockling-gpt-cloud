@@ -23,17 +23,33 @@ def write_to_local(table_name: str, data: dict):
     except SQLAlchemyError as e:
         print(f"❌ 写入失败：{e}")
 
-def read_from_local(table_name: str, limit: int = 10):
-    """读取本地表中的数据"""
+def read_from_local(table_name: str, query_params: dict = None):
+    """读取本地表中的数据，支持字段筛选 + limit 控制"""
     try:
+        query_params = query_params or {}
         table = Table(table_name, metadata, autoload_with=engine)
+
+        # 处理 LIMIT 参数
+        limit = query_params.pop("limit", 10)
+
+        # 构建 SELECT 语句
+        stmt = select(table)
+
+        # 构建 WHERE 条件（基于 query_params 剩余字段）
+        for key, value in query_params.items():
+            if hasattr(table.c, key):
+                stmt = stmt.where(getattr(table.c, key) == value)
+
+        # 添加 LIMIT
+        stmt = stmt.limit(limit)
+
+        # 执行查询，转换为字典结构返回
         with engine.connect() as conn:
-            stmt = select(table).limit(limit)
-            result = conn.execute(stmt)
-            rows = result.fetchall()
-            return [dict(r) for r in rows]
+            result = conn.execute(stmt).mappings().all()
+            return [dict(r) for r in result]
+
     except SQLAlchemyError as e:
-        print(f"❌ 读取失败：{e}")
+        print(f"❌ 本地读取失败：{e}")
         return []
 
 def delete_local_by_id(table_name: str, row_id: int):

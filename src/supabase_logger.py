@@ -9,6 +9,12 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 SUPABASE_LOG_TABLE = os.getenv("SUPABASE_LOG_TABLE", "logs")  # 可自定义表名
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+if not SUPABASE_URL or not SUPABASE_KEY:
+    raise ValueError("⚠️ 环境变量 SUPABASE_URL 或 SUPABASE_KEY 未设置，无法连接 Supabase")
+
+# ✅ 创建客户端（只在变量存在时执行）
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
 # ✅ 日志写入函数（稳定结构 + 自动格式化）
 def write_log_to_supabase(message, reply, intent_result=None, status="success", source="cloud", raw_intent=None):
     try:

@@ -1,61 +1,98 @@
 # dal.py
+
 from local_db import read_from_local as query_local_db, write_to_local as write_local_db
-from cloud_db import query_cloud_db, write_cloud_db
+from cloud_db import query_cloud_db, write_to_cloud
 from permission_checker import check_permission
+from src.logger_bridge import log_event
 
 class DataAccessLayer:
     def __init__(self, role):
         self.role = role
 
-    def read(self, resource, query_params):
-        if not check_permission(self.role, "read", resource):
-            raise PermissionError(f"角色 {self.role} 无权读取资源 {resource}")
+    def read(self, resource, query_params=None):
+        query_params = query_params or {}
+        result = None
 
-        if self.role == "军师":
-            result = query_local_db(resource, query_params)
-            if not result:
-                result = query_cloud_db(resource, query_params)
-        elif self.role == "锁灵":
-            result = query_cloud_db(resource, query_params)
-            if not result:
+        # ① 本地读取
+        if check_permission(self.role, "read", resource, source="local"):
+            try:
                 result = query_local_db(resource, query_params)
+                if result:
+                    log_event("access", self.role, "read", resource, "local", "success", "本地读取成功")
+                    print(f"[LOCAL] 读取成功：{resource}")
+                    return result
+                else:
+                    log_event("access", self.role, "read", resource, "local", "empty", "本地无结果")
+            except Exception as e:
+                log_event("access", self.role, "read", resource, "local", "error", str(e))
+                raise e
         else:
-            result = query_cloud_db(resource, query_params)
-        return result
+            log_event("auth", self.role, "read", resource, "local", "denied", "无本地读取权限")
+
+        # ② 云端读取
+        if check_permission(self.role, "read", resource, source="cloud"):
+            try:
+                result = query_cloud_db(resource, query_params)
+                if result:
+                    log_event("access", self.role, "read", resource, "cloud", "success", "云端读取成功")
+                    print(f"[CLOUD] 读取成功：{resource}")
+                    return result
+                else:
+                    log_event("access", self.role, "read", resource, "cloud", "empty", "云端无结果")
+            except Exception as e:
+                log_event("access", self.role, "read", resource, "cloud", "error", str(e))
+                raise e
+        else:
+            log_event("auth", self.role, "read", resource, "cloud", "denied", "无云端读取权限")
+
+        # 若无结果返回
+        raise PermissionError(f"❌ 角色 {self.role} 无权限或无数据可读 → {resource}")
 
     def write(self, resource, data):
-        if not check_permission(self.role, "write", resource):
-            raise PermissionError(f"角色 {self.role} 无权写入资源 {resource}")
+        wrote = False
 
-        if self.role == "军师":
-            write_local_db(resource, data)
-            write_cloud_db(resource, data)  # 可改成异步执行
-        elif self.role == "锁灵":
-            write_cloud_db(resource, data)
+        # ① 本地写入
+        if check_permission(self.role, "write", resource, source="local"):
+            try:
+                write_local_db(resource, data)
+                log_event("access", self.role, "write", resource, "local", "success", "本地写入成功")
+                print(f"[LOCAL] 写入成功：{resource}")
+                wrote = True
+            except Exception as e:
+                log_event("access", self.role, "write", resource, "local", "error", str(e))
+                raise e
         else:
-            raise PermissionError(f"角色 {self.role} 不允许写操作")
+            log_event("auth", self.role, "write", resource, "local", "denied", "无本地写入权限")
 
-# 简单同步示范（可扩展为异步线程或任务队列）
-def sync_local_to_cloud(resource, data):
-    try:
-        write_cloud_db(resource, data)
-        print(f"同步成功：{resource}")
-    except Exception as e:
-        print(f"同步失败：{e}")
+        # ② 云端写入
+        if check_permission(self.role, "write", resource, source="cloud"):
+            try:
+                write_to_cloud(resource, data)
+                log_event("access", self.role, "write", resource, "cloud", "success", "云端写入成功")
+                print(f"[CLOUD] 写入成功：{resource}")
+                wrote = True
+            except Exception as e:
+                log_event("access", self.role, "write", resource, "cloud", "error", str(e))
+                raise e
+        else:
+            log_event("auth", self.role, "write", resource, "cloud", "denied", "无云端写入权限")
 
+        if not wrote:
+            raise PermissionError(f"❌ 角色 {self.role} 无权限写入 → {resource}")
+
+        return True
+
+# 🧪 示例测试代码（可保留用于终端快速验证）
 if __name__ == "__main__":
     dal = DataAccessLayer("军师")
 
-    # 读测试
     try:
-        recs = dal.read("memorys", {"persona": "军师"})
-        print("读取记录:", recs)
+        data = dal.read("memorys", {"persona": "军师"})
+        print("读取结果:", data)
     except PermissionError as e:
         print(e)
 
-    # 写测试
     try:
-        dal.write("memorys", {"persona": "军师", "content": "测试写入", "tags": '{"测试"}'})
-        print("写入成功")
+        dal.write("memorys", {"persona": "军师", "content": "测试数据", "tags": ["测试"]})
     except PermissionError as e:
         print(e)

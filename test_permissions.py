@@ -1,30 +1,33 @@
 # test_permissions.py
 
-from dal import DataAccessLayer  # 你的统一数据访问层
+from permission_checker import check_permission
+from src.logger_bridge import log_event
 
-def run_permission_tests():
-    roles = ["军师", "锁灵", "玉衡", "司铃", "小徒弟"]
-    resources = ["memorys", "memorys_public", "finance", "logs"]
-    actions = ["read", "write", "exec"]
+roles = ["军师", "锁灵", "玉衡", "司铃", "小徒弟"]
+resources = [
+    ("memory", "local"),
+    ("memorys", "local"),
+    ("customers", "local"),
+    ("logs", "local"),
+    ("finance", "local"),
+    ("memorys_public", "cloud"),
+    ("memorys", "cloud")
+]
+actions = ["read", "write", "exec"]
+
+def test_permissions():
+    print("🔍 权限校验测试开始\n")
 
     for role in roles:
-        dal = DataAccessLayer(role)
-        for resource in resources:
-            for action in actions:
-                try:
-                    if action == "read":
-                        dal.read(resource, {})
-                        print(f"[PASS] {role} 可读 {resource}")
-                    elif action == "write":
-                        dal.write(resource, {"test": "data"})
-                        print(f"[PASS] {role} 可写 {resource}")
-                    else:
-                        # exec 权限测试根据具体实现写
-                        print(f"[INFO] {role} 执行 {resource} 权限测试需定制")
-                except PermissionError:
-                    print(f"[DENY] {role} 无权 {action} {resource}")
-                except Exception as e:
-                    print(f"[ERROR] {role} {action} {resource} 时发生错误: {e}")
+        print(f"\n--- 角色：{role} ---")
+        for action in actions:
+            for resource, source in resources:
+                allowed = check_permission(role, action, resource, source=source)
+                status = "✅ PASS" if allowed else "❌ DENY"
+                print(f"{status:8} | {role:4} | {action:5} | {resource:15} | 来源：{source}")
+
+                # 同时记录行为日志（可选）
+                log_event("test", role, action, resource, source, "pass" if allowed else "deny")
 
 if __name__ == "__main__":
-    run_permission_tests()
+    test_permissions()
