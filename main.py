@@ -44,7 +44,9 @@ SUPER_SECRET_KEY = os.getenv("SUPER_SECRET_KEY")
 
 # ✅ FastAPI 初始化
 app = FastAPI()
-templates = Jinja2Templates(directory="templates")
+from pathlib import Path
+BASE_DIR = Path(__file__).resolve().parent
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # ✅ CORS 设置
