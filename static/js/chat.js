@@ -1,6 +1,9 @@
-// chat.js — Lockling 官网嵌入版（重构完成版）
+// chat.js — Lockling Chat Widget (Enhanced Version)
 document.addEventListener("DOMContentLoaded", () => {
   initChatForm();
+
+  // 👋 Welcome message when chat loads
+  appendMessage("Lockling", "👋 Welcome to LockJade. Lockling is at your service!", "bot");
 });
 
 function initChatForm() {
@@ -9,7 +12,7 @@ function initChatForm() {
   const chatBox = document.getElementById("chat-box");
 
   if (!form || !input || !chatBox) {
-    console.error("❌ 聊天窗口初始化失败，检查表单或输入框是否存在。");
+    console.error("❌ Chat window initialization failed.");
     return;
   }
 
@@ -17,15 +20,15 @@ function initChatForm() {
     event.preventDefault();
 
     document.getElementById('thinking-indicator').style.display = 'block';
-    
+
     const message = input.value.trim();
     if (!message) return;
 
-    appendMessage("你", message, "user");
+    appendMessage("You", message, "user");
     input.value = "";
 
-    // 添加“锁灵正在思考中...”的临时消息
-    appendMessage("锁灵", "⌛ 正在思考中...", "bot-temp");
+    // Temporary bot thinking message
+    appendMessage("Lockling", "⌛ Lockling is thinking...", "bot-temp");
 
     await sendMessage(message);
   });
@@ -42,8 +45,8 @@ async function sendMessage(message) {
       },
       body: JSON.stringify({
         message: message,
-        persona: "Lockling",         // ✅ 建议后期用 localStorage 替换
-        secret: "玉衡在手"            // ⚠️ 生产环境请改为后端 session 鉴权
+        persona: "Lockling",
+        secret: "玉衡在手"
       }),
     });
 
@@ -58,16 +61,10 @@ async function sendMessage(message) {
       replyText = typeof data === "string" ? data : JSON.stringify(data, null, 2);
     }
 
-    // ✅ 移除“正在思考中”提示
     if (tempMsg) tempMsg.remove();
     document.getElementById("thinking-indicator").style.display = "none";
 
-    // ✅ 显示机器人回复
     appendMessage("Lockling", replyText, "bot");
-
-    // ✅ 滚动到底部
-    const chatBox = document.getElementById("chat-box");
-    chatBox.scrollTop = chatBox.scrollHeight;
 
   } catch (error) {
     if (tempMsg) tempMsg.remove();
@@ -76,26 +73,28 @@ async function sendMessage(message) {
   }
 }
 
-
 function appendMessage(sender, text, type) {
   const chatBox = document.getElementById("chat-box");
-  if (!chatBox) return;  
+  if (!chatBox) return;
 
   const msg = document.createElement("div");
   msg.className = `message ${type}-message`;
 
   if (type === "bot-temp") {
-    msg.classList.add("bot-temp-message"); // 临时消息，用于替换
-  } 
-    
-  if (typeof text === "object") {   
-    try {
-      msg.textContent = `${sender}：${text?.reply || "[无回应]"}`;
-    } catch (err) {
-      msg.textContent = `${sender}：[无法解析内容]`;
-    }
+    msg.classList.add("bot-temp-message");
+    msg.innerHTML = `
+      <div class="bot-message-with-avatar">
+        <img src="/static/img/lockling-avatar.png" class="avatar" />
+        <div class="bot-bubble">⌛ Lockling is thinking...</div>
+      </div>`;
+  } else if (type === "bot") {
+    msg.innerHTML = `
+      <div class="bot-message-with-avatar">
+        <img src="/static/img/lockling-avatar.png" class="avatar" />
+        <div class="bot-bubble">${text}</div>
+      </div>`;
   } else {
-    msg.textContent = `${sender}：${text}`;
+    msg.innerHTML = `<div class="user-bubble"><strong>${sender}:</strong> ${text}</div>`;
   }
 
   chatBox.appendChild(msg);
