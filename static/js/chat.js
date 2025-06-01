@@ -67,17 +67,16 @@ async function sendMessage(message) {
 
 function appendMessage(sender, text, type) {
   const chatBox = document.getElementById("chat-box");
-  if (!chatBox) return;
+  if (!chatBox) return;  
 
   const msg = document.createElement("div");
   msg.className = `message ${type}-message`;
 
   if (type === "bot-temp") {
     msg.classList.add("bot-temp-message"); // 临时消息，用于替换
-  }
-
-  // 判断类型美化
-  if (typeof text === "object") {
+  } 
+    
+  if (typeof text === "object") {   
     try {
       msg.textContent = `${sender}：${text?.reply || "[无回应]"}`;
     } catch (err) {
@@ -90,4 +89,3 @@ function appendMessage(sender, text, type) {
   chatBox.appendChild(msg);
   chatBox.scrollTop = chatBox.scrollHeight;
 }
-

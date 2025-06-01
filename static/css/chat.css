@@ -8,15 +8,16 @@ body {
 }
 
 #lockling-chat-widget {
-  max-width: 600px;
-  margin: auto;
+  width: 90%;
+  max-width: 960px;              /* ✅ 更宽 */
+  margin: 40px auto;             /* ✅ 顶部留白适中 */
   border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  border-radius: 10px;
   background-color: #ffffff;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
   display: flex;
   flex-direction: column;
-  height: 80vh;
+  height: 90vh;                  /* ✅ 增高一点，留更多空间 */
 }
 
 #chat-box {
