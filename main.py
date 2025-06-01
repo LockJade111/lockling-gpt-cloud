@@ -9,6 +9,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from generate_reply_with_gpt import generate_reply 
+from src.supabase_logger import query_logs
 
 # ✅ 智能写入桥函数（放在 main.py 顶部 write_log 导入下方）
 from src.supabase_logger import write_log_to_supabase
