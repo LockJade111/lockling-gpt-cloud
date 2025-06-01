@@ -1,22 +1,37 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>锁灵 · 智能助手</title>
-  <link rel="stylesheet" href="/static/css/chat.css"> <!-- ✅ 已正确引入 -->
+  <title>LockJade · Lockling Assistant</title>
+  <link rel="stylesheet" href="/static/css/chat.css">
 </head>
 <body>
-  <div id="chat-box" class="chat-box"></div>
+  <div id="lockling-chat-widget">
+    
+    <!-- ✅ 顶部欢迎区 -->
+    <div id="chat-header">
+      <h2>🔐 Welcome to LockJade — <span class="highlight-name">Lockling</span> is here to assist you.</h2>
+      <div id="thinking-indicator" style="display: none;">🤖 Thinking...</div>
+    </div>
 
-  <form id="chat-form" class="chat-form">
-    <input type="text" id="user-input" placeholder="输入内容..." autocomplete="off">
-    <button type="submit">发送</button>
+    <!-- ✅ 聊天气泡区 -->
+    <div id="chat-box" class="chat-box">
+      <!-- 聊天气泡会通过 JavaScript 插入 -->
+    </div>
 
-    <!-- ✅ 隐藏字段（模拟身份和口令） -->
-    <input type="hidden" id="persona" value="将军猫">
-    <input type="hidden" id="secret" value="玉衡在手">
-  </form>
+    <!-- ✅ 输入表单区 -->
+    <form id="chat-form" class="chat-form" enctype="multipart/form-data">
+      <input type="text" id="user-input" placeholder="Type your message..." autocomplete="off">
+      <input type="file" id="image-upload" accept="image/*">
+      <button type="submit">Send</button>
 
+      <!-- ✅ 隐藏身份字段 -->
+      <input type="hidden" id="persona" value="Lockling">
+      <input type="hidden" id="secret" value="lockjade-key">
+    </form>
+  </div>
+
+  <!-- ✅ 主脚本 -->
   <script src="/static/js/chat.js"></script>
 </body>
 </html>

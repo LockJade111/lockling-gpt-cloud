@@ -118,3 +118,26 @@ body {
     margin-top: 10px;
   }
 }
+
+
+#chat-header {
+  padding: 20px;
+  border-bottom: 1px solid #e5e7eb;
+  background-color: #f3f4f6;
+  border-radius: 10px 10px 0 0;
+  text-align: center;
+}
+
+#chat-header h2 {
+  margin: 0;
+  font-size: 18px;
+  color: #1f2937;
+  font-weight: 600;
+}
+
+#thinking-indicator {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #6b7280;
+  font-style: italic;
+}

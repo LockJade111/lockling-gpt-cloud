@@ -16,6 +16,8 @@ function initChatForm() {
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
 
+    document.getElementById('thinking-indicator').style.display = 'block';
+    
     const message = input.value.trim();
     if (!message) return;
 
@@ -35,11 +37,13 @@ async function sendMessage(message) {
   try {
     const response = await fetch("/chat", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
         message: message,
-        persona: "锁灵",       // ✅ 后续可用 localStorage / 用户设置 替换
-        secret: "玉衡在手"     // ✅ 安全建议：勿在生产环境硬编码密钥
+        persona: "Lockling",         // ✅ 建议后期用 localStorage 替换
+        secret: "玉衡在手"            // ⚠️ 生产环境请改为后端 session 鉴权
       }),
     });
 
@@ -54,16 +58,24 @@ async function sendMessage(message) {
       replyText = typeof data === "string" ? data : JSON.stringify(data, null, 2);
     }
 
-    // 移除“正在思考中”临时消息
+    // ✅ 移除“正在思考中”提示
     if (tempMsg) tempMsg.remove();
+    document.getElementById("thinking-indicator").style.display = "none";
 
-    appendMessage("锁灵", replyText, "bot");
+    // ✅ 显示机器人回复
+    appendMessage("Lockling", replyText, "bot");
+
+    // ✅ 滚动到底部
+    const chatBox = document.getElementById("chat-box");
+    chatBox.scrollTop = chatBox.scrollHeight;
 
   } catch (error) {
     if (tempMsg) tempMsg.remove();
-    appendMessage("锁灵", `❌ 网络错误：${error.message || error}`, "bot");
+    document.getElementById("thinking-indicator").style.display = "none";
+    appendMessage("Lockling", `❌ Network Error: ${error.message || error}`, "bot");
   }
 }
+
 
 function appendMessage(sender, text, type) {
   const chatBox = document.getElementById("chat-box");
