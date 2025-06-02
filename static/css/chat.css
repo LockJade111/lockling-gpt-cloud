@@ -58,38 +58,44 @@ body {
   text-align: left;
 }
 
+
 .bot-message-with-avatar {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: 8px;
+  margin-bottom: 6px;
 }
 
 .bot-message-with-avatar .avatar {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid #e5e7eb;
+  border: 1px solid #e5e7eb;
+  margin-top: 2px;
 }
 
-
+/* 气泡通用结构优化：高度、行距、字距 */
 .bot-bubble, .user-bubble {
-  padding: 8px 12px;
-  margin: 4px 0;
+  padding: 6px 12px;
+  margin: 2px 0;
   border-radius: 12px;
   max-width: 70%;
   font-size: 14px;
   line-height: 1.4;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
+/* 具体配色保持不变 */
 .bot-bubble {
-  background-color: #f2f2f2;
+  background-color: #f3f4f6;
 }
 
 .user-bubble {
   background-color: #d6eaff;
   align-self: flex-end;
 }
+
 
 .bot-temp-message {
   opacity: 0.7;
