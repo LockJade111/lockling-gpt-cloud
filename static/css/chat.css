@@ -50,6 +50,11 @@ body {
   margin-bottom: 6px;
 }
 
+.message.user-message {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .bot-message-with-avatar .avatar {
   width: 32px;
   height: 32px;
