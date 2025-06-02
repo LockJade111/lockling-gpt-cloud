@@ -1,4 +1,4 @@
-/* === Lockling Chat UI 样式 - 改进版（gap优化） === */
+/* === Lockling Chat UI 样式 - 最终修正版 === */
 
 body {
   font-family: "Helvetica Neue", sans-serif;
@@ -27,37 +27,21 @@ body {
   padding: 24px;
   background-color: #fefefe;
   border-bottom: 1px solid #e5e7eb;
-  min-height: 400px;   /* ✅ 增加初始高度 */
-  max-height: 70vh;    /* ✅ 保留滚动空间 */
+  min-height: 400px;
+  max-height: 70vh;
   scroll-behavior: smooth;
 }
 
+/* ✅ 逻辑容器：保留结构，取消视觉样式 */
 .message {
-  margin-bottom: 12px;
-  line-height: 1.5;
-  max-width: 80%;
-  padding: 10px 14px;
-  border-radius: 14px;
-  display: inline-block;
+  background: none;
+  padding: 0;
+  margin: 0;
+  border: none;
+  box-shadow: none;
   clear: both;
-  word-break: break-word;
-  white-space: pre-wrap;
+  display: block;
 }
-
-.user-message {
-  background-color: #dbeafe;
-  color: #1e3a8a;
-  float: right;
-  text-align: right;
-}
-
-.bot-message {
-  background-color: #f3f4f6;
-  color: #111827;
-  float: left;
-  text-align: left;
-}
-
 
 .bot-message-with-avatar {
   display: flex;
@@ -75,27 +59,37 @@ body {
   margin-top: 2px;
 }
 
-/* 气泡通用结构优化：高度、行距、字距 */
+/* ✅ 主气泡样式 */
 .bot-bubble, .user-bubble {
   padding: 6px 12px;
-  margin: 2px 0;
+  margin: 4px 0;
   border-radius: 12px;
   max-width: 70%;
   font-size: 14px;
   line-height: 1.4;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  word-break: break-word;
+  white-space: pre-wrap;
 }
 
-/* 具体配色保持不变 */
 .bot-bubble {
   background-color: #f3f4f6;
+  color: #111827;
 }
 
 .user-bubble {
   background-color: #d6eaff;
+  color: #1e3a8a;
   align-self: flex-end;
+  text-align: right;
 }
 
+/* 🧼 嵌套防御：防止多层 bubble 显示错乱 */
+.bot-bubble .bot-bubble,
+.user-bubble .user-bubble {
+  all: unset;
+  display: contents;
+}
 
 .bot-temp-message {
   opacity: 0.7;
@@ -107,7 +101,7 @@ body {
   padding: 12px 16px;
   border-top: 1px solid #e5e7eb;
   background-color: #f9fafb;
-  gap: 12px; /* ✅ 使用现代 gap 替代 margin */
+  gap: 12px;
 }
 
 #user-input {
@@ -140,25 +134,6 @@ body {
   background-color: #1d4ed8;
 }
 
-/* 移动端自适应 */
-@media (max-width: 600px) {
-  #lockling-chat-widget {
-    height: 90vh;
-    border-radius: 0;
-    width: 100%;
-  }
-
-  #chat-form {
-    flex-direction: column;
-  }
-
-  #chat-form button {
-    width: 100%;
-    margin-top: 10px;
-  }
-}
-
-
 #chat-header {
   padding: 20px;
   border-bottom: 1px solid #e5e7eb;
@@ -179,4 +154,22 @@ body {
   font-size: 14px;
   color: #6b7280;
   font-style: italic;
+}
+
+/* 📱 移动端优化 */
+@media (max-width: 600px) {
+  #lockling-chat-widget {
+    height: 90vh;
+    border-radius: 0;
+    width: 100%;
+  }
+
+  #chat-form {
+    flex-direction: column;
+  }
+
+  #chat-form button {
+    width: 100%;
+    margin-top: 10px;
+  }
 }
