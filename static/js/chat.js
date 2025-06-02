@@ -80,7 +80,9 @@ function appendMessage(sender, text, type) {
   const msg = document.createElement("div");
   msg.className = `message ${type}-message`;
 
-  if (type === "bot-temp") {
+    msg.classList.add("bot-temp-message");
+  msg.inner
+if (type === "bot-temp") {
     msg.classList.add("bot-temp-message");
     msg.innerHTML = `
       <div class="bot-message-with-avatar">
