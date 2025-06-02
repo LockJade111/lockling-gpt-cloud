@@ -82,21 +82,39 @@ function appendMessage(sender, text, type) {
 
   if (type === "bot-temp") {
     msg.classList.add("bot-temp-message");
-    msg.innerHTML = `
-      <div class="bot-message-with-avatar">
-        <div class="bot-bubble">⌛ typing...</div>
-      </div>`;
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "bot-message-with-avatar";
+
+    const bubble = document.createElement("div");
+    bubble.className = "bot-bubble";
+    bubble.textContent = "⌛ typing...";
+
+    wrapper.appendChild(bubble);
+    msg.appendChild(wrapper);
+
   } else if (type === "bot") {
-    msg.innerHTML = `
-      <div class="bot-message-with-avatar">
-        <img src="/static/img/lockling-avatar.png" class="avatar" />
-        <div class="bot-bubble">${text}</div>
-      </div>`;
+    const wrapper = document.createElement("div");
+    wrapper.className = "bot-message-with-avatar";
+
+    const avatar = document.createElement("img");
+    avatar.src = "/static/img/lockling-avatar.png";
+    avatar.className = "avatar";
+
+    const bubble = document.createElement("div");
+    bubble.className = "bot-bubble";
+    bubble.innerHTML = text;
+
+    wrapper.appendChild(avatar);
+    wrapper.appendChild(bubble);
+    msg.appendChild(wrapper);
+
   } else {
-    msg.innerHTML = `
-      <div class="user-bubble">
-        <strong>${sender}:</strong> ${text}
-      </div>`;
+    // ✅ 正确渲染 user 消息，无嵌套气泡
+    const bubble = document.createElement("div");
+    bubble.className = "user-bubble";
+    bubble.innerHTML = `<strong>${sender}:</strong> ${text}`;
+    msg.appendChild(bubble);
   }
 
   chatBox.appendChild(msg);
