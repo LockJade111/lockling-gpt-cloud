@@ -80,9 +80,20 @@ body {
 .user-bubble {
   background-color: #d6eaff;
   color: #1e3a8a;
+  padding: 6px 12px;
+  margin: 4px 0;
+  border-radius: 12px;
+  max-width: 70%;
+  font-size: 14px;
+  line-height: 1.4;
+  word-break: break-word;
+  white-space: pre-wrap;
   align-self: flex-end;
-  text-align: right;
+  text-align: left;           /* ✅ 改回左对齐 */
+  float: none !important;     /* ✅ 防止继承 float: right */
+  display: inline-block;      /* ✅ 控制宽度不撑满 */
 }
+
 
 /* 🧼 嵌套防御：防止多层 bubble 显示错乱 */
 .bot-bubble .bot-bubble,
