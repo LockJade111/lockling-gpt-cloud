@@ -80,14 +80,11 @@ function appendMessage(sender, text, type) {
   const msg = document.createElement("div");
   msg.className = `message ${type}-message`;
 
-    msg.classList.add("bot-temp-message");
-  msg.inner
-if (type === "bot-temp") {
+  if (type === "bot-temp") {
     msg.classList.add("bot-temp-message");
     msg.innerHTML = `
       <div class="bot-message-with-avatar">
-        <img src="/static/img/lockling-avatar.png" class="avatar" />
-        <div class="bot-bubble">⌛ Lockling is thinking...</div>
+        <div class="bot-bubble">⌛ typing...</div>
       </div>`;
   } else if (type === "bot") {
     msg.innerHTML = `
@@ -96,7 +93,10 @@ if (type === "bot-temp") {
         <div class="bot-bubble">${text}</div>
       </div>`;
   } else {
-    msg.innerHTML = `<div class="user-bubble"><strong>${sender}:</strong> ${text}</div>`;
+    msg.innerHTML = `
+      <div class="user-bubble">
+        <strong>${sender}:</strong> ${text}
+      </div>`;
   }
 
   chatBox.appendChild(msg);
