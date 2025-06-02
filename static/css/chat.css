@@ -73,14 +73,15 @@ body {
 }
 
 .bot-bubble {
-  background-color: #f3f4f6;
-  padding: 10px 14px;
-  border-radius: 12px;
-  max-width: 75%;
-  line-height: 1.5;
-  color: #111827;
+  background: #f4f4f4;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 14px;
+  max-width: 60%;
+  line-height: 1.4;
+  color: #222;
+  margin: 4px 0;
 }
-
 
 .bot-temp-message {
   opacity: 0.7;
@@ -143,6 +144,18 @@ body {
   }
 }
 
+.user-bubble {
+  background: #dbeafe;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 14px;
+  max-width: 55%;
+  line-height: 1.4;
+  color: #1e3a8a;
+  text-align: right;
+  margin-left: auto;
+  margin: 4px 0;
+}
 
 #chat-header {
   padding: 20px;
