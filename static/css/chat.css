@@ -74,26 +74,16 @@ body {
 
 .bot-bubble {
   background: #f4f4f4;
-  padding: 6px 10px;
+  padding: 6px 12px;
   border-radius: 10px;
-  font-size: 13.5px;
-  max-width: 58%;
-  line-height: 1.4;
+  font-size: 14px;
+  max-width: 60%;
+  line-height: 1.5;
   color: #1f2937;
+  word-wrap: break-word;
+  display: inline-block;
   margin: 4px 0;
-}
-
-.user-bubble {
-  background: #dbeafe;
-  padding: 6px 10px;
-  border-radius: 10px;
-  font-size: 13.5px;
-  max-width: 52%;
-  line-height: 1.4;
-  color: #1e3a8a;
-  text-align: right;
-  margin-left: auto;
-  margin: 4px 0;
+  text-align: left;
 }
 
 .bot-temp-message {
