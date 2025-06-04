@@ -133,6 +133,9 @@ async def chat(request: Request):
             "permissions": []
         })
 
+
+
+
 # ✅ 主路由：统一处理外部请求
 @app.post("/")
 async def main_router(request: Request):
@@ -284,3 +287,22 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
 
+
+
+# ✅ 军师页面展示
+@app.get("/advisor", response_class=HTMLResponse)
+async def advisor_page(request: Request):
+    return templates.TemplateResponse("military_advisor.html", {"request": request})
+
+# ✅ 军师消息处理接口
+@app.post("/advisor/message")
+async def advisor_message(request: Request):
+    data = await request.json()
+    user_message = data.get("message", "")
+
+    # 临时 mock 军师回应（你可以替换为真实解析函数）
+    def generate_strategist_response(msg):
+        return f"（军师）吾听汝言：{msg}，略有所思，权衡再议如下…"
+
+    response = generate_strategist_response(user_message)
+    return JSONResponse({"response": response})
