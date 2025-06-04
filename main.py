@@ -301,24 +301,33 @@ async def advisor_message(request: Request):
     data = await request.json()
     user_message = data.get("message", "")
     persona = "军师"
-    secret = SUPER_SECRET_KEY  # 确保已从 .env 中加载
+    secret = SUPER_SECRET_KEY
 
     try:
-        intent = dispatch_intent(user_message, persona)
-        permission = check_secret_permission(intent, persona, secret)
+        # 第一步：意图解析
+        intent = parse_intent(user_message, persona, secret)
 
+        # 第二步：权限验证
+        permission = check_secret_permission(intent, persona, secret)
         if not permission.get("allow"):
             return JSONResponse({
                 "response": f"❌ 无权限：{permission['reason']}",
                 "intent": intent
             })
 
-        reply = generate_reply(user_message, persona)
-        return JSONResponse({"response": reply, "intent": intent})
+        # 第三步：调用主分发器执行
+        result = intent_dispatcher(intent)
+        reply = result.get("reply", "🤖 暂无回复")
+
+        # 第四步：返回给前端
+        return JSONResponse({
+            "response": reply,
+            "intent": intent
+        })
 
     except Exception as e:
         return JSONResponse({
-            "response": f"❌ 军师接口错误：{str(e)}",
+            "response": f"❌ 军师接口异常：{str(e)}",
             "intent": {
                 "intent_type": "error",
                 "persona": persona,
