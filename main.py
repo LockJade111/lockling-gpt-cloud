@@ -300,6 +300,7 @@ async def advisor_page(request: Request):
 async def advisor_message(request: Request):
     data = await request.json()
     user_message = data.get("message", "")
+    print(f"📩 接收到军师请求：{user_message}")
     persona = "军师"
     secret = SUPER_SECRET_KEY
 

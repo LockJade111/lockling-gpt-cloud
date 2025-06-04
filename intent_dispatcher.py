@@ -141,9 +141,20 @@ def handle_confirm_identity(intent):
     }
 
 # ✅ 主控分发器
+
 def intent_dispatcher(intent):
+    persona = intent.get("persona", "")
     intent_type = intent.get("intent_type", "")
 
+    # ✅ 云脑中枢静默模式（只执行，不回复）
+    if persona == "cloud_core":
+        return {
+            "status": "silent",
+            "reply": f"🤖 云脑中枢：已识别指令 {intent_type}，不作回复，仅执行。",
+            "intent": intent
+        }
+
+    # ✅ 常规指令派发
     if intent_type == "authorize":
         return handle_authorize(intent)
     elif intent_type == "confirm_identity":
@@ -167,6 +178,7 @@ def intent_dispatcher(intent):
             "intent": intent
         }
 
+
 # ✅ 供外部调用
 __all__ = ["intent_dispatcher"]
 
@@ -180,7 +192,7 @@ def dispatch_intent(intent: dict, persona: str):
         return f"⛔️ 拒绝访问：{intent.get('reason', '无权限')}"
 
     elif intent_type == "chitchat":
-        return handle_chitchat(raw_text, persona)
+        return handle_chitchat(intent)
 
     elif intent_type == "advice":
         return strategist_advice(raw_text)

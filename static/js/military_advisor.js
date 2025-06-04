@@ -1,39 +1,41 @@
-async function sendMessage() {
+document.addEventListener("DOMContentLoaded", () => {
   const input = document.getElementById("user-input");
-  const message = input.value.trim();
-  if (!message) return;
+  const sendBtn = document.getElementById("send-button");
 
-  appendToChat("你", message);
-  input.value = "";
+  function appendToChat(sender, text) {
+    const chatBox = document.getElementById("chat-box");
+    const messageDiv = document.createElement("div");
+    messageDiv.innerHTML = `<strong>${sender}:</strong> ${text}`;
+    chatBox.appendChild(messageDiv);
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
 
-  const res = await fetch("/advisor/message", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message })
-  });
+  async function sendMessage() {
+    const message = input.value.trim();
+    if (!message) return;
 
-  const data = await res.json();
-  appendToChat("军师", data.response);
-}
+    appendToChat("你", message);
+    input.value = "";
 
-function appendToChat(sender, text) {
-  const chatBox = document.getElementById("chat-box");
-  const messageDiv = document.createElement("div");
-  messageDiv.innerHTML = `<strong>${sender}:</strong> ${text}`;
-  chatBox.appendChild(messageDiv);
-  chatBox.scrollTop = chatBox.scrollHeight;
-}
-
-function sendToAdvisor() {
-    const message = document.getElementById("userInput").value;
-
-    fetch("/advisor/message", {
+    try {
+      const res = await fetch("/advisor/message", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: message, secret: "your_dev_key" })  // ⛳️ 替换成真实密钥
-    })
-    .then(res => res.json())
-    .then(data => {
-        document.getElementById("responseArea").innerText = data.response || data.error;
-    });
-}
+        body: JSON.stringify({
+          message: message,
+          secret: "your_dev_key" // ⛳️ 替换成你的实际密钥
+        }),
+      });
+
+      const data = await res.json();
+      appendToChat("军师", data.response || data.error || "⚠️ 无回复");
+    } catch (err) {
+      appendToChat("系统", "❌ 请求失败，请检查网络或后端服务。");
+    }
+  }
+
+  sendBtn.addEventListener("click", sendMessage);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") sendMessage();
+  });
+});
