@@ -23,3 +23,17 @@ function appendToChat(sender, text) {
   chatBox.appendChild(messageDiv);
   chatBox.scrollTop = chatBox.scrollHeight;
 }
+
+function sendToAdvisor() {
+    const message = document.getElementById("userInput").value;
+
+    fetch("/advisor/message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: message, secret: "your_dev_key" })  // ⛳️ 替换成真实密钥
+    })
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById("responseArea").innerText = data.response || data.error;
+    });
+}

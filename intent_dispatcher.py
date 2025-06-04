@@ -169,3 +169,25 @@ def intent_dispatcher(intent):
 
 # ✅ 供外部调用
 __all__ = ["intent_dispatcher"]
+
+
+
+def dispatch_intent(intent: dict, persona: str):
+    intent_type = intent.get("intent_type", "unknown")
+    raw_text = intent.get("raw", "")
+
+    if intent_type == "unauthorized":
+        return f"⛔️ 拒绝访问：{intent.get('reason', '无权限')}"
+
+    elif intent_type == "chitchat":
+        return handle_chitchat(raw_text, persona)
+
+    elif intent_type == "advice":
+        return strategist_advice(raw_text)
+
+    elif intent_type == "view_logs":
+        return "🗂 查看日志功能尚在开发中"
+
+    # 可继续添加更多意图分支，如: memory_query, system_status, etc.
+    else:
+        return f"🤔 暂无法理解你的意图「{intent_type}」"

@@ -5,6 +5,15 @@ from library.lockling_prompt import get_chitchat_prompt_system, format_user_mess
 
 from pathlib import Path
 
+
+from pathlib import Path
+
+# ✅ 加载 strategist_prompt.txt 作为军师角色的基础 prompt
+STRATEGIST_PROMPT_PATH = Path(__file__).resolve().parent / "library/strategist_prompt.txt"
+with open(STRATEGIST_PROMPT_PATH, "r", encoding="utf-8") as f:
+    STRATEGIST_PROMPT = f.read()
+
+
 # ✅ 强制加载当前脚本所在目录的 .env 文件
 env_path = Path(__file__).resolve().parent / ".env"
 load_dotenv(dotenv_path=env_path)
@@ -37,6 +46,22 @@ def handle_chitchat(intent: dict) -> dict:
 
 
 # ✅ 非闲聊任务回复如解锁指令指令反馈等
+
+def generate_reply(message: str, persona: str, mode: str = "default") -> str:
+    if persona == "军师":
+        prompt = STRATEGIST_PROMPT + "\n\n用户：" + message
+    else:
+        prompt = get_lockling_prompt(message, mode=mode)
+
+    try: 
+        response = client.chat.completions.create(
+            model=os.getenv("GPT_MODEL", "gpt-4"),
+            messages=[{"role": "system", "content": prompt}]
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        return f"❌ 网络错误{str(e)}"
+
 def generate_reply(message: str, persona: str, mode: str = "default") -> str:
     prompt = get_lockling_prompt(message, mode=mode)  # ✅ 自定义模式如 ritualpro 等
 

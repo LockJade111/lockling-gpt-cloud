@@ -27,6 +27,7 @@ def write_log_bridge(message, result, intent, status):
         print("⚠️ 日志写入异常", e)
 
 # ✅ 模块引入（顶部）
+from intent_dispatcher import dispatch_intent
 from intent_dispatcher import parse_intent        # ✅ 云脑中枢替代旧 intent 模块
 from check_permission import check_secret_permission
 from generate_reply_with_gpt import generate_reply
@@ -299,10 +300,28 @@ async def advisor_page(request: Request):
 async def advisor_message(request: Request):
     data = await request.json()
     user_message = data.get("message", "")
+    persona = "军师"
+    secret = SUPER_SECRET_KEY  # 确保已从 .env 中加载
 
-    # 临时 mock 军师回应（你可以替换为真实解析函数）
-    def generate_strategist_response(msg):
-        return f"（军师）吾听汝言：{msg}，略有所思，权衡再议如下…"
+    try:
+        intent = dispatch_intent(user_message, persona)
+        permission = check_secret_permission(intent, persona, secret)
 
-    response = generate_strategist_response(user_message)
-    return JSONResponse({"response": response})
+        if not permission.get("allow"):
+            return JSONResponse({
+                "response": f"❌ 无权限：{permission['reason']}",
+                "intent": intent
+            })
+
+        reply = generate_reply(user_message, persona)
+        return JSONResponse({"response": reply, "intent": intent})
+
+    except Exception as e:
+        return JSONResponse({
+            "response": f"❌ 军师接口错误：{str(e)}",
+            "intent": {
+                "intent_type": "error",
+                "persona": persona,
+                "error": str(e)
+            }
+        })
