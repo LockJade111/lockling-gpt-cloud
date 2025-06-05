@@ -296,39 +296,50 @@ async def advisor_page(request: Request):
     return templates.TemplateResponse("military_advisor.html", {"request": request})
 
 # ✅ 军师消息处理接口
+# ✅ 军师消息处理接口（新版，标准结构）
 @app.post("/advisor/message")
 async def advisor_message(request: Request):
-    data = await request.json()
-    user_message = data.get("message", "")
-    print(f"📩 接收到军师请求：{user_message}")
-    persona = "军师"
-    secret = SUPER_SECRET_KEY
-
     try:
-        # 第一步：意图解析
+        data = await request.json()
+        user_message = data.get("message", "")
+        persona = data.get("persona", "军师")
+        secret = SUPER_SECRET_KEY
+
+        print(f"📩 接收到军师请求：{user_message}（来自 {persona}）")
+
+        # 步骤一：解析意图
         intent = parse_intent(user_message, persona, secret)
 
-        # 第二步：权限验证
+        # 步骤二：检查权限
         permission = check_secret_permission(intent, persona, secret)
-        if not permission.get("allow"):
-            return JSONResponse({
-                "response": f"❌ 无权限：{permission['reason']}",
+        if not permission.get("allow", False):
+            print("⛔️ 权限拒绝：", permission["reason"])
+            return JSONResponse(status_code=403, content={
+                "status": "unauthorized",
+                "reply": f"⛔️ 无权限：{permission['reason']}",
                 "intent": intent
             })
 
-        # 第三步：调用主分发器执行
+        # 步骤三：调用总分发器执行任务
         result = intent_dispatcher(intent)
         reply = result.get("reply", "🤖 暂无回复")
+        status = result.get("status", "success")
 
-        # 第四步：返回给前端
-        return JSONResponse({
-            "response": reply,
+        # 步骤四：记录日志（可选）
+        write_log_bridge(user_message, reply, intent, status)
+
+        # 步骤五：返回前端
+        return JSONResponse(content={
+            "status": status,
+            "reply": reply,
             "intent": intent
         })
 
     except Exception as e:
-        return JSONResponse({
-            "response": f"❌ 军师接口异常：{str(e)}",
+        print("❌ 军师接口异常：", e)
+        return JSONResponse(status_code=500, content={
+            "status": "error",
+            "reply": f"❌ 军师中枢出错：{str(e)}",
             "intent": {
                 "intent_type": "error",
                 "persona": persona,
